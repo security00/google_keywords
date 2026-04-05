@@ -1,0 +1,8044 @@
+{
+  "timestamp": "2026-02-09T09:08:04.288Z",
+  "keywords": [
+    "action",
+    "advisor",
+    "agent",
+    "ai",
+    "analyzer",
+    "anime",
+    "answer",
+    "art",
+    "assistant",
+    "audio",
+    "avatar",
+    "best",
+    "builder",
+    "calculator",
+    "cartoon",
+    "cataloger",
+    "character",
+    "chart",
+    "chat",
+    "cheat",
+    "checker",
+    "clue",
+    "code",
+    "coloring",
+    "page",
+    "comparator",
+    "compiler",
+    "composer",
+    "connector",
+    "constructor",
+    "convert",
+    "converter",
+    "crawler",
+    "creator",
+    "dashboard",
+    "designer",
+    "detector",
+    "diagram",
+    "directory",
+    "downloader",
+    "editor",
+    "emoji",
+    "enhancer",
+    "evaluator",
+    "example",
+    "explorer",
+    "extractor",
+    "face",
+    "faq",
+    "figure",
+    "filter",
+    "finder",
+    "font",
+    "format",
+    "generator",
+    "graph",
+    "guide",
+    "helper",
+    "hint",
+    "how",
+    "to",
+    "humanizer",
+    "icon",
+    "ideas",
+    "illustration",
+    "image",
+    "interior",
+    "design",
+    "interpreter",
+    "layout",
+    "list",
+    "logo",
+    "maker",
+    "manager",
+    "meme",
+    "model",
+    "modifier",
+    "monitor",
+    "music",
+    "navigator",
+    "notifier",
+    "online",
+    "optimizer",
+    "paraphraser",
+    "pattern",
+    "photo",
+    "picture",
+    "planner",
+    "portal",
+    "portrait",
+    "processor",
+    "product",
+    "receiver",
+    "recommend",
+    "recorder",
+    "resources",
+    "responder",
+    "restorer",
+    "review",
+    "sample",
+    "scheduler",
+    "scraper",
+    "sender",
+    "simulator",
+    "solver",
+    "song",
+    "sound",
+    "speech",
+    "starter",
+    "studio",
+    "style",
+    "summarizer",
+    "summary",
+    "syncer",
+    "tattoo",
+    "template",
+    "tester",
+    "text",
+    "tool",
+    "top",
+    "tracker",
+    "transcriber",
+    "translator",
+    "uploader",
+    "upscaler",
+    "verifier",
+    "video",
+    "viewer",
+    "voice",
+    "writer"
+  ],
+  "dateFrom": "2026-02-02",
+  "dateTo": "2026-02-09",
+  "candidates": [
+    {
+      "keyword": "claude agent teams",
+      "value": 6350,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "claude code agent teams",
+      "value": 5150,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "salisbury nerve agent attack",
+      "value": 3100,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "claude code agent team",
+      "value": 2200,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "claude agent team",
+      "value": 950,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "moussa sissoko agent",
+      "value": 800,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "when is giannis a free agent",
+      "value": 350,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "was epstein a mossad agent",
+      "value": 250,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "border patrol agent jesus ochoa",
+      "value": 180,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "mossad agent",
+      "value": 140,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "ice agent ambushed in arizona",
+      "value": 120,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "agent teams",
+      "value": 110,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "valorant new agent",
+      "value": 110,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "claude agent",
+      "value": 70,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "anthropic new ai tool",
+      "value": 2500,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "anthropic ai tool",
+      "value": 1950,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "openclaw ai",
+      "value": 250,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "anthropic ai",
+      "value": 250,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai agents moltbook",
+      "value": 180,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "skywork ai",
+      "value": 180,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "衆議院 選挙 予想 ai",
+      "value": 140,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "moltbook ai",
+      "value": 130,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "moltbook ai social network",
+      "value": 60,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "mail header analyzer",
+      "value": 50,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "jee mains 2026 response sheet",
+      "value": 900,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "nta jee mains",
+      "value": 450,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "nta jee mains answer key",
+      "value": 450,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee main nta",
+      "value": 400,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "nta jee main 2026 answer key",
+      "value": 350,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee mains 2026 answer key",
+      "value": 350,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee mains answer key",
+      "value": 300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee mains 2026",
+      "value": 300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee mains",
+      "value": 300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "abigail bell art",
+      "value": 1100,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "art fair philippines 2026",
+      "value": 250,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "india art fair",
+      "value": 190,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "india art fair 2026",
+      "value": 150,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "text art",
+      "value": 80,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "abstract art",
+      "value": 50,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "rbi assistant notification 2023",
+      "value": 600,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant cutoff",
+      "value": 350,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "x rite color assistant",
+      "value": 350,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant cut off",
+      "value": 300,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant previous year paper",
+      "value": 250,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "x-rite color assistant",
+      "value": 250,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "primary assistant teacher result",
+      "value": 160,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "home assistant 2026.2",
+      "value": 160,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant exam pattern",
+      "value": 150,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "teaching assistant",
+      "value": 150,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant notification",
+      "value": 140,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "ncert assistant professor recruitment",
+      "value": 140,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant notification 2026",
+      "value": 130,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "primary assistant teacher result 2026",
+      "value": 130,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant",
+      "value": 110,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant exam date 2026",
+      "value": 110,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "junior judicial assistant",
+      "value": 90,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant 2026",
+      "value": 90,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "assistant coach of the year",
+      "value": 90,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant syllabus",
+      "value": 60,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "assistant s and t in railway",
+      "value": 50,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rbi assistant salary",
+      "value": 40,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "jee mains score calculator",
+      "value": 5150,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "jee main score calculator",
+      "value": 4650,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "jee mains",
+      "value": 2000,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "chat gpt cartoon trend",
+      "value": 5550,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "ai cartoon trend",
+      "value": 5450,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "chatgpt cartoon trend",
+      "value": 4250,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "chatgpt caricature",
+      "value": 2200,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "chat gpt cartoon",
+      "value": 550,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "chatgpt cartoon",
+      "value": 200,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "ai cartoon",
+      "value": 60,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "chatgpt character trend",
+      "value": 8800,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack fair",
+      "value": 1700,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack fair character",
+      "value": 1550,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "chat gpt character prompt",
+      "value": 950,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "bitcoin rainbow chart",
+      "value": 160,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "chat gpt cartoon trend",
+      "value": 3200,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "chat gpt caricatura",
+      "value": 1950,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "is chat gpt down",
+      "value": 300,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "chat gpt down",
+      "value": 190,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "chat gpt picture",
+      "value": 170,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "chat gpt image generator",
+      "value": 60,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "who wants to be a millionaire",
+      "value": 400,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "create qr code",
+      "value": 70,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "scan qr code",
+      "value": 40,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "uscis haiti tps page",
+      "value": 2300,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "casper mountain crawler",
+      "value": 1500,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "d'angelo",
+      "value": 2700,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "portal.nysc.org.ng",
+      "value": 120,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "chatgpt down detector",
+      "value": 550,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "finegrain image enhancer",
+      "value": 40,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "kseeb",
+      "value": 4250,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "search engine evaluator",
+      "value": 200,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "search evaluator jobs",
+      "value": 100,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "example of cover letter",
+      "value": 60,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "blockchain",
+      "value": 110,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "blockchain explorer",
+      "value": 100,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "lovart ai",
+      "value": 140,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "kie api",
+      "value": 140,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "figure skater with striped hair",
+      "value": 3950,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "car air filter",
+      "value": 70,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "blue air filter",
+      "value": 50,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "cabin air filter",
+      "value": 40,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "virtual message format",
+      "value": 300,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "email writing format",
+      "value": 50,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "argumentative essay format",
+      "value": 40,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "ai cartoon generator",
+      "value": 100,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "chat gpt image generator",
+      "value": 80,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "ai character generator",
+      "value": 60,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "cosine graph",
+      "value": 50,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "cotangent graph",
+      "value": 40,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "little saint james",
+      "value": 450,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "thrallmar rep guide",
+      "value": 250,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "tailoring guide tbc",
+      "value": 180,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "zibai guide",
+      "value": 150,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "lapis lazuli",
+      "value": 74050,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "upass ai humanizer",
+      "value": 50,
+      "type": "rising",
+      "source": "humanizer"
+    },
+    {
+      "keyword": "brent faiyaz icon vinyl",
+      "value": 2350,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "brent faiyaz icon",
+      "value": 1150,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "telefon icon",
+      "value": 50,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "vegetarian meal prep ideas",
+      "value": 140,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "backyard landscaping ideas",
+      "value": 900,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "daifuku near me",
+      "value": 160,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "chat gpt image generator",
+      "value": 70,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "interior house painters near me",
+      "value": 60,
+      "type": "rising",
+      "source": "interior"
+    },
+    {
+      "keyword": "interior house painter",
+      "value": 50,
+      "type": "rising",
+      "source": "interior"
+    },
+    {
+      "keyword": "interior painters near me",
+      "value": 40,
+      "type": "rising",
+      "source": "interior"
+    },
+    {
+      "keyword": "database design patterns",
+      "value": 110,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "api design principles",
+      "value": 110,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "computer aided design",
+      "value": 110,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "visual design principles",
+      "value": 110,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "data warehouse design",
+      "value": 100,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "design thinking process",
+      "value": 90,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "user interface design",
+      "value": 80,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "user experience design",
+      "value": 70,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "mobile app design",
+      "value": 60,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "lens maker formula",
+      "value": 40,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "$41990 tesla model y",
+      "value": 3800,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "lego model t",
+      "value": 1600,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "mc2 model management",
+      "value": 600,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "gabriela jimenez model",
+      "value": 550,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "gabriela rico jimenez model",
+      "value": 450,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "model yayınları",
+      "value": 100,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "air quality monitor",
+      "value": 100,
+      "type": "rising",
+      "source": "monitor"
+    },
+    {
+      "keyword": "gmail notifier chrome extension",
+      "value": 400,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "netus ai paraphraser",
+      "value": 110,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "blackbox ai",
+      "value": 100,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "ai paragraph",
+      "value": 70,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "disaster recovery planning",
+      "value": 180,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "rbi assistant exam pattern",
+      "value": 170,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "paisley pattern",
+      "value": 50,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "jmail photo",
+      "value": 3000,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "jmail.com world photo",
+      "value": 1550,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "chat gpt picture trend",
+      "value": 3750,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "chatgpt picture trend",
+      "value": 1300,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "chat gpt picture",
+      "value": 190,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "go train planner",
+      "value": 40,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "stephen harper portrait unveiling",
+      "value": 4250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "4.5 portrait photo size",
+      "value": 3750,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "harper portrait",
+      "value": 2750,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "trump.obama portrait",
+      "value": 1900,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "stephen harper official portrait",
+      "value": 1200,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "caricature portrait",
+      "value": 1150,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "king charles portrait red",
+      "value": 800,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "corvette portrait of a legend",
+      "value": 500,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "trump obama portrait",
+      "value": 450,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait louis 14",
+      "value": 300,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait officiel louis xiv",
+      "value": 250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "king charles portrait",
+      "value": 250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "kitchenaid mini food processor",
+      "value": 50,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "openai product that creates videos",
+      "value": 1100,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "air bud golden receiver",
+      "value": 80,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "tarrago sole restorer",
+      "value": 190,
+      "type": "rising",
+      "source": "restorer"
+    }
+  ],
+  "filterSummary": {
+    "enabled": true,
+    "model": "openai/gpt-5.2",
+    "total": 1316,
+    "removed": 1143,
+    "kept": 173
+  },
+  "filteredOut": [
+    {
+      "keyword": "mhcc class action settlement",
+      "value": 3600,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "action stellantis bourse",
+      "value": 850,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "altstore this action cannot be completed",
+      "value": 800,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "palestine action group",
+      "value": 400,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "action stellantis",
+      "value": 250,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "palestine action",
+      "value": 170,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "shrek live action",
+      "value": 140,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "best budget action cameras",
+      "value": 120,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "partnership for community action",
+      "value": 120,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "sakamoto days live action",
+      "value": 80,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "action vinci",
+      "value": 80,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "action near me",
+      "value": 50,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "action societe generale",
+      "value": 40,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "action carnaval",
+      "value": 40,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "action behavior centers",
+      "value": 40,
+      "type": "rising",
+      "source": "action"
+    },
+    {
+      "keyword": "morgan mcsweeney",
+      "value": 1000,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "how to choose a financial advisor",
+      "value": 130,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "trump's spiritual advisor",
+      "value": 120,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "schwab advisor services",
+      "value": 90,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "quickbooks advisor",
+      "value": 70,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "fiduciary financial advisor near me",
+      "value": 50,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "my career advisor app",
+      "value": 50,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "wealth management advisor",
+      "value": 40,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "private wealth advisor",
+      "value": 40,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "sasha alexander",
+      "value": 1500,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "we bury the dead",
+      "value": 400,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "openclaw",
+      "value": 300,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "jesus ochoa",
+      "value": 250,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "claude cowork",
+      "value": 180,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "lincoln lawyer season 4",
+      "value": 170,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "what is a mossad agent",
+      "value": 160,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "mossad",
+      "value": 160,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "moltbook",
+      "value": 80,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "claude code",
+      "value": 60,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "anthropic",
+      "value": 250,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "moltbook",
+      "value": 130,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "seo page analyzer",
+      "value": 190,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "dtu course analyzer",
+      "value": 130,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "website seo analyzer",
+      "value": 120,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "backlink analyzer",
+      "value": 110,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "free seo analyzer",
+      "value": 80,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "sgb analyzer",
+      "value": 70,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "seo keyword analyzer",
+      "value": 70,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "serp analyzer",
+      "value": 70,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "website keyword analyzer",
+      "value": 60,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "web traffic analyzer",
+      "value": 60,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "times algebra twitter",
+      "value": 50,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "flue gas analyzer",
+      "value": 50,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "total organic carbon analyzer",
+      "value": 50,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "seo analyzer",
+      "value": 40,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "keyword competition analyzer",
+      "value": 40,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "anime reversal codes",
+      "value": 3000,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime reversal code",
+      "value": 1750,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime selt",
+      "value": 350,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime vanguard code",
+      "value": 250,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "tier list anime vanguards",
+      "value": 250,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime vanguard tier list",
+      "value": 250,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "code anime vanguards",
+      "value": 200,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "craft anime recipes",
+      "value": 190,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime vanguard codes",
+      "value": 190,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime vanguard",
+      "value": 180,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime vanguards",
+      "value": 160,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "codes anime vanguards",
+      "value": 150,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "how to draw anime eyes",
+      "value": 150,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime vanguards wiki",
+      "value": 140,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "craft anime codes",
+      "value": 110,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "mignon anime",
+      "value": 90,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime paradox tier list",
+      "value": 60,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "code anime paradox",
+      "value": 60,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "answer key ctet 2026",
+      "value": 4950,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ctet answer key 2026 paper 2",
+      "value": 4450,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer feb 5",
+      "value": 2900,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer feb 3 2026",
+      "value": 2500,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer feb 8 2026",
+      "value": 1950,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "gate 2026 answer key",
+      "value": 1900,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "every prayer i ve been praying i know he will answer lyrics",
+      "value": 1800,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "mathongo score calculator",
+      "value": 1550,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer feb 8",
+      "value": 1300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer feb 6 2026",
+      "value": 750,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ctet answer key",
+      "value": 500,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "nta answer key",
+      "value": 350,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "nta",
+      "value": 300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee 2026 answer key",
+      "value": 300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee answer key",
+      "value": 300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee",
+      "value": 250,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "the art of telling lies",
+      "value": 900,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "plop art",
+      "value": 800,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "art city bologna",
+      "value": 250,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "art karlsruhe",
+      "value": 190,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "art karlsruhe 2026",
+      "value": 150,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "art basel qatar",
+      "value": 120,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "john podesta art",
+      "value": 120,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "famous art museums",
+      "value": 110,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "kala ghoda art festival",
+      "value": 110,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "wall art",
+      "value": 60,
+      "type": "rising",
+      "source": "art"
+    },
+    {
+      "keyword": "zuchu bado nakupenda",
+      "value": 5550,
+      "type": "rising",
+      "source": "audio"
+    },
+    {
+      "keyword": "mbosso darasa la saba audio song",
+      "value": 100,
+      "type": "rising",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio obscura",
+      "value": 100,
+      "type": "rising",
+      "source": "audio"
+    },
+    {
+      "keyword": "nandy asante audio",
+      "value": 80,
+      "type": "rising",
+      "source": "audio"
+    },
+    {
+      "keyword": "avatar island",
+      "value": 90,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "when will avatar fire and ash be on streaming",
+      "value": 70,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar fire and ash digital release date",
+      "value": 50,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar flight of passage",
+      "value": 50,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar cartoon",
+      "value": 40,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar fire and ash dvd release date",
+      "value": 40,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "best ipad note taking apps",
+      "value": 110,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best budget mechanical keyboards",
+      "value": 110,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best places to live for remote workers",
+      "value": 110,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best sci fi tv shows",
+      "value": 110,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best soups for winter",
+      "value": 100,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best beach umbrellas",
+      "value": 100,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best electric pressure washers",
+      "value": 100,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best wireless earbuds for calls",
+      "value": 100,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best board games for families",
+      "value": 100,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best gel pens",
+      "value": 90,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best steakhouse near me",
+      "value": 80,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best small business ideas",
+      "value": 70,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best film cameras",
+      "value": 70,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best italian restaurants near me",
+      "value": 70,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best budget earbuds",
+      "value": 70,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best places to eat near me",
+      "value": 70,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best indie games",
+      "value": 60,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best tacos near me",
+      "value": 60,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best trail running shoes",
+      "value": 60,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best walking shoes for women",
+      "value": 50,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best workout apps",
+      "value": 50,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best vitamins for women",
+      "value": 50,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best protein bars",
+      "value": 50,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best chinese food near me",
+      "value": 50,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "best credit cards for travel",
+      "value": 40,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "kendall the builder",
+      "value": 100,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "schedule builder uc davis",
+      "value": 70,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "riftbound deck builder",
+      "value": 50,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "shed builder",
+      "value": 50,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "home builder near me",
+      "value": 50,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "nhl hut builder",
+      "value": 50,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "custom home builder near me",
+      "value": 40,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "ocr exam builder",
+      "value": 40,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "mathongo score calculator",
+      "value": 10850,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "poshan calculator",
+      "value": 300,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "rent vs buy calculator",
+      "value": 130,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "bitcoin calculator",
+      "value": 50,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "atar calculator",
+      "value": 40,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "facebook cartoon trend",
+      "value": 16900,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "what was the first cartoon to air on television?",
+      "value": 3350,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "pop star astley, or grandfather of morty in a cartoon sitcom",
+      "value": 2700,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "how to do the cartoon trend on facebook",
+      "value": 2200,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon trend",
+      "value": 1900,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "worker on a farm or deck",
+      "value": 1550,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "outer layer of a fruit like a watermelon",
+      "value": 1300,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "how to make the chat gpt cartoon",
+      "value": 1300,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "place to shoot a puck",
+      "value": 1100,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "how are people doing the cartoon trend",
+      "value": 750,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "bad bunny cartoon",
+      "value": 650,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "caricature",
+      "value": 500,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon me",
+      "value": 100,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "new cartoon",
+      "value": 50,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "jack marple character",
+      "value": 4900,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack bosch character",
+      "value": 4400,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack bosch",
+      "value": 4400,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack cross",
+      "value": 3200,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "what is the first name of the title character in dr. jekyll and mr. hyde?",
+      "value": 3000,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack cross character",
+      "value": 3000,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "marple definition",
+      "value": 2650,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "marple",
+      "value": 2500,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack psalm",
+      "value": 2200,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack marple",
+      "value": 2000,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "marple meaning",
+      "value": 1550,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "caricature",
+      "value": 1300,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "overwatch new character",
+      "value": 1250,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "bosch meaning",
+      "value": 1100,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "create a character of me and my job",
+      "value": 1100,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "james pearce jr character concerns",
+      "value": 1050,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack popular",
+      "value": 700,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "tove jansson character 7 little words",
+      "value": 650,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack popular character",
+      "value": 650,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "jack ryan",
+      "value": 600,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "bosch character",
+      "value": 450,
+      "type": "rising",
+      "source": "character"
+    },
+    {
+      "keyword": "furry chart",
+      "value": 450,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "clippers depth chart",
+      "value": 250,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "bulls depth chart",
+      "value": 250,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "wizards depth chart",
+      "value": 180,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "jazz depth chart",
+      "value": 150,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "daily domestic chart movies",
+      "value": 150,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "grizzlies depth chart",
+      "value": 110,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "pacers depth chart",
+      "value": 90,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "bitcoin chart",
+      "value": 90,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "celtics depth chart",
+      "value": 90,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "gift nifty chart",
+      "value": 90,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "knicks depth chart",
+      "value": 80,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "timberwolves depth chart",
+      "value": 80,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "gift nifty live chart",
+      "value": 80,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "bitcoin chart usd",
+      "value": 70,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "bitcoin price chart",
+      "value": 60,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "hornets depth chart",
+      "value": 60,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "warriors depth chart",
+      "value": 60,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "btc chart",
+      "value": 50,
+      "type": "rising",
+      "source": "chart"
+    },
+    {
+      "keyword": "create a caricature of me and my job",
+      "value": 3250,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "chat gpt create a caricature of me and my job based on everything you know about me",
+      "value": 2650,
+      "type": "rising",
+      "source": "chat"
+    },
+    {
+      "keyword": "did erika kirk cheat on charlie",
+      "value": 3100,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "who wants to be a millionaire cheat",
+      "value": 450,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "did jelly roll cheat on bunnie",
+      "value": 450,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "cheat like you did on me",
+      "value": 350,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "happy mode cheat",
+      "value": 350,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "nioh 3 cheat engine",
+      "value": 190,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "excel shortcuts cheat sheet",
+      "value": 180,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "flight cheat code",
+      "value": 170,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "menace cheat engine",
+      "value": 150,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "excel cheat sheet",
+      "value": 140,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "manok na pula cheat ultra sisiw",
+      "value": 140,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "a splendid revenge story of a super-dreadnought cheat villainess",
+      "value": 130,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "chillin’ in another world with level 2 super cheat powers",
+      "value": 80,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "become the strongest hero through the cheat system",
+      "value": 70,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "nioh 3 cheat table",
+      "value": 70,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "front mission 3 remake cheat engine",
+      "value": 60,
+      "type": "rising",
+      "source": "cheat"
+    },
+    {
+      "keyword": "chick checker of a sort",
+      "value": 9350,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "chick checker of a sort nyt",
+      "value": 7200,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "pa lottery ticket checker",
+      "value": 850,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "ns&i prize checker",
+      "value": 600,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "ns&i checker",
+      "value": 550,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "nsandi prize checker",
+      "value": 550,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "premium bond prize checker",
+      "value": 500,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "nsi prize checker",
+      "value": 450,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "nsi checker",
+      "value": 450,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "premium bond checker",
+      "value": 450,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "ns and i prize checker",
+      "value": 400,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "prize checker",
+      "value": 400,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "premium bonds checker",
+      "value": 350,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "premium bonds prize checker",
+      "value": 350,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "gce result checker",
+      "value": 200,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "neco result checker",
+      "value": 100,
+      "type": "rising",
+      "source": "checker"
+    },
+    {
+      "keyword": "small portable burner crossword clue",
+      "value": 21900,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "rip off financially crossword clue",
+      "value": 19050,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "gesture intended to please or to calm",
+      "value": 18950,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "rip off financially crossword",
+      "value": 18950,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "sudsy detergent crossword clue",
+      "value": 17050,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "most advanced group or position crossword clue",
+      "value": 15050,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "most advanced group or position crossword",
+      "value": 15050,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "temporary substitute crossword",
+      "value": 14200,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "accent mark",
+      "value": 13900,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "grassy rise crossword clue",
+      "value": 13050,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "grassy rise crossword",
+      "value": 13050,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "rampart crossword clue",
+      "value": 11700,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "fortified building crossword clue",
+      "value": 11650,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "sugared delicacy crossword clue",
+      "value": 11500,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "utopian setting crossword",
+      "value": 10450,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "exaggerated masculinity crossword clue",
+      "value": 10250,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "swampy area in louisiana crossword clue",
+      "value": 9200,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "above ground level",
+      "value": 9100,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "redfin clue 1",
+      "value": 8900,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "narrow in outlook crossword clue",
+      "value": 8500,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "rich soy sauce crossword clue",
+      "value": 8500,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "above ground level crossword clue",
+      "value": 8300,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "relatively lavish crossword clue",
+      "value": 8200,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "chalets crossword clue",
+      "value": 8100,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "nutty alpine cheese crossword clue",
+      "value": 8100,
+      "type": "rising",
+      "source": "clue"
+    },
+    {
+      "keyword": "epstein code words",
+      "value": 2600,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "chipotle super bowl code",
+      "value": 1650,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "code rood",
+      "value": 1500,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "code sorcerer ascent",
+      "value": 600,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "abyss code",
+      "value": 250,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "peacock promo code",
+      "value": 250,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "roobet promo code",
+      "value": 200,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "chipotle code",
+      "value": 190,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "code anime vanguards",
+      "value": 170,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "fashion nova discount code",
+      "value": 170,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "code oranje",
+      "value": 150,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "how to scan qr code on android",
+      "value": 130,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "what is a captcha code",
+      "value": 110,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "how to create a qr code",
+      "value": 90,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "how to scan a qr code",
+      "value": 90,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "what is a coupon code",
+      "value": 90,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "draftkings promo code",
+      "value": 80,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "blooket join code",
+      "value": 70,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "codex",
+      "value": 50,
+      "type": "rising",
+      "source": "code"
+    },
+    {
+      "keyword": "olympics coloring pages",
+      "value": 600,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "winter olympics coloring pages",
+      "value": 600,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "super bowl coloring pages",
+      "value": 500,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "black history month coloring pages",
+      "value": 350,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "black history coloring pages",
+      "value": 350,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "black history month coloring sheets",
+      "value": 300,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "black history month",
+      "value": 300,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "olympic coloring pages",
+      "value": 300,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "patriots coloring pages",
+      "value": 250,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "superbowl coloring pages",
+      "value": 200,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "groundhog day coloring pages",
+      "value": 180,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "seahawks coloring pages",
+      "value": 170,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentine coloring pages for kids",
+      "value": 140,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "groundhog coloring page",
+      "value": 140,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentines day coloring sheet",
+      "value": 120,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentines day coloring sheets",
+      "value": 120,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentine day coloring pages",
+      "value": 110,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentines coloring page",
+      "value": 100,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentines day coloring",
+      "value": 90,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "free valentines day coloring pages",
+      "value": 90,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentines day coloring pages",
+      "value": 90,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentines coloring sheets",
+      "value": 90,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentine coloring pages",
+      "value": 90,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "free printable valentines coloring pages pdf",
+      "value": 80,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "valentine coloring page",
+      "value": 80,
+      "type": "rising",
+      "source": "coloring"
+    },
+    {
+      "keyword": "teddi page",
+      "value": 8050,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "harry styles request page",
+      "value": 6950,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "teddi page new orleans",
+      "value": 3500,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "sam patterson",
+      "value": 750,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "teddi page baton rouge",
+      "value": 650,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "icebreaker page 136",
+      "value": 200,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "sergey brin",
+      "value": 150,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "michael page ufc",
+      "value": 140,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "groundhog coloring page",
+      "value": 130,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "what is a landing page",
+      "value": 130,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "larry page",
+      "value": 100,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "michael venom page",
+      "value": 70,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "page industries share",
+      "value": 40,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "larry page net worth",
+      "value": 40,
+      "type": "rising",
+      "source": "page"
+    },
+    {
+      "keyword": "voltage divider calculator",
+      "value": 10500,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "comparator 中文",
+      "value": 9600,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "dropper crafting",
+      "value": 400,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "dispenser crafting",
+      "value": 250,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "nether quartz",
+      "value": 200,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "comparator dobanzi depozite",
+      "value": 160,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "lm339",
+      "value": 140,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "fingerprint comparator",
+      "value": 110,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "redstone comparator crafting",
+      "value": 110,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "repeater crafting",
+      "value": 80,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "schmitt trigger",
+      "value": 80,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "online text comparator",
+      "value": 70,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "dropper minecraft",
+      "value": 70,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "json comparator online",
+      "value": 60,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "op amp as comparator",
+      "value": 50,
+      "type": "rising",
+      "source": "comparator"
+    },
+    {
+      "keyword": "anthropic c compiler",
+      "value": 27000,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "claudes c compiler",
+      "value": 7600,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "claude c compiler",
+      "value": 2300,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "crossword compiler crossword clue",
+      "value": 600,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "claude code compiler",
+      "value": 250,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "php compiler online",
+      "value": 110,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "php compiler",
+      "value": 90,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "what is a compiler",
+      "value": 80,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "what is a c compiler",
+      "value": 50,
+      "type": "rising",
+      "source": "compiler"
+    },
+    {
+      "keyword": "composer my parents met in madrid",
+      "value": 5800,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "gaetano italian opera composer",
+      "value": 2500,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "goyescas composer",
+      "value": 2450,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "star trek characters",
+      "value": 2200,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "requested crossword clue",
+      "value": 1700,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "literary audience crossword clue",
+      "value": 1650,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "gaetano composer",
+      "value": 1400,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "spanish composer of goyescas",
+      "value": 1300,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "austrian composer gustav",
+      "value": 1100,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "runaway crossword clue",
+      "value": 800,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "cashew cousins 7 little words",
+      "value": 800,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "composer satie crossword clue",
+      "value": 750,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "completely crossword clue",
+      "value": 750,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "danger crossword clue",
+      "value": 750,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "shattered crossword clue",
+      "value": 650,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "literary audience",
+      "value": 600,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "forbidden crossword clue",
+      "value": 550,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "chapter 95 the return of a crazy genius composer manhwa",
+      "value": 550,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "giselle composer",
+      "value": 450,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "win crossword clue",
+      "value": 450,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "military garment crossword clue",
+      "value": 400,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "enrique spanish composer of goyescas",
+      "value": 400,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "athenian temple crossword clue",
+      "value": 400,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "hungarian composer",
+      "value": 50,
+      "type": "rising",
+      "source": "composer"
+    },
+    {
+      "keyword": "shark tank hose connector",
+      "value": 100,
+      "type": "rising",
+      "source": "connector"
+    },
+    {
+      "keyword": "hose clamp",
+      "value": 40,
+      "type": "rising",
+      "source": "connector"
+    },
+    {
+      "keyword": "constructor de habitats subnautica below zero",
+      "value": 500,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "moodle constructor university",
+      "value": 250,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "taller del constructor nivel 7",
+      "value": 90,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "bridge constructor online",
+      "value": 80,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "online java compiler",
+      "value": 60,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "health tips",
+      "value": 60,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "base del constructor clash of clans",
+      "value": 60,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "costructor",
+      "value": 60,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "disfraz constructor",
+      "value": 50,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "online c++ compiler",
+      "value": 50,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "portal bridge constructor",
+      "value": 50,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "eichhorn constructor",
+      "value": 50,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "how to create a constructor in java",
+      "value": 50,
+      "type": "rising",
+      "source": "constructor"
+    },
+    {
+      "keyword": "did central cee convert to islam",
+      "value": 4050,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "central cee convert to islam",
+      "value": 1250,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "youtube video download mp3 convert online",
+      "value": 300,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "how to convert heic to jpg",
+      "value": 130,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "convert pdf to jpg free",
+      "value": 110,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "convert heic to jpg",
+      "value": 80,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "image resizer",
+      "value": 60,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "image compressor",
+      "value": 60,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "resize image",
+      "value": 60,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "convert to kb",
+      "value": 50,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "compress image",
+      "value": 50,
+      "type": "rising",
+      "source": "convert"
+    },
+    {
+      "keyword": "image ratio converter",
+      "value": 700,
+      "type": "rising",
+      "source": "converter"
+    },
+    {
+      "keyword": "what is a catalytic converter",
+      "value": 120,
+      "type": "rising",
+      "source": "converter"
+    },
+    {
+      "keyword": "image resizer",
+      "value": 60,
+      "type": "rising",
+      "source": "converter"
+    },
+    {
+      "keyword": "image size converter",
+      "value": 50,
+      "type": "rising",
+      "source": "converter"
+    },
+    {
+      "keyword": "image compressor",
+      "value": 40,
+      "type": "rising",
+      "source": "converter"
+    },
+    {
+      "keyword": "html to pdf converter",
+      "value": 40,
+      "type": "rising",
+      "source": "converter"
+    },
+    {
+      "keyword": "crawler excavator",
+      "value": 250,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "crawler cryptid",
+      "value": 140,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "hat crawler",
+      "value": 110,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "crawler earrings",
+      "value": 90,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "operation bounce house",
+      "value": 80,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "ear crawler earrings",
+      "value": 70,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "iwkym dungeon crawler carl",
+      "value": 70,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "ear crawler",
+      "value": 60,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "seo crawler",
+      "value": 50,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "dungeon crawler carl cosplay",
+      "value": 50,
+      "type": "rising",
+      "source": "crawler"
+    },
+    {
+      "keyword": "what song did tyler the creator perform at the grammys",
+      "value": 5650,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "regina king",
+      "value": 5600,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler the creator grammys performance",
+      "value": 4300,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "what songs did tyler the creator perform at the grammys",
+      "value": 4100,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler the creator grammy performance",
+      "value": 3850,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "did tyler the creator win a grammy in 2026",
+      "value": 3500,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "did tyler the creator win a grammy",
+      "value": 3200,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "what grammy did tyler the creator win",
+      "value": 2800,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "did tyler the creator win a grammy 2026",
+      "value": 2350,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler, the creator thought i was dead",
+      "value": 2250,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "how many grammys did tyler the creator win",
+      "value": 2250,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "pharrell williams",
+      "value": 1750,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler the creator grammy performance 2026",
+      "value": 1750,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "dr dre",
+      "value": 1450,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "ozzy osbourne",
+      "value": 1400,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "lauryn hill",
+      "value": 1400,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "grammys",
+      "value": 1300,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "lola young",
+      "value": 1300,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler the creator grammys",
+      "value": 1250,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler the creator grammy",
+      "value": 1200,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler the creator grammy 2026",
+      "value": 1150,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "tyler the creator grammys 2026",
+      "value": 1100,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "has tyler the creator won a grammy",
+      "value": 1100,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "grammy winners",
+      "value": 1050,
+      "type": "rising",
+      "source": "creator"
+    },
+    {
+      "keyword": "jee alpha dashboard",
+      "value": 6700,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "openclaw dashboard",
+      "value": 200,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "ufs dashboard",
+      "value": 150,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nysc portal",
+      "value": 140,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nysc portal login dashboard",
+      "value": 130,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nysc dashboard login",
+      "value": 120,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nysc portal login dashboard login password",
+      "value": 120,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "ufs survey dashboard",
+      "value": 110,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nysc portal login",
+      "value": 110,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nysc dashboard",
+      "value": 100,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "my nysc dashboard",
+      "value": 90,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "unified family survey dashboard",
+      "value": 90,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "tvet dashboard",
+      "value": 70,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "my dashboard login",
+      "value": 60,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "glass tab dashboard",
+      "value": 60,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "text blaze dashboard",
+      "value": 60,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "glass new tab dashboard",
+      "value": 60,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "gsws dashboard",
+      "value": 50,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "gsws dashboard links",
+      "value": 50,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "uq dashboard",
+      "value": 50,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nbm login",
+      "value": 40,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "nysc.org.ng dashboard login portal login",
+      "value": 40,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "gst dashboard",
+      "value": 40,
+      "type": "rising",
+      "source": "dashboard"
+    },
+    {
+      "keyword": "primara designer l",
+      "value": 900,
+      "type": "rising",
+      "source": "designer"
+    },
+    {
+      "keyword": "designer carpets",
+      "value": 130,
+      "type": "rising",
+      "source": "designer"
+    },
+    {
+      "keyword": "designer babies",
+      "value": 70,
+      "type": "rising",
+      "source": "designer"
+    },
+    {
+      "keyword": "web designer near me",
+      "value": 50,
+      "type": "rising",
+      "source": "designer"
+    },
+    {
+      "keyword": "battery warning from a smoke detector",
+      "value": 18000,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "great lakes",
+      "value": 2300,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "tumblr down detector",
+      "value": 1950,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "battery warning from a smoke detector nyt",
+      "value": 1350,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "detector de monóxido de carbono",
+      "value": 120,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "smoke detector battery",
+      "value": 80,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "terraria metal detector",
+      "value": 50,
+      "type": "rising",
+      "source": "detector"
+    },
+    {
+      "keyword": "myclha",
+      "value": 900,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "epstein files directory",
+      "value": 300,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "osb directory",
+      "value": 70,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "ex directory liverpool",
+      "value": 70,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "lgd directory",
+      "value": 70,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "breach directory",
+      "value": 70,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "mohfw directory",
+      "value": 60,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "klgcc mall directory",
+      "value": 50,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "dolphin mall directory",
+      "value": 40,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "lto directory",
+      "value": 40,
+      "type": "rising",
+      "source": "directory"
+    },
+    {
+      "keyword": "mp3 juice downloader music player",
+      "value": 90,
+      "type": "rising",
+      "source": "downloader"
+    },
+    {
+      "keyword": "instagram photo downloader online",
+      "value": 60,
+      "type": "rising",
+      "source": "downloader"
+    },
+    {
+      "keyword": "waning gibbous emoji",
+      "value": 750,
+      "type": "rising",
+      "source": "emoji"
+    },
+    {
+      "keyword": "emoji movie south",
+      "value": 200,
+      "type": "rising",
+      "source": "emoji"
+    },
+    {
+      "keyword": "emoji cat body",
+      "value": 90,
+      "type": "rising",
+      "source": "emoji"
+    },
+    {
+      "keyword": "seahawks emoji",
+      "value": 60,
+      "type": "rising",
+      "source": "emoji"
+    },
+    {
+      "keyword": "feg eyelash enhancer",
+      "value": 70,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "image compressor",
+      "value": 60,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "image resizer",
+      "value": 60,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "passport size photo maker",
+      "value": 60,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "kuttipencil",
+      "value": 50,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "photo resizer",
+      "value": 50,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "picsart enhancer",
+      "value": 50,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "photo pixel enhancer",
+      "value": 50,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "picsart image enhancer",
+      "value": 40,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "photo enhancer online free no watermark",
+      "value": 40,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "background remove",
+      "value": 40,
+      "type": "rising",
+      "source": "enhancer"
+    },
+    {
+      "keyword": "sslc",
+      "value": 231250,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "kseeb evaluator registration",
+      "value": 85800,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "kseeb sslc evaluator registration",
+      "value": 67400,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "sslc karnataka",
+      "value": 57900,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "sslc karnataka gov in",
+      "value": 36150,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "kseab karnataka gov in",
+      "value": 31050,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "kseeb login",
+      "value": 30850,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "lionbridge search engine evaluator",
+      "value": 13200,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "chase home evaluator",
+      "value": 5800,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "kseab",
+      "value": 3750,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "sslc evaluator registration",
+      "value": 120,
+      "type": "rising",
+      "source": "evaluator"
+    },
+    {
+      "keyword": "what is a cover letter example",
+      "value": 130,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "sex scandal meaning in english with example tagalog",
+      "value": 130,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "fourth place in an n.f.l. division for example",
+      "value": 120,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "example of a cover letter",
+      "value": 90,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "cover letter example",
+      "value": 80,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "assonance",
+      "value": 80,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "define account with example",
+      "value": 80,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "football squares example",
+      "value": 50,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "alliteration",
+      "value": 50,
+      "type": "rising",
+      "source": "example"
+    },
+    {
+      "keyword": "epstein files explorer",
+      "value": 550,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "bobux explorer",
+      "value": 200,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "fallout explorer",
+      "value": 130,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "ahrefs keyword explorer",
+      "value": 130,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "linkedin career explorer",
+      "value": 110,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "career explorer",
+      "value": 40,
+      "type": "rising",
+      "source": "explorer"
+    },
+    {
+      "keyword": "mote extractor tbc",
+      "value": 850,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "mote extractor",
+      "value": 250,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "linkedin post date extractor",
+      "value": 70,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "zapthrottle mote extractor",
+      "value": 70,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "youtube subtitles extractor",
+      "value": 50,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "screw extractor kit",
+      "value": 50,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "screw extractor set",
+      "value": 50,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "stud extractor",
+      "value": 50,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "welding fume extractor",
+      "value": 40,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "frame extractor from video",
+      "value": 40,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "video frame extractor",
+      "value": 40,
+      "type": "rising",
+      "source": "extractor"
+    },
+    {
+      "keyword": "kuru disease face",
+      "value": 3100,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "kuru disease",
+      "value": 1350,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "lets face it strands",
+      "value": 600,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "escultor da face do cristo redentor",
+      "value": 500,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "4 nations face off",
+      "value": 250,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "cleopatra real face",
+      "value": 160,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "best face masks for acne",
+      "value": 130,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "best face sunscreen for men",
+      "value": 130,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "how to change apple watch face",
+      "value": 120,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "poker face movie",
+      "value": 110,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "byoma face mask",
+      "value": 110,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "best sunscreen for face",
+      "value": 100,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "what is ozempic face",
+      "value": 60,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "sunscreen",
+      "value": 50,
+      "type": "rising",
+      "source": "face"
+    },
+    {
+      "keyword": "rogan josh near me",
+      "value": 2000,
+      "type": "rising",
+      "source": "faq"
+    },
+    {
+      "keyword": "upsc faq",
+      "value": 800,
+      "type": "rising",
+      "source": "faq"
+    },
+    {
+      "keyword": "faq response for short",
+      "value": 400,
+      "type": "rising",
+      "source": "faq"
+    },
+    {
+      "keyword": "laneway faq",
+      "value": 200,
+      "type": "rising",
+      "source": "faq"
+    },
+    {
+      "keyword": "faq 読み方",
+      "value": 190,
+      "type": "rising",
+      "source": "faq"
+    },
+    {
+      "keyword": "team figure skating standings",
+      "value": 19700,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "figure skating team event standings",
+      "value": 12800,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "united states milano cortina 2026",
+      "value": 11400,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "olympics team figure skating results",
+      "value": 9100,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "figure skating schedule and results",
+      "value": 8400,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "figure skating team event results",
+      "value": 8350,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "olympic medal count 2026",
+      "value": 7100,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "medal count",
+      "value": 5800,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "olympic team figure skating standings",
+      "value": 5450,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "breezy johnson",
+      "value": 5350,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "team figure skating olympics 2026 standings",
+      "value": 4850,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "yuma kagiyama",
+      "value": 4700,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "chock and bates",
+      "value": 4500,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "shun sato figure skater",
+      "value": 4400,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "what time is figure skating on today",
+      "value": 4350,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "olympic medal count",
+      "value": 4250,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "ilia malinin parents",
+      "value": 4150,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "team figure skating results",
+      "value": 3750,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "figure skating team event",
+      "value": 3700,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "figure skating backflip",
+      "value": 3700,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "figure skating olympics 2026 results",
+      "value": 3600,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "stephen gogolev",
+      "value": 3550,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "ellie kam",
+      "value": 3450,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "figure skating team event schedule",
+      "value": 3150,
+      "type": "rising",
+      "source": "figure"
+    },
+    {
+      "keyword": "how to change car air filter",
+      "value": 130,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "water filter pitcher reviews",
+      "value": 130,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "how to clean dishwasher filter",
+      "value": 110,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "how to change cabin air filter",
+      "value": 110,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "water filter pitcher",
+      "value": 100,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "filter nyheter",
+      "value": 80,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "cabin filter",
+      "value": 50,
+      "type": "rising",
+      "source": "filter"
+    },
+    {
+      "keyword": "fuel finder scheme",
+      "value": 4050,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "epstein files name finder",
+      "value": 1800,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "fuel finder uk",
+      "value": 1200,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "fuel finder",
+      "value": 950,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "fuel finder app",
+      "value": 800,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "ukzn timetable finder",
+      "value": 750,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "fault finder app",
+      "value": 350,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "phivolcs fault finder",
+      "value": 190,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "fault finder",
+      "value": 190,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "how to use a stud finder",
+      "value": 150,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "caucus finder mn",
+      "value": 130,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "moe school finder",
+      "value": 120,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "girl scout cookie finder",
+      "value": 60,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "stud finder",
+      "value": 60,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "abn finder",
+      "value": 60,
+      "type": "rising",
+      "source": "finder"
+    },
+    {
+      "keyword": "what is a serif font",
+      "value": 140,
+      "type": "rising",
+      "source": "font"
+    },
+    {
+      "keyword": "permanent marker font",
+      "value": 120,
+      "type": "rising",
+      "source": "font"
+    },
+    {
+      "keyword": "impact font",
+      "value": 50,
+      "type": "rising",
+      "source": "font"
+    },
+    {
+      "keyword": "serif font",
+      "value": 50,
+      "type": "rising",
+      "source": "font"
+    },
+    {
+      "keyword": "victor font",
+      "value": 50,
+      "type": "rising",
+      "source": "font"
+    },
+    {
+      "keyword": "4k video downloader can't find valid format",
+      "value": 1400,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "nba all star 2026 format",
+      "value": 200,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "download video youtube format mpeg",
+      "value": 200,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "nba all star format",
+      "value": 180,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "t20 world cup format",
+      "value": 170,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "how to format a usb drive",
+      "value": 120,
+      "type": "rising",
+      "source": "format"
+    },
+    {
+      "keyword": "deepus upi code generator",
+      "value": 3800,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "sitemap generator",
+      "value": 130,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "password generator free",
+      "value": 130,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "random number generator 1-10",
+      "value": 90,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "password generator",
+      "value": 50,
+      "type": "rising",
+      "source": "generator"
+    },
+    {
+      "keyword": "elon musk net worth graph",
+      "value": 130,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "bitcoin price graph",
+      "value": 90,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "bitcoin graph usd",
+      "value": 90,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "bitcoin graph",
+      "value": 90,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "btc graph",
+      "value": 70,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "xnxnxnxn matrix matlab plot graph ans",
+      "value": 40,
+      "type": "rising",
+      "source": "graph"
+    },
+    {
+      "keyword": "the extra’s academy survival guide 90",
+      "value": 600,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "epstein island",
+      "value": 550,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "nioh 3 trophy guide",
+      "value": 300,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "little st james",
+      "value": 300,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "tbc dungeon leveling guide",
+      "value": 300,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "channel 9 tv guide",
+      "value": 200,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "laptop buying guide",
+      "value": 140,
+      "type": "rising",
+      "source": "guide"
+    },
+    {
+      "keyword": "chide",
+      "value": 4250,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "ups driver helper",
+      "value": 120,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "gsws helper application forms",
+      "value": 110,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "csc helper",
+      "value": 90,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "wordfeud helper app",
+      "value": 80,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "gsws helper",
+      "value": 60,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "helper t cells",
+      "value": 40,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "couldn't communicate with a helper application",
+      "value": 40,
+      "type": "rising",
+      "source": "helper"
+    },
+    {
+      "keyword": "yeoh",
+      "value": 250500,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "yeoh meaning",
+      "value": 115650,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "netscape",
+      "value": 87450,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "netscape meaning",
+      "value": 60800,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "craps",
+      "value": 34850,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "chide",
+      "value": 31250,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "wordle hint feb 3",
+      "value": 30900,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "wordle hint feb 8",
+      "value": 30750,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "connections hint feb 4",
+      "value": 27300,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "yeoh definition",
+      "value": 24900,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "bleat",
+      "value": 24800,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "marple definition",
+      "value": 23650,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "connections hint feb 3",
+      "value": 21800,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "wordle hint feb 7",
+      "value": 18900,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "ang meaning",
+      "value": 18900,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "bosch definition",
+      "value": 18900,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "connections hint feb 8",
+      "value": 18700,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "connections hint feb 6",
+      "value": 16000,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "tilde",
+      "value": 15900,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "approx meaning",
+      "value": 15550,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "putter",
+      "value": 14950,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "connections hint feb 7",
+      "value": 13700,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "gavel",
+      "value": 11850,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "chow",
+      "value": 11700,
+      "type": "rising",
+      "source": "hint"
+    },
+    {
+      "keyword": "how to watch tpusa halftime show",
+      "value": 2400,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to watch turning point halftime show",
+      "value": 1950,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to watch the super bowl",
+      "value": 1550,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how many people watched the halftime show 2026",
+      "value": 1500,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how many people watch the super bowl",
+      "value": 1450,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how long is the halftime show",
+      "value": 1350,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to watch the olympics",
+      "value": 950,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how long is the super bowl",
+      "value": 900,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to watch super bowl 2026",
+      "value": 850,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how old is drake maye",
+      "value": 250,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how many super bowls have the seahawks won",
+      "value": 200,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to fix slow laptop",
+      "value": 120,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to fix dns server not responding",
+      "value": 120,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to connect laptop to projector",
+      "value": 110,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to clean burnt pan",
+      "value": 110,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to use facetime on android",
+      "value": 110,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to descale kettle",
+      "value": 110,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to set up home theater",
+      "value": 110,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to polish wood furniture",
+      "value": 110,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "how to get rid of flies",
+      "value": 100,
+      "type": "rising",
+      "source": "how"
+    },
+    {
+      "keyword": "where to watch super bowl",
+      "value": 2000,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "super bowl 2026 where to watch",
+      "value": 1850,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "where to watch the super bowl",
+      "value": 1600,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "how to watch tpusa halftime show",
+      "value": 1500,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "how to watch the super bowl",
+      "value": 1400,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "how to watch turning point halftime show",
+      "value": 1300,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "where to watch turning point halftime show",
+      "value": 1300,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "where to watch the super bowl 2026",
+      "value": 1050,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "how to watch the olympics",
+      "value": 850,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "how to watch super bowl 2026",
+      "value": 750,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "how to clean a hairbrush",
+      "value": 110,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "how to fold fitted sheets",
+      "value": 110,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "iphone x to buy",
+      "value": 110,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "best kdramas to watch",
+      "value": 100,
+      "type": "rising",
+      "source": "to"
+    },
+    {
+      "keyword": "duplichecker",
+      "value": 60,
+      "type": "rising",
+      "source": "humanizer"
+    },
+    {
+      "keyword": "quill bot",
+      "value": 40,
+      "type": "rising",
+      "source": "humanizer"
+    },
+    {
+      "keyword": "jay icon and apple",
+      "value": 5650,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "j icon and apple",
+      "value": 1200,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "jay icon",
+      "value": 550,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "online icon kit",
+      "value": 110,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "rawlings icon",
+      "value": 80,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "icon plc",
+      "value": 70,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "icon suspension",
+      "value": 50,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "lucide",
+      "value": 40,
+      "type": "rising",
+      "source": "icon"
+    },
+    {
+      "keyword": "lego ideas orange cat",
+      "value": 2450,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl appetizer ideas",
+      "value": 950,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "superbowl snack ideas",
+      "value": 800,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "good super bowl food ideas",
+      "value": 700,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl dessert ideas",
+      "value": 650,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl recipe ideas",
+      "value": 600,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl snacks ideas",
+      "value": 600,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl snack ideas",
+      "value": 600,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl dinner ideas",
+      "value": 550,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl food ideas",
+      "value": 550,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "superbowl food ideas",
+      "value": 450,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl ideas for food",
+      "value": 450,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl food ideas 2026",
+      "value": 350,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl party food ideas",
+      "value": 300,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "super bowl menu ideas",
+      "value": 250,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentine box ideas for boys",
+      "value": 200,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentines box ideas",
+      "value": 150,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentines box ideas girl",
+      "value": 140,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentines ideas",
+      "value": 70,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentine ideas",
+      "value": 70,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentines day ideas",
+      "value": 70,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentine's day",
+      "value": 70,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentines",
+      "value": 70,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "valentine's day ideas",
+      "value": 70,
+      "type": "rising",
+      "source": "ideas"
+    },
+    {
+      "keyword": "how does illustration transform everyday objects?",
+      "value": 1100,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "crochet patterns for beginners",
+      "value": 600,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "iphone xs to buy",
+      "value": 350,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "how to stop snoring",
+      "value": 300,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "how to find my ip address",
+      "value": 250,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "how to replaster a wall",
+      "value": 200,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "best places to kayak near me",
+      "value": 200,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "how to stop autoplay on youtube",
+      "value": 200,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "how to bake sourdough bread",
+      "value": 190,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "what is a pizza stone",
+      "value": 160,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "indian butter chicken near me",
+      "value": 150,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "tax filing deadline",
+      "value": 150,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "flower illustration",
+      "value": 60,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "cat illustration",
+      "value": 50,
+      "type": "rising",
+      "source": "illustration"
+    },
+    {
+      "keyword": "epstein files image library pdf",
+      "value": 1750,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "epstein files image library",
+      "value": 1100,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "epstein files image",
+      "value": 950,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "pixel set image",
+      "value": 900,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "rose day image",
+      "value": 650,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "imresizer",
+      "value": 200,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "what is a vector image",
+      "value": 140,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "what is a reverse image search",
+      "value": 110,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "what is a docker image",
+      "value": 110,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "how to remove background from image",
+      "value": 100,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "compress image to 100kb",
+      "value": 80,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "resize image to 20kb",
+      "value": 80,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "photo resizer",
+      "value": 80,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "image size increase",
+      "value": 70,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "p7 image",
+      "value": 70,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "pi7 image tool",
+      "value": 60,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "pi7",
+      "value": 60,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "remove background from image",
+      "value": 50,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "image resizer online",
+      "value": 50,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "image compressor to 100kb",
+      "value": 50,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "jpeg to jpg",
+      "value": 50,
+      "type": "rising",
+      "source": "image"
+    },
+    {
+      "keyword": "1967 oldsmobile toronado",
+      "value": 850,
+      "type": "rising",
+      "source": "interior"
+    },
+    {
+      "keyword": "car interior accessories",
+      "value": 170,
+      "type": "rising",
+      "source": "interior"
+    },
+    {
+      "keyword": "interior minister of pakistan",
+      "value": 80,
+      "type": "rising",
+      "source": "interior"
+    },
+    {
+      "keyword": "schema interior de",
+      "value": 60,
+      "type": "rising",
+      "source": "interior"
+    },
+    {
+      "keyword": "graphic design software",
+      "value": 90,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "mehandi ke design",
+      "value": 60,
+      "type": "rising",
+      "source": "design"
+    },
+    {
+      "keyword": "super bowl asl interpreter 2026",
+      "value": 2550,
+      "type": "rising",
+      "source": "interpreter"
+    },
+    {
+      "keyword": "bad bunny sign language interpreter",
+      "value": 1700,
+      "type": "rising",
+      "source": "interpreter"
+    },
+    {
+      "keyword": "bad bunny asl interpreter",
+      "value": 1400,
+      "type": "rising",
+      "source": "interpreter"
+    },
+    {
+      "keyword": "asl interpreter super bowl",
+      "value": 1350,
+      "type": "rising",
+      "source": "interpreter"
+    },
+    {
+      "keyword": "super bowl sign language interpreter",
+      "value": 1250,
+      "type": "rising",
+      "source": "interpreter"
+    },
+    {
+      "keyword": "superbowl sign language interpreter",
+      "value": 650,
+      "type": "rising",
+      "source": "interpreter"
+    },
+    {
+      "keyword": "how to change youtube subscription layout",
+      "value": 600,
+      "type": "rising",
+      "source": "layout"
+    },
+    {
+      "keyword": "wankhede stadium layout",
+      "value": 550,
+      "type": "rising",
+      "source": "layout"
+    },
+    {
+      "keyword": "youtube layout change",
+      "value": 80,
+      "type": "rising",
+      "source": "layout"
+    },
+    {
+      "keyword": "trumprx list of drugs",
+      "value": 8450,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine week 2026 full list",
+      "value": 2450,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "february valentine list",
+      "value": 2050,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "velanday list 2026",
+      "value": 1900,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "the fall off feature list",
+      "value": 1800,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine week list",
+      "value": 1450,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "trump rx medication list",
+      "value": 1400,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine week list 2026",
+      "value": 1250,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine days list",
+      "value": 1150,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "super bowl halftime shows list",
+      "value": 1100,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine day list",
+      "value": 900,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "list of super bowl halftime shows",
+      "value": 800,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "super bowl halftime performers list",
+      "value": 800,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine's week list",
+      "value": 750,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine day list 2026",
+      "value": 750,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "large birds list",
+      "value": 700,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "valentine's day week list",
+      "value": 600,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "lovers day list",
+      "value": 600,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "feb days list",
+      "value": 550,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "wpl winners list",
+      "value": 500,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "jeffrey epstein list",
+      "value": 500,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "epstein list",
+      "value": 400,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "epstein files list of names",
+      "value": 350,
+      "type": "rising",
+      "source": "list"
+    },
+    {
+      "keyword": "olympics logo",
+      "value": 800,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "nickelodeon",
+      "value": 450,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "logo nickelodeon",
+      "value": 400,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "super bowl 61 logo",
+      "value": 350,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "bad bunny logo",
+      "value": 350,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "super bowl lxi logo",
+      "value": 300,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "nutella logo",
+      "value": 200,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "super bowl 2027 logo",
+      "value": 200,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "kappa logo",
+      "value": 120,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "super bowl logo",
+      "value": 110,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "super bowl lx logo",
+      "value": 100,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "seahawks logo",
+      "value": 100,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "patriots logo",
+      "value": 100,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "superbowl logo",
+      "value": 100,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "eagles logo",
+      "value": 90,
+      "type": "rising",
+      "source": "logo"
+    },
+    {
+      "keyword": "caricature maker",
+      "value": 600,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "caricature",
+      "value": 500,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "self attested photo maker",
+      "value": 400,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "how to clean a waffle maker",
+      "value": 130,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "key maker",
+      "value": 130,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "key maker near me",
+      "value": 130,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "how to descale coffee maker",
+      "value": 130,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "timeline maker",
+      "value": 70,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "pace maker",
+      "value": 60,
+      "type": "rising",
+      "source": "maker"
+    },
+    {
+      "keyword": "next blackburn manager odds",
+      "value": 3100,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "blackburn manager odds",
+      "value": 1950,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "manager of the month premier league",
+      "value": 450,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "niri window manager",
+      "value": 350,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "what is a password manager",
+      "value": 140,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "what is a task manager",
+      "value": 120,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "night manager season 2 ending",
+      "value": 110,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "night manager season 3",
+      "value": 110,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "night manager ending",
+      "value": 110,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "night manager season 2 finale",
+      "value": 100,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "the night manager ending",
+      "value": 100,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "will there be a season 3 of the night manager",
+      "value": 100,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "the night manager season 3",
+      "value": 100,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "the night manager season 2 episode 7",
+      "value": 70,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "the night manager season 3 release date",
+      "value": 70,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "night manager season 3 release date",
+      "value": 60,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "night manager staffel 3",
+      "value": 50,
+      "type": "rising",
+      "source": "manager"
+    },
+    {
+      "keyword": "trump racist meme",
+      "value": 6200,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "golden dandelion meme",
+      "value": 3250,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "trump obama meme",
+      "value": 3100,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "bad bunny meme",
+      "value": 1300,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "obama meme",
+      "value": 600,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "pinayflix title meme",
+      "value": 450,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "groundhog day meme",
+      "value": 400,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "epstein meme",
+      "value": 190,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "david baszucki curse meme",
+      "value": 170,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "what is a meme stock",
+      "value": 150,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "trump meme",
+      "value": 100,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "what is a meme",
+      "value": 40,
+      "type": "rising",
+      "source": "meme"
+    },
+    {
+      "keyword": "gabriela rico jimenez",
+      "value": 600,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "stick to the model be a gm",
+      "value": 550,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "how to check motherboard model",
+      "value": 130,
+      "type": "rising",
+      "source": "model"
+    },
+    {
+      "keyword": "stamina modifier undisputed",
+      "value": 1100,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "blade staff best modifier",
+      "value": 250,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "advanced modifier engine",
+      "value": 130,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "transformer un pdf en word gratuit",
+      "value": 120,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "terraria best pickaxe modifier",
+      "value": 80,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "gc modifier description",
+      "value": 80,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "52 modifier description",
+      "value": 80,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "qz modifier",
+      "value": 70,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "25 modifier in medical billing",
+      "value": 70,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "codify",
+      "value": 70,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "right thumb modifier",
+      "value": 50,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "terraria modifier",
+      "value": 50,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "57 modifier description",
+      "value": 50,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "79 modifier description",
+      "value": 50,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "modifier pdf en ligne gratuit sans inscription",
+      "value": 50,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "51 modifier description",
+      "value": 50,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "supprimer page pdf",
+      "value": 40,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "modifier signature outlook",
+      "value": 40,
+      "type": "rising",
+      "source": "modifier"
+    },
+    {
+      "keyword": "how to choose a gaming monitor",
+      "value": 150,
+      "type": "rising",
+      "source": "monitor"
+    },
+    {
+      "keyword": "how to connect external monitor to laptop",
+      "value": 130,
+      "type": "rising",
+      "source": "monitor"
+    },
+    {
+      "keyword": "how to calibrate monitor",
+      "value": 120,
+      "type": "rising",
+      "source": "monitor"
+    },
+    {
+      "keyword": "opalite music video",
+      "value": 26300,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "opalite",
+      "value": 18900,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "taylor swift opalite music video",
+      "value": 15750,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "opalite taylor swift",
+      "value": 15550,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "watch opalite music video",
+      "value": 11350,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "kid rocks music festival",
+      "value": 7550,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "opalite music video youtube",
+      "value": 7500,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "kid rocks music festival cancelled",
+      "value": 5300,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "opalite music video spotify",
+      "value": 5250,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "where to watch opalite music video",
+      "value": 3900,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "domhnall gleeson",
+      "value": 3750,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "kid rock country music festival",
+      "value": 1900,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "taylor swift new music video",
+      "value": 1500,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "kid rock music festival cancelled",
+      "value": 1400,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "apple music halftime show",
+      "value": 1350,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "opalite music video cast",
+      "value": 1200,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "bad bunny music",
+      "value": 800,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "what kind of music is bad bunny",
+      "value": 500,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "taylor swift",
+      "value": 500,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "kid rock music festival",
+      "value": 450,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "music by john williams",
+      "value": 350,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "music video",
+      "value": 40,
+      "type": "rising",
+      "source": "music"
+    },
+    {
+      "keyword": "kita navigator düsseldorf",
+      "value": 160,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "kita navigator erftstadt",
+      "value": 110,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "housing navigator massachusetts",
+      "value": 90,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "kita navigator siegen",
+      "value": 80,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "puq navigator",
+      "value": 70,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "ford expedition",
+      "value": 60,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "college navigator",
+      "value": 60,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "eon navigator",
+      "value": 50,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "matura navigator",
+      "value": 50,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "campus navigator",
+      "value": 40,
+      "type": "rising",
+      "source": "navigator"
+    },
+    {
+      "keyword": "lambdynamiclights",
+      "value": 13700,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "event notifier rotmg",
+      "value": 12350,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "notifier grade 12 cevap anahtarı",
+      "value": 10050,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "steam achievement manager",
+      "value": 350,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "notifier afp-200",
+      "value": 110,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "mysql notifier",
+      "value": 100,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "notifier fire alarm system",
+      "value": 50,
+      "type": "rising",
+      "source": "notifier"
+    },
+    {
+      "keyword": "casino online 🎯 deutschecasino.online",
+      "value": 15250,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "winnita online 🎲 wincasino.space",
+      "value": 12850,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "casino online 🎲 wincasino.space",
+      "value": 12750,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "winnita online casino 🎲 wincasino.space",
+      "value": 8550,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "casino online 🎁 casinno.fit",
+      "value": 7550,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "neue online casino ⭐ deutschecasino.online",
+      "value": 7550,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "winnita casino 🎰 wincasino.store",
+      "value": 6150,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "casino online non aams 🎁 www.testatoonline.it.com",
+      "value": 4350,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "casino online 🍀 casinno.fit",
+      "value": 3200,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "casino online www.victoryclubcasino.com",
+      "value": 3000,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "winnita online casino 🚀 wincasino.store",
+      "value": 2600,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "casino online non aams testatoonline.it.com",
+      "value": 2450,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "deutsche online casino 🎲 deutschecasino.online",
+      "value": 2150,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "kasyno online 🎲 kasy.space",
+      "value": 1800,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "gds online",
+      "value": 200,
+      "type": "rising",
+      "source": "online"
+    },
+    {
+      "keyword": "rotowire nfl optimizer",
+      "value": 350,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "circusync blood optimizer",
+      "value": 190,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "circusync blood optimizer reviews",
+      "value": 180,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "seo optimizer software",
+      "value": 160,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "jpeg optimizer 100 kb",
+      "value": 140,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "seo search engine optimizer",
+      "value": 130,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "cloth config",
+      "value": 100,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "search engine optimizer",
+      "value": 90,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "route optimizer",
+      "value": 90,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "image resizer",
+      "value": 70,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "summoners war rune optimizer",
+      "value": 70,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "zzz optimizer",
+      "value": 70,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "easy service optimizer",
+      "value": 70,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "inventory hud",
+      "value": 70,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "jpeg optimizer 20 kb",
+      "value": 50,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "citrix optimizer",
+      "value": 50,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "tbc dungeon optimizer",
+      "value": 50,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "amd ryzen master",
+      "value": 50,
+      "type": "rising",
+      "source": "optimizer"
+    },
+    {
+      "keyword": "tagalog to english translator",
+      "value": 5850,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "detector de ia",
+      "value": 5300,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "paraphraser .io",
+      "value": 4600,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "paraphaser",
+      "value": 350,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "copyleaks",
+      "value": 170,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "translate english to tagalog",
+      "value": 120,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "ahrefs",
+      "value": 110,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "grammerly",
+      "value": 100,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "english to tagalog",
+      "value": 80,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "deepl",
+      "value": 70,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "turnitin plagiarism checker",
+      "value": 70,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "kof pattern 2026",
+      "value": 1700,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "kof bingo pattern 2026",
+      "value": 1600,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "dish crossword clue",
+      "value": 750,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "sailor crossword clue",
+      "value": 750,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "chess board pattern crossword clue",
+      "value": 700,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "meta stock price",
+      "value": 450,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "section controller exam pattern",
+      "value": 250,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "how to reset pram on mac",
+      "value": 190,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "how to remove wine stains",
+      "value": 190,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "rrb section controller exam pattern",
+      "value": 170,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "health tips",
+      "value": 170,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "floral pattern",
+      "value": 150,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "lace pattern",
+      "value": 70,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "flag pattern",
+      "value": 60,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "flower pattern",
+      "value": 50,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "gds photo resize",
+      "value": 3250,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "photo kb.in",
+      "value": 1350,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein files photo",
+      "value": 1000,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein file photo",
+      "value": 950,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "jeffrey epstein photo",
+      "value": 800,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein photo",
+      "value": 700,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein files photo release",
+      "value": 650,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "self attested photo",
+      "value": 400,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein files photo library",
+      "value": 400,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "self attested photo maker",
+      "value": 250,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "best photo printers",
+      "value": 140,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "remove background from photo online",
+      "value": 140,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "free photo editing software",
+      "value": 120,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "best photo collage apps",
+      "value": 120,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "obama ape picture",
+      "value": 7100,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "trump picture of obama",
+      "value": 4800,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "trump obama picture",
+      "value": 3850,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "picture of bad bunny",
+      "value": 1500,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "epstein files picture",
+      "value": 950,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "epstein chicken picture",
+      "value": 900,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "epstein picture",
+      "value": 600,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "trump and clinton picture",
+      "value": 250,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "ramona and ruth planner",
+      "value": 4050,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "boun course planner",
+      "value": 90,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "sut planner",
+      "value": 80,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "ramadan planner pdf",
+      "value": 70,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "certified financial planner near me",
+      "value": 70,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "poe idol planner",
+      "value": 70,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "adhd cleaning planner",
+      "value": 60,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "financial planner near me",
+      "value": 50,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "ramadan planner",
+      "value": 40,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "rojgar prayag portal",
+      "value": 1350,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "prayag portal",
+      "value": 1000,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "cdcfib recruitment portal",
+      "value": 250,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal snbp",
+      "value": 200,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "cserp login portal",
+      "value": 180,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal snpmb 2026",
+      "value": 160,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal snpmb",
+      "value": 160,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "snpmb",
+      "value": 140,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal do aluno ufrgs",
+      "value": 140,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "c-serp portal",
+      "value": 140,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "nysc portal login",
+      "value": 140,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "naan mudhalvan portal",
+      "value": 130,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "aau portal",
+      "value": 130,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal do aluno unopar",
+      "value": 120,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "anhanguera portal do aluno",
+      "value": 90,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "esic portal",
+      "value": 80,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "nysc portal",
+      "value": 80,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal nacional nfse",
+      "value": 70,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "emis portal",
+      "value": 70,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "sidh portal",
+      "value": 70,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "my bharat portal",
+      "value": 70,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "oou student portal",
+      "value": 60,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "seva sindhu portal",
+      "value": 60,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "nssf portal",
+      "value": 60,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "ifms portal",
+      "value": 60,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "stephen harper",
+      "value": 5350,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "image resizer",
+      "value": 1650,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "image must have 4 5 portrait aspect ratio 10% tolerance",
+      "value": 1500,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "reduce image size",
+      "value": 550,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait to landscape photo converter online free",
+      "value": 450,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "jpeg to jpg",
+      "value": 400,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "resize image",
+      "value": 400,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "king charles",
+      "value": 250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "what is the resolution of the main rear camera sensor in oppo reno 15c?",
+      "value": 1400,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "what is the battery capacity of the oppo reno 15c?",
+      "value": 1250,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "which chipset is the oppo reno 15c equipped with?",
+      "value": 1150,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "the redmi note 15 pro uses which processor?",
+      "value": 450,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "processor compare",
+      "value": 100,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "intel xeon processor",
+      "value": 60,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "robot coupe food processor",
+      "value": 50,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "what is a product roadmap",
+      "value": 130,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "product liability lawyer",
+      "value": 130,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "product lifecycle management",
+      "value": 110,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "product lifecycle",
+      "value": 80,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "gross domestic product",
+      "value": 50,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "rhamondre stevenson stats",
+      "value": 300,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "kenneth walker iii",
+      "value": 250,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "patriots receivers",
+      "value": 250,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "kenneth walker stats",
+      "value": 200,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "seahawks quarterback",
+      "value": 170,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "stefon diggs stats",
+      "value": 170,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "mack hollins",
+      "value": 100,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "patriots wide receiver",
+      "value": 100,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "rashid shaheed",
+      "value": 90,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "seahawks wide receiver",
+      "value": 90,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "433mhz rf transmitter and receiver",
+      "value": 90,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "patriots receiver",
+      "value": 80,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "patriots quarterback",
+      "value": 80,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "jaxon smith-njigba",
+      "value": 60,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "superheterodyne receiver",
+      "value": 60,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "stefon diggs",
+      "value": 50,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "seahawks receiver",
+      "value": 50,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "does james dooley recommend highlevel",
+      "value": 31250,
+      "type": "rising",
+      "source": "recommend"
+    },
+    {
+      "keyword": "kba recommend paye tax cut",
+      "value": 7600,
+      "type": "rising",
+      "source": "recommend"
+    },
+    {
+      "keyword": "recommend some indie love songs for valentine's day",
+      "value": 2000,
+      "type": "rising",
+      "source": "recommend"
+    },
+    {
+      "keyword": "should i use parental controls for youtube shorts?",
+      "value": 1250,
+      "type": "rising",
+      "source": "recommend"
+    },
+    {
+      "keyword": "recommend a great action thriller",
+      "value": 1100,
+      "type": "rising",
+      "source": "recommend"
+    },
+    {
+      "keyword": "slot games",
+      "value": 600,
+      "type": "rising",
+      "source": "recommend"
+    },
+    {
+      "keyword": "what value does the video recommend keeping your credit utilization percentage below?",
+      "value": 300,
+      "type": "rising",
+      "source": "recommend"
+    },
+    {
+      "keyword": "camcorder",
+      "value": 60,
+      "type": "rising",
+      "source": "recorder"
+    },
+    {
+      "keyword": "dvr recorder",
+      "value": 60,
+      "type": "rising",
+      "source": "recorder"
+    },
+    {
+      "keyword": "screen recorder for windows shortcut",
+      "value": 50,
+      "type": "rising",
+      "source": "recorder"
+    },
+    {
+      "keyword": "streamer recorder",
+      "value": 50,
+      "type": "rising",
+      "source": "recorder"
+    },
+    {
+      "keyword": "vocaroo online voice recorder",
+      "value": 40,
+      "type": "rising",
+      "source": "recorder"
+    },
+    {
+      "keyword": "hikvision recorder",
+      "value": 40,
+      "type": "rising",
+      "source": "recorder"
+    },
+    {
+      "keyword": "voice activated recorder",
+      "value": 40,
+      "type": "rising",
+      "source": "recorder"
+    },
+    {
+      "keyword": "anil agarwal",
+      "value": 300,
+      "type": "rising",
+      "source": "resources"
+    },
+    {
+      "keyword": "human resources software",
+      "value": 140,
+      "type": "rising",
+      "source": "resources"
+    },
+    {
+      "keyword": "prime agri resources",
+      "value": 100,
+      "type": "rising",
+      "source": "resources"
+    },
+    {
+      "keyword": "vedanta resources",
+      "value": 70,
+      "type": "rising",
+      "source": "resources"
+    },
+    {
+      "keyword": "non renewable resources definition",
+      "value": 40,
+      "type": "rising",
+      "source": "resources"
+    },
+    {
+      "keyword": "hof",
+      "value": 1500,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "es el elemento que fortalece el ejercicio de la autonomía profesional docente",
+      "value": 300,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "first responder cigar company",
+      "value": 250,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "la actitud que refleja un uso responsable de la autonomía profesional docente se observa al",
+      "value": 250,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "el diseño de proyectos integradores que abordan el campo de lo humano y lo comunitario consideran experiencias de aprendizaje",
+      "value": 200,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "peacock first responder discount",
+      "value": 170,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "cuando adapta las estrategias o materiales didácticos para responder a la diversidad del aula, está ejerciendo su autonomía profesional docente",
+      "value": 160,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "los contenidos del campo de ética, naturaleza y sociedades se incorporan en los proyectos",
+      "value": 160,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "lulu first responder discount",
+      "value": 140,
+      "type": "rising",
+      "source": "responder"
+    },
+    {
+      "keyword": "winning the tyrant's heart",
+      "value": 20150,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "formula 1 headlight restorer",
+      "value": 10050,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "floor restore eez reviews",
+      "value": 7350,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "gx3 plastic restorer",
+      "value": 400,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "skindex",
+      "value": 250,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "gx-3 plastic restorer",
+      "value": 250,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "simple green shower glass restorer",
+      "value": 180,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "best headlight lens restorer",
+      "value": 120,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "car guys plastic restorer",
+      "value": 100,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "plastic restorer for cars",
+      "value": 100,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "engine restorer and lubricant",
+      "value": 80,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "laminate floor restorer",
+      "value": 80,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "shower glass restorer",
+      "value": 80,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "rubber restorer",
+      "value": 70,
+      "type": "rising",
+      "source": "restorer"
+    },
+    {
+      "keyword": "bad bunny halftime review",
+      "value": 11150,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "bad bunny halftime show review",
+      "value": 6350,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "bad bunny super bowl review",
+      "value": 5950,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "halftime show review",
+      "value": 4950,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "bad bunny half time review",
+      "value": 4200,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "sumathi satakam movie review",
+      "value": 3450,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "barabar premistha review",
+      "value": 3100,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "half time show review",
+      "value": 2950,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "bad bunny half time show review",
+      "value": 2650,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "j cole the fall off review",
+      "value": 2450,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "halftime show 2026 review",
+      "value": 2300,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "super bowl halftime show review",
+      "value": 2250,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "with love tamil movie review",
+      "value": 2100,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "the fall off review",
+      "value": 1950,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "anomie movie review",
+      "value": 1700,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "half time show 2026 review",
+      "value": 1700,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "bad bunny review",
+      "value": 1600,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "unfamiliar netflix review",
+      "value": 1550,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "vadh 2 review",
+      "value": 1500,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "vadh 2 movie review",
+      "value": 1100,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "lord of the flies bbc review",
+      "value": 1050,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "tpusa halftime show review",
+      "value": 1050,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "mewgenics review",
+      "value": 850,
+      "type": "rising",
+      "source": "review"
+    },
+    {
+      "keyword": "29 intro j cole sample",
+      "value": 2650,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "ami sample sale",
+      "value": 1450,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "guizio sample sale",
+      "value": 1150,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "luther vandross",
+      "value": 1000,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "luther sample",
+      "value": 850,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "luther kendrick lamar sample",
+      "value": 600,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "moose knuckles sample sale",
+      "value": 250,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "monaco bad bunny sample",
+      "value": 250,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "family tree sample",
+      "value": 170,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "class 12 physical education sample paper 2025-26",
+      "value": 120,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "sample resume templates",
+      "value": 100,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "physical education sample paper",
+      "value": 60,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "edudel sample paper 2025-26",
+      "value": 50,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "cbse physics sample paper 2025-26",
+      "value": 50,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "sample paper class 12 cbse 2025-26 physics",
+      "value": 50,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "edudel sample paper",
+      "value": 40,
+      "type": "rising",
+      "source": "sample"
+    },
+    {
+      "keyword": "class 10 maths basic sample paper",
+      "value": 40,
+      "type": "rising",
+      "source": "sample"
+    }
+  ]
+}

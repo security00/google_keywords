@@ -1,0 +1,1042 @@
+{
+  "timestamp": "2026-02-04T14:35:27.743Z",
+  "keywords": [
+    "paraphraser",
+    "pattern",
+    "photo",
+    "picture",
+    "planner",
+    "portal",
+    "portrait",
+    "processor",
+    "product",
+    "receiver"
+  ],
+  "dateFrom": "2026-01-28",
+  "dateTo": "2026-02-04",
+  "candidates": [
+    {
+      "keyword": "netus ai paraphraser",
+      "value": 200,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "clever ai humanizer",
+      "value": 180,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "humaizer",
+      "value": 160,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "chatgpt zero",
+      "value": 160,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "rewritify ai",
+      "value": 150,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "originality ai",
+      "value": 130,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "ai detection tool",
+      "value": 100,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "ai summarizer",
+      "value": 90,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "ai detection",
+      "value": 60,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "blackbox ai",
+      "value": 60,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "quillbot ai checker",
+      "value": 50,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "zero ai paraphraser",
+      "value": 50,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "analema pattern",
+      "value": 400,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "paisley",
+      "value": 120,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "paisley pattern",
+      "value": 120,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "strangler fig pattern",
+      "value": 60,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "chatgpt picture trend",
+      "value": 1150,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "chat gpt picture trend",
+      "value": 1050,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "chat gpt picture",
+      "value": 50,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "urban planner",
+      "value": 100,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "portrait of stephen harper",
+      "value": 2750,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "saul steinberg self portrait",
+      "value": 2700,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "stephen harper portrait unveiling",
+      "value": 1700,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "harper portrait",
+      "value": 1250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "party girl portrait terraria",
+      "value": 1000,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait officiel louis xiv",
+      "value": 700,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "terraria portrait",
+      "value": 500,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait de louis xiv",
+      "value": 250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "zoologist terraria portrait",
+      "value": 250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait of ruth",
+      "value": 200,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "stephen harper official portrait",
+      "value": 150,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait louis xiv",
+      "value": 130,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "jan van eyck’s arnolfini portrait",
+      "value": 120,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait louis 14",
+      "value": 120,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "king charles official portrait",
+      "value": 120,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait to landscape image converter",
+      "value": 110,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "cigna claims processor",
+      "value": 4650,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "openai product that creates videos",
+      "value": 1050,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "#ajitpawar",
+      "value": 550,
+      "type": "rising",
+      "source": "product"
+    }
+  ],
+  "filterSummary": {
+    "enabled": true,
+    "model": "openai/gpt-5.2",
+    "total": 169,
+    "removed": 130,
+    "kept": 39
+  },
+  "filteredOut": [
+    {
+      "keyword": "rephrase tool",
+      "value": 250,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "paraphrase tool free",
+      "value": 140,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "quillbot summarizer",
+      "value": 110,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "grammerly",
+      "value": 110,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "filipino paraphraser",
+      "value": 90,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "wordtune",
+      "value": 80,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "microsoft word",
+      "value": 70,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "best ai humanizer",
+      "value": 70,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "chat gbt",
+      "value": 70,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "canvas",
+      "value": 60,
+      "type": "rising",
+      "source": "paraphraser"
+    },
+    {
+      "keyword": "emrs tier 1 exam pattern",
+      "value": 450,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "melt the ice hat knitting pattern",
+      "value": 200,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "red hat pattern",
+      "value": 150,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "sbi cbo exam pattern",
+      "value": 150,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "melt ice hat pattern",
+      "value": 140,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "health tips",
+      "value": 130,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "rrb section controller exam pattern",
+      "value": 110,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "melt the ice hat",
+      "value": 110,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "melt the ice hat pattern",
+      "value": 110,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "apkhue pattern lock",
+      "value": 100,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "melt the ice hat crochet pattern",
+      "value": 100,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "section controller exam pattern",
+      "value": 100,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "norwegian resistance hat pattern",
+      "value": 70,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "rrb group d exam pattern",
+      "value": 60,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "group d exam pattern",
+      "value": 50,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "w pattern trading",
+      "value": 50,
+      "type": "rising",
+      "source": "pattern"
+    },
+    {
+      "keyword": "ajit pawar photo",
+      "value": 24200,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "mike epps mug photo 1990",
+      "value": 9200,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "mike epps mug photo",
+      "value": 6050,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein files photo",
+      "value": 3850,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein chicken photo",
+      "value": 3600,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "ajit pawar plane crash photo",
+      "value": 3000,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "prince andrew photo",
+      "value": 2400,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "ajit pawar accident photo",
+      "value": 2300,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein files photo release",
+      "value": 2050,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein files photo library",
+      "value": 1500,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "epstein photo",
+      "value": 1250,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "ajit pawar photo hd",
+      "value": 550,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "remove background from photo online",
+      "value": 70,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "best photo collage apps",
+      "value": 70,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "free photo editing software",
+      "value": 60,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "best photo printers",
+      "value": 60,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "photo editing software",
+      "value": 50,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "image resizer",
+      "value": 50,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "photo resizer in kb",
+      "value": 50,
+      "type": "rising",
+      "source": "photo"
+    },
+    {
+      "keyword": "prince andrew picture",
+      "value": 1950,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "rocky horror picture show broadway",
+      "value": 750,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "collapse doggy picture",
+      "value": 600,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "picture frame shop",
+      "value": 70,
+      "type": "rising",
+      "source": "picture"
+    },
+    {
+      "keyword": "ramona and ruth planner",
+      "value": 2050,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "poe idol planner",
+      "value": 800,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "boun course planner",
+      "value": 250,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "hotel planner tour",
+      "value": 120,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "tacticus planner",
+      "value": 80,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "nhvr route planner",
+      "value": 80,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "poe planner",
+      "value": 70,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "my pathway planner",
+      "value": 50,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "journey planner qld",
+      "value": 40,
+      "type": "rising",
+      "source": "planner"
+    },
+    {
+      "keyword": "aau portal",
+      "value": 350,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "uneb portal",
+      "value": 300,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "rsk portal",
+      "value": 200,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "gcwuf student portal",
+      "value": 190,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "tsu student portal",
+      "value": 170,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal zacarias cachorro orelha",
+      "value": 160,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal do servidor mg",
+      "value": 150,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal uinsu",
+      "value": 140,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal snbp",
+      "value": 140,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "karmayogi portal",
+      "value": 130,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "karmyogi portal",
+      "value": 120,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal snpmb 2026",
+      "value": 120,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "maseno student portal",
+      "value": 120,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "unilorin portal",
+      "value": 120,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "sts portal",
+      "value": 110,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "nss portal",
+      "value": 100,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "oou portal",
+      "value": 100,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "portal snpmb",
+      "value": 100,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "iub e portal",
+      "value": 90,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "oou student portal",
+      "value": 90,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "jkuat student portal",
+      "value": 80,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "mku student portal",
+      "value": 70,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "kisii university student portal",
+      "value": 70,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "utar portal",
+      "value": 60,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "vimarsh portal",
+      "value": 60,
+      "type": "rising",
+      "source": "portal"
+    },
+    {
+      "keyword": "stephen harper",
+      "value": 1250,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "witch doctor terraria",
+      "value": 850,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "photo resizer",
+      "value": 600,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "image resizer",
+      "value": 400,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "portrait to landscape photo converter online free",
+      "value": 350,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "resize image",
+      "value": 350,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "health tips",
+      "value": 90,
+      "type": "rising",
+      "source": "portrait"
+    },
+    {
+      "keyword": "lenovo ideapad slim 3i 15.6 laptop, intel processor n100, 4gb ram, 128 ssd, artic grey",
+      "value": 70,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "firewood processor for sale",
+      "value": 60,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "mortgage loan processor jobs",
+      "value": 50,
+      "type": "rising",
+      "source": "processor"
+    },
+    {
+      "keyword": "tech release not finished product",
+      "value": 7850,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "tech release not finished product nyt",
+      "value": 4350,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "mafia member",
+      "value": 2100,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "tech release that's not the finished product",
+      "value": 1950,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "neutrogena product crossword",
+      "value": 1500,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "product needed for hair removal crossword",
+      "value": 1250,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "major product of milan nyt",
+      "value": 1100,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "openai product that creates video clips based on prompts",
+      "value": 900,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "square associate product manager program",
+      "value": 700,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "product that might feature a dandelion on the label",
+      "value": 350,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "how to repair drywall",
+      "value": 100,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "health tips",
+      "value": 100,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "congee near me",
+      "value": 80,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "difference between ram and rom",
+      "value": 80,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "cheapest day to buy flights",
+      "value": 80,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "best stroller travel systems",
+      "value": 80,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "how to cancel gym membership",
+      "value": 70,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "how to track ovulation",
+      "value": 70,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "what is a product roadmap",
+      "value": 50,
+      "type": "rising",
+      "source": "product"
+    },
+    {
+      "keyword": "minhaj",
+      "value": 5950,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "minhaj comedian",
+      "value": 5250,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "colts wide receiver pierce",
+      "value": 3550,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "national mario day",
+      "value": 2300,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "tyren montgomery",
+      "value": 1600,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "a lesson before dying book",
+      "value": 1400,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "australian ratites",
+      "value": 1400,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "avaricious definition",
+      "value": 1050,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "a lesson before dying",
+      "value": 160,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "court receiver amrapali",
+      "value": 60,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "sky receiver zurückschicken",
+      "value": 60,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "dvb-t2 receiver",
+      "value": 60,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "sat receiver mit festplatte",
+      "value": 60,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "which program is used to open .avi files?",
+      "value": 50,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "how do you rename a file?",
+      "value": 50,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "receiver signature",
+      "value": 50,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "which program is used to open .pptx files?",
+      "value": 40,
+      "type": "rising",
+      "source": "receiver"
+    },
+    {
+      "keyword": "marantz cinema 60",
+      "value": 40,
+      "type": "rising",
+      "source": "receiver"
+    }
+  ]
+}
