@@ -12,7 +12,8 @@ import {
 } from "@/lib/keyword-research";
 import type { ExpandResponse } from "@/lib/types";
 
-import { getAuthUser } from "@/lib/auth";
+import { authenticate } from "@/lib/auth_middleware";
+import { checkStudentAccess, incrementDailyUsage } from "@/lib/usage";
 import { createJob } from "@/lib/research-jobs";
 
 export const runtime = "nodejs";
@@ -22,9 +23,19 @@ export async function POST(request: Request) {
   const debug = process.env.DEBUG_API_LOGS === "true";
   const startedAt = Date.now();
   try {
-    const user = await getAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await authenticate(request as any);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    }
+    const user = { id: auth.userId! };
+
+    // 学员访问检查
+    const access = await checkStudentAccess(auth.userId!);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.reason, code: access.code },
+        { status: access.code === "trial_expired" ? 403 : 429 }
+      );
     }
 
     const body = await request.json().catch(() => ({}));
@@ -112,6 +123,11 @@ export async function POST(request: Request) {
         { error: "No tasks were created" },
         { status: 502 }
       );
+    }
+
+    // 消耗一次 API 配额（只在真正调用 DataForSEO 时计数）
+    if (access.user.role === "student") {
+      await incrementDailyUsage(auth.userId!);
     }
 
     if (debug) {

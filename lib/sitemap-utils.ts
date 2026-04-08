@@ -297,6 +297,23 @@ export const extractKeywordFromUrl = (
 
   const keyword = normalizeWhitespace(finalTokens.join(" "));
   if (!keyword || keyword.length < 2) return null;
+
+  // === Quality filters ===
+  // Reject pure numbers (e.g. "18387", "1201")
+  if (/^\d+$/.test(keyword)) return null;
+  // Reject too short (< 4 chars) — usually not meaningful game names
+  if (keyword.length < 4) return null;
+  // Reject too long (> 60 chars) — usually descriptions, not game names
+  if (keyword.length > 60) return null;
+  // Reject single-token generic words
+  const genericWords = new Set([
+    "beauty", "art", "io", "fun", "run", "car", "bus", "pop",
+    "box", "tap", "fit", "pet", "hud", "map", "top", "red",
+    "bot", "fly", "mix", "cut", "hit", "get", "set", "win",
+    "vip", "pro", "max", "new", "org", "net",
+  ]);
+  if (genericWords.has(keyword.toLowerCase())) return null;
+
   return keyword;
 };
 

@@ -107,10 +107,14 @@ const verifyPassword = async (password: string, stored: string) => {
 
 const createSessionToken = () => randomBytes(32).toString("base64url");
 
-export const createUser = async (email: string, password: string): Promise<AuthUser> => {
+export const createUser = async (
+  email: string,
+  password: string,
+  options?: { role?: "admin" | "student"; trialDays?: number }
+): Promise<AuthUser> => {
   const normalized = normalizeEmail(email);
   const { rows: existing } = await d1Query<AuthUserRow>(
-    "SELECT id, email, password_hash FROM auth_users WHERE email = ? LIMIT 1",
+    "SELECT id, email, password_hash FROM auth_users_v2 WHERE email = ? LIMIT 1",
     [normalized]
   );
 
@@ -118,13 +122,22 @@ export const createUser = async (email: string, password: string): Promise<AuthU
     throw new Error("该邮箱已注册");
   }
 
-  const now = new Date().toISOString();
+  const now = new Date();
   const userId = randomUUID();
   const passwordHash = await createPasswordHash(password);
+ = options?.role ?? "student";
+  const trialDays = options?.trialDays ?? 90; // 默认 3 个月
+  const trialStartedAt = now.toISOString();
+  const trialExpiresAt =
+    role === "admin"
+      ? "2099-12-31T23:59:59.000Z"
+      : new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000).toISOString();
 
   await d1Query(
-    "INSERT INTO auth_users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-    [userId, normalized, passwordHash, now, now]
+    `INSERT INTO auth_users_v2
+     (id, email, password_hash, role, trial_started_at, trial_expires_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [userId, normalized, passwordHash, role, trialStartedAt, trialExpiresAt, now.toISOString(), now.toISOString()]
   );
 
   return { id: userId, email: normalized };
@@ -133,7 +146,7 @@ export const createUser = async (email: string, password: string): Promise<AuthU
 export const validateUser = async (email: string, password: string): Promise<AuthUser | null> => {
   const normalized = normalizeEmail(email);
   const { rows } = await d1Query<AuthUserRow>(
-    "SELECT id, email, password_hash FROM auth_users WHERE email = ? LIMIT 1",
+    "SELECT id, email, password_hash FROM auth_users_v2 WHERE email = ? LIMIT 1",
     [normalized]
   );
 
@@ -172,7 +185,7 @@ export const getAuthUser = async (): Promise<AuthUser | null> => {
 
   const tokenHash = hashSessionToken(token);
   const { rows } = await d1Query<AuthSessionRow>(
-    "SELECT s.user_id, s.expires_at, u.email FROM auth_sessions s JOIN auth_users u ON u.id = s.user_id WHERE s.token_hash = ? LIMIT 1",
+    "SELECT s.user_id, s.expires_at, u.email FROM auth_sessions s JOIN auth_users_v2 u ON u.id = s.user_id WHERE s.token_hash = ? LIMIT 1",
     [tokenHash]
   );
 

@@ -14,16 +14,22 @@ export const dynamic = "force-dynamic";
 
 const isAuthorized = (request: Request) => {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
+  const extSecret = process.env.EXTERNAL_CRON_SECRET;
+  if (!secret && !extSecret) return false;
 
   const authHeader = request.headers.get("authorization");
-  if (authHeader && authHeader === `Bearer ${secret}`) return true;
+  if (secret && authHeader && authHeader === `Bearer ${secret}`) return true;
+  if (extSecret && authHeader && authHeader === `Bearer ${extSecret}`) return true;
 
   const headerSecret = request.headers.get("x-cron-secret");
-  if (headerSecret && headerSecret === secret) return true;
+  if (secret && headerSecret && headerSecret === secret) return true;
+  if (extSecret && headerSecret && headerSecret === extSecret) return true;
 
   const querySecret = new URL(request.url).searchParams.get("secret");
-  return querySecret === secret;
+  if (secret && querySecret === secret) return true;
+  if (extSecret && querySecret === extSecret) return true;
+
+  return false;
 };
 
 const handleCronRun = async (request: Request) => {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getAuthUser } from "@/lib/auth";
+import { authenticate } from "@/lib/auth_middleware";
 import { listSessions } from "@/lib/session-store";
 
 export const runtime = "nodejs";
@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    const user = await getAuthUser();
+    const auth = await authenticate(request as any);
+    if (!auth.authenticated) { return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 }); }
+    const user = { id: auth.userId! };
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
