@@ -11,7 +11,7 @@ import {
 } from "@/lib/sitemap-utils";
 
 export const DEFAULT_CHECK_INTERVAL_MINUTES = 60;
-export const SOURCE_SCAN_CONCURRENCY = 3;
+export const SOURCE_SCAN_CONCURRENCY = 1;
 const IN_QUERY_CHUNK_SIZE = 80;
 
 export type DiscoverySourceRow = {

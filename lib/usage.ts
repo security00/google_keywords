@@ -140,7 +140,7 @@ export async function checkApiQuota(userId: string): Promise<{ allowed: boolean;
 // 综合检查（一次性检查 trial + quota）
 // -------------------------------------------
 export type AccessCheckResult =
-  | { allowed: true; user: UserWithMeta; quota: { used: number; limit: number }; trial: { active: boolean; daysLeft: number } }
+  | { allowed: true; user: UserWithMeta; quota: { used: number; limit: number }; trial: { active: boolean; daysLeft: number; expiresAt: string | null } }
   | { allowed: false; reason: string; code: "unauthorized" | "trial_expired" | "quota_exceeded" };
 
 export async function checkStudentAccess(userId: string): Promise<AccessCheckResult> {

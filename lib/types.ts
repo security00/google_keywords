@@ -36,7 +36,7 @@ export type ComparisonExplanation = {
   summary: string;
   reasons: string[];
   metrics: {
-    isNew: boolean;
+    isNew?: boolean;
     baselineMean: number;
     baselinePeak: number;
     recentMean: number;

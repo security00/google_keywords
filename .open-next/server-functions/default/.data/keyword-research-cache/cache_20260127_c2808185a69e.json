@@ -1,0 +1,2851 @@
+{
+  "timestamp": "2026-01-27T07:11:12.993Z",
+  "keywords": [
+    "ction",
+    "advisor",
+    "agent",
+    "ai",
+    "analyzer",
+    "anime",
+    "answer",
+    "art",
+    "assistant",
+    "audio",
+    "avatar",
+    "best",
+    "builder",
+    "calculator",
+    "cartoon"
+  ],
+  "dateFrom": "2026-01-20",
+  "dateTo": "2026-01-27",
+  "candidates": [
+    {
+      "keyword": "tax calculator",
+      "value": 100,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "loan calculator",
+      "value": 92,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "age calculator",
+      "value": 74,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "bmi",
+      "value": 71,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "bmi calculator",
+      "value": 68,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "mortgage calculator",
+      "value": 67,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "interest calculator",
+      "value": 48,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "day calculator",
+      "value": 43,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "online calculator",
+      "value": 41,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "time calculator",
+      "value": 40,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "date calculator",
+      "value": 40,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "emi calculator",
+      "value": 37,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "salary calculator",
+      "value": 33,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "calorie calculator",
+      "value": 32,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "pay calculator",
+      "value": 32,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "google calculator",
+      "value": 29,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "percentage calculator",
+      "value": 27,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "snow day calculator",
+      "value": 26,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "weight calculator",
+      "value": 25,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "math calculator",
+      "value": 25,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "grade calculator",
+      "value": 24,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "payment calculator",
+      "value": 24,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "desmos",
+      "value": 24,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "scientific calculator",
+      "value": 23,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "desmos calculator",
+      "value": 23,
+      "type": "top",
+      "source": "calculator"
+    },
+    {
+      "keyword": "pta tax calculator",
+      "value": 700,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "uaf cgpa calculator",
+      "value": 300,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "cold day calculator",
+      "value": 250,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "wind chill calculator",
+      "value": 170,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "calculator love by name",
+      "value": 70,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "snow day calculator",
+      "value": 50,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "turbotax calculator",
+      "value": 50,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "crs score calculator",
+      "value": 50,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "crs calculator",
+      "value": 50,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "scrap gold calculator",
+      "value": 40,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "google spinner",
+      "value": 40,
+      "type": "rising",
+      "source": "calculator"
+    },
+    {
+      "keyword": "financial advisor",
+      "value": 100,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "trip advisor",
+      "value": 59,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "resident advisor",
+      "value": 14,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "investment advisor",
+      "value": 13,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "service advisor",
+      "value": 11,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "my advisor",
+      "value": 10,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "tax advisor",
+      "value": 9,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "financial advisor near me",
+      "value": 9,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "hotel advisor",
+      "value": 9,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "academic advisor",
+      "value": 8,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "senior advisor",
+      "value": 8,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "business advisor",
+      "value": 8,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "how to choose a financial advisor",
+      "value": 8,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "wealth advisor",
+      "value": 7,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "college advisor",
+      "value": 7,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "mortgage advisor",
+      "value": 7,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "health advisor",
+      "value": 7,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "travel advisor",
+      "value": 6,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "home advisor",
+      "value": 6,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "insurance advisor",
+      "value": 6,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "student advisor",
+      "value": 5,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "legal advisor",
+      "value": 5,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "sales advisor",
+      "value": 4,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "advisor meaning",
+      "value": 4,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "trip advisor reviews",
+      "value": 4,
+      "type": "top",
+      "source": "advisor"
+    },
+    {
+      "keyword": "welsh health advisor",
+      "value": 8250,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "wales health advisor",
+      "value": 2650,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "financial advisor services",
+      "value": 80,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "aws trusted advisor",
+      "value": 70,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "my career advisor app",
+      "value": 70,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "independent financial advisor near me",
+      "value": 50,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "schwab advisor center login",
+      "value": 40,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "wealthscape advisor login",
+      "value": 40,
+      "type": "rising",
+      "source": "advisor"
+    },
+    {
+      "keyword": "the answer",
+      "value": 100,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "question",
+      "value": 53,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "question answer",
+      "value": 53,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "what is the answer",
+      "value": 34,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer key",
+      "value": 28,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer this",
+      "value": 21,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer the question",
+      "value": 18,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "question and answer",
+      "value": 16,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "short answer",
+      "value": 12,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer me",
+      "value": 10,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer",
+      "value": 9,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle",
+      "value": 9,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answers",
+      "value": 7,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer this question",
+      "value": 5,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer ai",
+      "value": 4,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle today answer",
+      "value": 4,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle today",
+      "value": 4,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer the following question",
+      "value": 4,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "just answer",
+      "value": 4,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer sheet",
+      "value": 3,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "telenor answer",
+      "value": 3,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "telenor today answer",
+      "value": 2,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "answer the public",
+      "value": 2,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "connections answer",
+      "value": 2,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "ssc cgl answer key",
+      "value": 1,
+      "type": "top",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee mains answer key 2026",
+      "value": 3250,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "jee main 2026 answer key",
+      "value": 2050,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "hprca tgt arts answer key",
+      "value": 1950,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ssc cgl mains answer key 2025",
+      "value": 1550,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "cgl mains answer key",
+      "value": 1450,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "tgt arts answer key 2026",
+      "value": 1450,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ssc cgl mains answer key",
+      "value": 1400,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "hprca answer key",
+      "value": 1400,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer jan 22",
+      "value": 1350,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer jan 24 2026",
+      "value": 1350,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "something that may be raised to ask or answer a question",
+      "value": 1300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "4th grade final answer key rajasthangovt.com",
+      "value": 1200,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ssc cgl answer key 2025 tier 2",
+      "value": 1150,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ssc cgl tier 2 answer key",
+      "value": 1100,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "grouping of buffalo",
+      "value": 750,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ssc cgl answer key",
+      "value": 600,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer jan 26",
+      "value": 550,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "ssc cgl answer key 2025",
+      "value": 500,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle answer today jan 20",
+      "value": 500,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "mp si answer key",
+      "value": 500,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "today's wordle answer jan 22",
+      "value": 450,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "nmms answer key 2026",
+      "value": 400,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "what is the factorial of 100 voice answer android",
+      "value": 300,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "wordle 1678 answer",
+      "value": 250,
+      "type": "rising",
+      "source": "answer"
+    },
+    {
+      "keyword": "action",
+      "value": 100,
+      "type": "top",
+      "source": "ction"
+    },
+    {
+      "keyword": "tradu ction",
+      "value": 8,
+      "type": "top",
+      "source": "ction"
+    },
+    {
+      "keyword": "cation",
+      "value": 3,
+      "type": "top",
+      "source": "ction"
+    },
+    {
+      "keyword": "ction logement",
+      "value": 2,
+      "type": "top",
+      "source": "ction"
+    },
+    {
+      "keyword": "cation",
+      "value": 40,
+      "type": "rising",
+      "source": "ction"
+    },
+    {
+      "keyword": "website builder",
+      "value": 100,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "builder gel",
+      "value": 64,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "resume",
+      "value": 62,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "resume builder",
+      "value": 62,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "builder ai",
+      "value": 61,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "home builder",
+      "value": 44,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "body builder",
+      "value": 41,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "app builder",
+      "value": 35,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "team builder",
+      "value": 29,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "deck builder",
+      "value": 26,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "my builder",
+      "value": 24,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "free resume builder",
+      "value": 23,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "pc builder",
+      "value": 21,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "skill builder",
+      "value": 21,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "bob the builder",
+      "value": 20,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "builder near me",
+      "value": 20,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "ai website builder",
+      "value": 19,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "builder gel nails",
+      "value": 17,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "best website builder",
+      "value": 17,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "credit builder",
+      "value": 17,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "free website builder",
+      "value": 17,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "house builder",
+      "value": 15,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "schedule builder",
+      "value": 13,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "aws",
+      "value": 12,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "app builder ai",
+      "value": 11,
+      "type": "top",
+      "source": "builder"
+    },
+    {
+      "keyword": "abbey yung method routine builder",
+      "value": 450,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "is it clean.app",
+      "value": 300,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "abbey yung method builder",
+      "value": 200,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "abbey yung method",
+      "value": 190,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "rust base builder",
+      "value": 80,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "schedule builder cuny",
+      "value": 80,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "cunyfirst",
+      "value": 70,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "hive builder bss",
+      "value": 70,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "jjs skill builder",
+      "value": 60,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "schedule builder umn",
+      "value": 50,
+      "type": "rising",
+      "source": "builder"
+    },
+    {
+      "keyword": "anime girl",
+      "value": 100,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime sama",
+      "value": 64,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime watch",
+      "value": 62,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "best anime",
+      "value": 55,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime manga",
+      "value": 54,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime world",
+      "value": 49,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime online",
+      "value": 46,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "free anime",
+      "value": 44,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime characters",
+      "value": 35,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime wallpaper",
+      "value": 30,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime list",
+      "value": 28,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "new anime",
+      "value": 28,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime girls",
+      "value": 25,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "one piece",
+      "value": 23,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "one piece anime",
+      "value": 22,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "netflix anime",
+      "value": 21,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "naruto",
+      "value": 20,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime series",
+      "value": 20,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "top anime",
+      "value": 20,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime slayer",
+      "value": 19,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "jujutsu kaisen",
+      "value": 19,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "gachiakuta anime",
+      "value": 19,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "gachiakuta",
+      "value": 19,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "nonton anime",
+      "value": 18,
+      "type": "top",
+      "source": "anime"
+    },
+    {
+      "keyword": "dragon ball super galactic patrol anime",
+      "value": 9750,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "global mutation anime",
+      "value": 2450,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "a new dawn anime",
+      "value": 850,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "dragon ball super anime",
+      "value": 600,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "cherry magic anime",
+      "value": 250,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "orb anime",
+      "value": 200,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "dragon ball anime",
+      "value": 140,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime lok",
+      "value": 110,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "kakegurui",
+      "value": 90,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime guardians codes",
+      "value": 80,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime expo",
+      "value": 60,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "the darwin incident",
+      "value": 60,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "the darwin incident anime",
+      "value": 60,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "anime card collection codes",
+      "value": 50,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "kurama anime",
+      "value": 50,
+      "type": "rising",
+      "source": "anime"
+    },
+    {
+      "keyword": "ice agent",
+      "value": 100,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "secret agent",
+      "value": 89,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "estate agent",
+      "value": 73,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "the secret agent",
+      "value": 69,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "agent ai",
+      "value": 68,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "agent login",
+      "value": 63,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "real estate agent",
+      "value": 54,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "insurance agent",
+      "value": 47,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "travel agent",
+      "value": 43,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "public agent",
+      "value": 42,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "night agent",
+      "value": 35,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "free agent",
+      "value": 32,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "agent portal",
+      "value": 18,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "claude agent",
+      "value": 12,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "sentimental value",
+      "value": 12,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "ice agent shooting",
+      "value": 11,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "agent skills",
+      "value": 11,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "federal agent",
+      "value": 10,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "ice agent shot",
+      "value": 10,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "agent orange",
+      "value": 9,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "secret agent 2025",
+      "value": 9,
+      "type": "top",
+      "source": "agent"
+    },
+    {
+      "keyword": "fbi agent resigns",
+      "value": 7050,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "ice agent finger",
+      "value": 3600,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "evan kilgore ice agent",
+      "value": 2950,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "delroy lindo",
+      "value": 2900,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "ice agent finger bitten off",
+      "value": 1750,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "amy madigan",
+      "value": 1400,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "train dreams",
+      "value": 1200,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "bugonia",
+      "value": 650,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "the ugly stepsister",
+      "value": 650,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "wunmi mosaku",
+      "value": 600,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "f1",
+      "value": 550,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "song sung blue",
+      "value": 500,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "frankenstein",
+      "value": 500,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "marty supreme streaming",
+      "value": 350,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "sentimental value",
+      "value": 300,
+      "type": "rising",
+      "source": "agent"
+    },
+    {
+      "keyword": "what is art",
+      "value": 100,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art museum",
+      "value": 100,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "wall art",
+      "value": 84,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art gallery",
+      "value": 77,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "pixel",
+      "value": 67,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "pixel art",
+      "value": 66,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "clip art",
+      "value": 62,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "ai art",
+      "value": 50,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "nail art",
+      "value": 43,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art deco",
+      "value": 39,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art work",
+      "value": 38,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "google art",
+      "value": 37,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art history",
+      "value": 35,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art drawing",
+      "value": 33,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "modern art",
+      "value": 27,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "line art",
+      "value": 25,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "pop art",
+      "value": 25,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art list",
+      "value": 24,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art house",
+      "value": 24,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "digital art",
+      "value": 24,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "street art",
+      "value": 23,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "art for kids",
+      "value": 22,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "diamond art",
+      "value": 20,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "contemporary art",
+      "value": 19,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "sword art online",
+      "value": 18,
+      "type": "top",
+      "source": "art"
+    },
+    {
+      "keyword": "ai gemini",
+      "value": 100,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai google",
+      "value": 41,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "free ai",
+      "value": 29,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai video",
+      "value": 23,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai generator",
+      "value": 19,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai chatgpt",
+      "value": 18,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai chat",
+      "value": 16,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "what is ai",
+      "value": 16,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai studio",
+      "value": 15,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "character ai",
+      "value": 13,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai detector",
+      "value": 12,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "grok",
+      "value": 12,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "claude ai",
+      "value": 11,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "grok ai",
+      "value": 11,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "claude",
+      "value": 11,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai studio google",
+      "value": 11,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "gpt ai",
+      "value": 11,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "open ai",
+      "value": 9,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "meta ai",
+      "value": 8,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "google gemini ai",
+      "value": 8,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "chat gpt ai",
+      "value": 7,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai tools",
+      "value": 6,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai checker",
+      "value": 6,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "perplexity ai",
+      "value": 6,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "ai image generator",
+      "value": 5,
+      "type": "top",
+      "source": "ai"
+    },
+    {
+      "keyword": "apple ai pin",
+      "value": 1600,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "multibagg ai",
+      "value": 600,
+      "type": "rising",
+      "source": "ai"
+    },
+    {
+      "keyword": "avatar fire",
+      "value": 100,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "fire and ash avatar",
+      "value": 99,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar pandora",
+      "value": 51,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar world",
+      "value": 44,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar frontiers of pandora",
+      "value": 37,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar last airbender",
+      "value": 30,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar airbender",
+      "value": 30,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar the last airbender",
+      "value": 28,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "roblox avatar",
+      "value": 28,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar game",
+      "value": 19,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar 2026",
+      "value": 19,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar way of water",
+      "value": 14,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar 2025",
+      "value": 14,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar izle",
+      "value": 12,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar streaming",
+      "value": 12,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar release date",
+      "value": 12,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "jake avatar",
+      "value": 11,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar 3d",
+      "value": 11,
+      "type": "top",
+      "source": "avatar"
+    },
+    {
+      "keyword": "when will avatar 3 be streaming",
+      "value": 90,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "when is avatar fire and ash coming to disney",
+      "value": 70,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar font",
+      "value": 50,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "avatar fire and ash streaming",
+      "value": 40,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "picrew",
+      "value": 40,
+      "type": "rising",
+      "source": "avatar"
+    },
+    {
+      "keyword": "the best",
+      "value": 100,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "best buy",
+      "value": 18,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "best western",
+      "value": 3,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "best medicine",
+      "value": 3,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "best secret",
+      "value": 1,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "best buy near me",
+      "value": 1,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "best restaurants near me",
+      "value": 1,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "best and less",
+      "value": 1,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "america's best",
+      "value": 1,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "เว็บ pglucky88 best go",
+      "value": 0,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "สล็อต pgdee88 work go",
+      "value": 0,
+      "type": "top",
+      "source": "best"
+    },
+    {
+      "keyword": "เว็บ pglucky88 best go",
+      "value": 5350,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "สล็อต pgdee88 work go",
+      "value": 850,
+      "type": "rising",
+      "source": "best"
+    },
+    {
+      "keyword": "home assistant",
+      "value": 100,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "the assistant",
+      "value": 63,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "assistant jobs",
+      "value": 62,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "medical assistant",
+      "value": 38,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "assistant professor",
+      "value": 32,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "ai assistant",
+      "value": 27,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "google assistant",
+      "value": 27,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "assistant manager",
+      "value": 26,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "virtual assistant",
+      "value": 21,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lab assistant",
+      "value": 17,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "voice assistant",
+      "value": 17,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "assistant director",
+      "value": 17,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "office assistant",
+      "value": 16,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "physician assistant",
+      "value": 15,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "dental assistant",
+      "value": 13,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "administrative assistant",
+      "value": 13,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "teacher assistant",
+      "value": 13,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "executive assistant",
+      "value": 12,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "personal assistant",
+      "value": 11,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "research assistant",
+      "value": 11,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "teaching assistant",
+      "value": 10,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "nursing assistant",
+      "value": 10,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "medical assistant jobs",
+      "value": 8,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lopez voice assistant",
+      "value": 8,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "jobs near me",
+      "value": 6,
+      "type": "top",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lopez voice assistant payouts",
+      "value": 25900,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lopez voice assistant",
+      "value": 12150,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "what is lopez voice assistant",
+      "value": 5050,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lopez voice assistant payout",
+      "value": 4600,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lopez voice assistant settlement",
+      "value": 3400,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lopez voice assistant settlement reddit",
+      "value": 2950,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "what is lopez voice assistant settlement",
+      "value": 2500,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "what is lopez voice assistant payouts",
+      "value": 1750,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lopez voice assistant class action settlement",
+      "value": 650,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "primary assistant teacher result",
+      "value": 250,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "primary assistant teacher admit card",
+      "value": 250,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lab assistant notification 2026",
+      "value": 250,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "primary assistant teacher result 2026",
+      "value": 250,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "primary assistant teacher",
+      "value": 150,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "primary assistant teacher exam result 2026",
+      "value": 110,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "voice assistant",
+      "value": 90,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lab assistant syllabus",
+      "value": 80,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rrb office assistant",
+      "value": 70,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lab assistant vacancy 2026",
+      "value": 70,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rsmssb",
+      "value": 60,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "rssb",
+      "value": 50,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "lab assistant",
+      "value": 50,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "upsssc junior assistant",
+      "value": 50,
+      "type": "rising",
+      "source": "assistant"
+    },
+    {
+      "keyword": "download audio",
+      "value": 100,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "youtube audio",
+      "value": 59,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "instagram audio",
+      "value": 27,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio to video",
+      "value": 27,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio song",
+      "value": 26,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "youtube audio download",
+      "value": 20,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "download mp3 audio",
+      "value": 18,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "car audio",
+      "value": 18,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio ai",
+      "value": 18,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "converter audio",
+      "value": 17,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio book",
+      "value": 16,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "youtube to audio",
+      "value": 15,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "download instagram audio",
+      "value": 15,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio songs",
+      "value": 13,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio to text",
+      "value": 13,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio technica",
+      "value": 12,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "video a audio",
+      "value": 12,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "descargar audio",
+      "value": 11,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio books",
+      "value": 11,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio downloader",
+      "value": 10,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio interface",
+      "value": 9,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "realtek",
+      "value": 8,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio library",
+      "value": 8,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "audio test",
+      "value": 7,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "monitor audio",
+      "value": 7,
+      "type": "top",
+      "source": "audio"
+    },
+    {
+      "keyword": "instagram audio music download",
+      "value": 200,
+      "type": "rising",
+      "source": "audio"
+    },
+    {
+      "keyword": "spectrum analyzer",
+      "value": 100,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "ai analyzer",
+      "value": 97,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "trade analyzer",
+      "value": 93,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "wifi analyzer",
+      "value": 64,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "faceit",
+      "value": 53,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "gas analyzer",
+      "value": 53,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "faceit analyzer",
+      "value": 50,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "fantasy trade analyzer",
+      "value": 48,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "network analyzer",
+      "value": 47,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "power analyzer",
+      "value": 39,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "hematology analyzer",
+      "value": 36,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "logic analyzer",
+      "value": 35,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "log analyzer",
+      "value": 35,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "code analyzer",
+      "value": 32,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "chemistry analyzer",
+      "value": 29,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "pdf analyzer",
+      "value": 29,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "header analyzer",
+      "value": 28,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "esr analyzer",
+      "value": 28,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "audio analyzer",
+      "value": 27,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "video analyzer",
+      "value": 26,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "dpi analyzer",
+      "value": 25,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "seo analyzer",
+      "value": 25,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "eventlog analyzer",
+      "value": 25,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "nba trade analyzer",
+      "value": 24,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "skin analyzer",
+      "value": 24,
+      "type": "top",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "snbp analyzer",
+      "value": 7200,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "eventlog analyzer",
+      "value": 300,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "bertom eq curve analyzer",
+      "value": 120,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "cellebrite physical analyzer",
+      "value": 100,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "linkedin profile analyzer",
+      "value": 90,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "poem analyzer",
+      "value": 80,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "finra fund analyzer",
+      "value": 60,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "fantasy baseball trade analyzer",
+      "value": 60,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "microsoft remote connectivity analyzer",
+      "value": 50,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "mxtoolbox header analyzer",
+      "value": 50,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "bhiku mhatre twitter",
+      "value": 50,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "mxtoolbox",
+      "value": 40,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "mxtoolbox email header analyzer",
+      "value": 40,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "virustotal",
+      "value": 40,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "qr code analyzer",
+      "value": 40,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "fantasy football trade analyzer",
+      "value": 40,
+      "type": "rising",
+      "source": "analyzer"
+    },
+    {
+      "keyword": "cartoon video",
+      "value": 100,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon network",
+      "value": 98,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon characters",
+      "value": 75,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon character",
+      "value": 71,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "girl cartoon",
+      "value": 61,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon images",
+      "value": 50,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon drawing",
+      "value": 49,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "kids cartoon",
+      "value": 45,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon image",
+      "value": 40,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon videos",
+      "value": 38,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon picture",
+      "value": 37,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cat cartoon",
+      "value": 36,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "dog cartoon",
+      "value": 35,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "anime cartoon",
+      "value": 34,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "old cartoon",
+      "value": 34,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "hindi cartoon",
+      "value": 33,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon photo",
+      "value": 30,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "wala cartoon",
+      "value": 29,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon boy",
+      "value": 29,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "ai cartoon",
+      "value": 28,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "youtube cartoon",
+      "value": 26,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoons",
+      "value": 26,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "disney cartoon",
+      "value": 24,
+      "type": "top",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "masters of the universe 2026",
+      "value": 1700,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "master of the universe cartoon",
+      "value": 1200,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "masters of the universe cartoon",
+      "value": 800,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "masters of the universe",
+      "value": 800,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "he-man cartoon",
+      "value": 550,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "he man cartoon characters",
+      "value": 400,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "he man",
+      "value": 350,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "he man cartoon",
+      "value": 350,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "heman cartoon",
+      "value": 350,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "thundercats",
+      "value": 80,
+      "type": "rising",
+      "source": "cartoon"
+    },
+    {
+      "keyword": "cartoon network yayın akışı",
+      "value": 40,
+      "type": "rising",
+      "source": "cartoon"
+    }
+  ],
+  "filterSummary": {
+    "enabled": true,
+    "model": "openai/gpt-4o",
+    "total": 505,
+    "removed": 35,
+    "kept": 470
+  }
+}

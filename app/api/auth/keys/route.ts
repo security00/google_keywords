@@ -1,26 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getD1 } from '@/lib/d1';
 import { getAuthUser } from '@/lib/auth';
 import { generateApiKey, listApiKeys, revokeApiKey } from '@/lib/api_keys';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/auth/keys — list current user's API keys (masked)
-export async function GET(req: NextRequest) {
-    const user = await getAuthUser(req);
+export async function GET(_req: NextRequest) {
+    const user = await getAuthUser();
     if (!user) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const d1 = getD1();
-    const keys = await listApiKeys(d1, user.id);
-
+    const keys = await listApiKeys(Number(user.id));
     return NextResponse.json({ keys });
 }
 
 // POST /api/auth/keys — generate new API key
 export async function POST(req: NextRequest) {
-    const user = await getAuthUser(req);
+    const user = await getAuthUser();
     if (!user) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -35,9 +32,7 @@ export async function POST(req: NextRequest) {
     const name = String(body.name || 'default').slice(0, 50);
 
     try {
-        const d1 = getD1();
-        const key = await generateApiKey(d1, user.id, name);
-
+        const key = await generateApiKey(Number(user.id), name);
         return NextResponse.json({
             key,
             message: 'Save this key securely. It will not be shown again.',
@@ -52,7 +47,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/auth/keys — revoke an API key
 export async function DELETE(req: NextRequest) {
-    const user = await getAuthUser(req);
+    const user = await getAuthUser();
     if (!user) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -68,9 +63,7 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: 'keyId required' }, { status: 400 });
     }
 
-    const d1 = getD1();
-    const revoked = await revokeApiKey(d1, user.id, body.keyId);
-
+    const revoked = await revokeApiKey(Number(user.id), body.keyId);
     if (!revoked) {
         return NextResponse.json({ error: 'Key not found or not yours' }, { status: 404 });
     }

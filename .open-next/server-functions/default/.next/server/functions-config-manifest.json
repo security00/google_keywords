@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/admin/invite-codes": {},
+    "/api/auth/access": {},
+    "/api/auth/session": {},
+    "/api/auth/sign-in": {},
+    "/api/auth/sign-out": {},
+    "/api/auth/sign-up": {},
+    "/api/cron/discovery": {},
+    "/api/integrations/discovery-feed": {},
+    "/api/research/compare": {},
+    "/api/research/compare/status": {},
+    "/api/research/expand": {},
+    "/api/research/expand/status": {},
+    "/api/research/session/[id]": {},
+    "/api/research/session/latest": {},
+    "/api/research/session/list": {},
+    "/api/sitemaps/keywords": {},
+    "/api/sitemaps/keywords/mark": {},
+    "/api/sitemaps/scan": {},
+    "/api/sitemaps/sources": {},
+    "/api/sitemaps/sources/[id]": {}
+  }
+}

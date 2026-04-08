@@ -56,7 +56,7 @@ const handleCronRun = async (request: Request) => {
        FROM sitemap_sources
        WHERE enabled = 1 AND (next_check_at IS NULL OR next_check_at <= ?)
        ORDER BY COALESCE(next_check_at, last_checked_at) ASC
-       LIMIT 100`,
+       LIMIT 2`,
       [runAt]
     );
 

@@ -1,10 +1,4 @@
-import { D1Database } from '@cloudflare/workers-types';
-
-interface D1Result<T = unknown> {
-    results: T[];
-    success: boolean;
-    meta?: unknown;
-}
+import { d1Query } from '@/lib/d1';
 
 // Rate limiting: max failed attempts per key prefix before temporary block
 const MAX_FAILED_ATTEMPTS = 10;
@@ -24,7 +18,6 @@ function purgeExpired() {
 }
 
 function getClientFingerprint(req: Request): string {
-    // Use IP + User-Agent as fingerprint for rate limiting
     const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'unknown';
     const ua = req.headers.get('user-agent') || '';
     return `${ip}:${ua}`.slice(0, 128);
@@ -36,7 +29,6 @@ function isRateBlocked(fingerprint: string): boolean {
     if (entry.blockedUntil && entry.blockedUntil > Date.now()) return true;
     if (entry.blockedUntil && entry.blockedUntil <= Date.now()) {
         failedAttempts.delete(fingerprint);
-        return false;
     }
     return false;
 }
@@ -54,7 +46,6 @@ function recordFailedAttempt(fingerprint: string) {
 const API_KEY_PATTERN = /^gk_live_[0-9a-f]{32}$/;
 
 export async function validateApiKey(
-    d1: D1Database,
     apiKey: string,
     req?: Request
 ): Promise<{
@@ -84,18 +75,20 @@ export async function validateApiKey(
     }
 
     try {
-        const result = await d1.prepare(
-            `SELECT ak.user_id, ak.expires_at, u.trial_expires_at, u.role
-             FROM api_keys ak
-             JOIN auth_users u ON u.id = ak.user_id
-             WHERE ak.key = ? AND ak.active = 1`
-        ).bind(apiKey).first() as {
+        const { rows } = await d1Query<{
             user_id: number;
             expires_at: string | null;
             trial_expires_at: string | null;
             role: string;
-        } | null;
+        }>(
+            `SELECT ak.user_id, ak.expires_at, u.trial_expires_at, u.role
+             FROM api_keys ak
+             JOIN auth_users u ON u.id = ak.user_id
+             WHERE ak.key = ? AND ak.active = 1`,
+            [apiKey]
+        );
 
+        const result = rows[0];
         if (!result) {
             if (req) recordFailedAttempt(getClientFingerprint(req));
             return { valid: false, error: 'Invalid API key' };
@@ -121,13 +114,14 @@ export async function validateApiKey(
 // Max keys per user to prevent abuse
 const MAX_KEYS_PER_USER = 5;
 
-export async function generateApiKey(d1: D1Database, userId: number, name: string = 'default'): Promise<string> {
+export async function generateApiKey(userId: number, name: string = 'default'): Promise<string> {
     // Check key limit
-    const existing = await d1.prepare(
-        `SELECT COUNT(*) as cnt FROM api_keys WHERE user_id = ? AND active = 1`
-    ).bind(userId).first() as { cnt: number } | null;
+    const { rows } = await d1Query<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM api_keys WHERE user_id = ? AND active = 1`,
+        [userId]
+    );
 
-    if (existing && existing.cnt >= MAX_KEYS_PER_USER) {
+    if (rows[0] && rows[0].cnt >= MAX_KEYS_PER_USER) {
         throw new Error(`Maximum ${MAX_KEYS_PER_USER} active API keys allowed. Delete an existing key first.`);
     }
 
@@ -139,14 +133,15 @@ export async function generateApiKey(d1: D1Database, userId: number, name: strin
     crypto.getRandomValues(bytes);
     const key = 'gk_live_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
-    await d1.prepare(
-        `INSERT INTO api_keys (key, user_id, name) VALUES (?, ?, ?)`
-    ).bind(key, userId, safeName).run();
+    await d1Query(
+        `INSERT INTO api_keys (key, user_id, name) VALUES (?, ?, ?)`,
+        [key, userId, safeName]
+    );
 
     return key;
 }
 
-export async function listApiKeys(d1: D1Database, userId: number): Promise<Array<{
+export async function listApiKeys(userId: number): Promise<Array<{
     id: number;
     key: string;
     name: string;
@@ -154,29 +149,29 @@ export async function listApiKeys(d1: D1Database, userId: number): Promise<Array
     expires_at: string | null;
     active: number;
 }>> {
-    const result = await d1.prepare(
-        `SELECT id, key, name, created_at, expires_at, active FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`
-    ).bind(userId).all();
-
-    // Always mask keys in list — never return full key
-    const rows = (result as D1Result).results as Array<{
+    const { rows } = await d1Query<{
         id: number;
         key: string;
         name: string;
         created_at: string;
         expires_at: string | null;
         active: number;
-    }>;
+    }>(
+        `SELECT id, key, name, created_at, expires_at, active FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
+        [userId]
+    );
 
+    // Always mask keys — never return full key in list
     return rows.map(k => ({
         ...k,
         key: k.key.slice(0, 12) + '...' + k.key.slice(-4),
     }));
 }
 
-export async function revokeApiKey(d1: D1Database, userId: number, keyId: number): Promise<boolean> {
-    const result = await d1.prepare(
-        `UPDATE api_keys SET active = 0 WHERE id = ? AND user_id = ?`
-    ).bind(keyId, userId).run();
-    return (result as any).meta?.changes > 0;
+export async function revokeApiKey(userId: number, keyId: number): Promise<boolean> {
+    const { meta } = await d1Query(
+        `UPDATE api_keys SET active = 0 WHERE id = ? AND user_id = ?`,
+        [keyId, userId]
+    );
+    return (meta?.changes ?? 0) > 0;
 }
