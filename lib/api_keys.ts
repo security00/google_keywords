@@ -50,7 +50,7 @@ export async function validateApiKey(
     req?: Request
 ): Promise<{
     valid: boolean;
-    userId?: number;
+    userId?: string;
     error?: string;
 }> {
     purgeExpired();
@@ -114,7 +114,7 @@ export async function validateApiKey(
 // Max keys per user to prevent abuse
 const MAX_KEYS_PER_USER = 5;
 
-export async function generateApiKey(userId: number, name: string = 'default'): Promise<string> {
+export async function generateApiKey(userId: string, name: string = 'default'): Promise<string> {
     // Check key limit
     const { rows } = await d1Query<{ cnt: number }>(
         `SELECT COUNT(*) as cnt FROM api_keys WHERE user_id = ? AND active = 1`,
@@ -141,7 +141,7 @@ export async function generateApiKey(userId: number, name: string = 'default'): 
     return key;
 }
 
-export async function listApiKeys(userId: number): Promise<Array<{
+export async function listApiKeys(userId: string): Promise<Array<{
     id: number;
     key: string;
     name: string;
@@ -168,7 +168,7 @@ export async function listApiKeys(userId: number): Promise<Array<{
     }));
 }
 
-export async function revokeApiKey(userId: number, keyId: number): Promise<boolean> {
+export async function revokeApiKey(userId: string, keyId: number): Promise<boolean> {
     const { meta } = await d1Query(
         `UPDATE api_keys SET active = 0 WHERE id = ? AND user_id = ?`,
         [keyId, userId]
