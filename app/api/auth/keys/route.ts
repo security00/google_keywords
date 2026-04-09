@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const keys = await listApiKeys(Number(user.id));
+    const keys = await listApiKeys(String(user.id));
     return NextResponse.json({ keys });
 }
 
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     const name = String(body.name || 'default').slice(0, 50);
 
     try {
-        const key = await generateApiKey(Number(user.id), name);
+        const key = await generateApiKey(String(user.id), name);
         return NextResponse.json({
             key,
             message: 'Save this key securely. It will not be shown again.',
@@ -63,7 +63,7 @@ export async function DELETE(req: NextRequest) {
         return NextResponse.json({ error: 'keyId required' }, { status: 400 });
     }
 
-    const revoked = await revokeApiKey(Number(user.id), body.keyId);
+    const revoked = await revokeApiKey(String(user.id), body.keyId);
     if (!revoked) {
         return NextResponse.json({ error: 'Key not found or not yours' }, { status: 404 });
     }
