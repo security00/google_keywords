@@ -43,17 +43,18 @@ function Navigation() {
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
     { href: "/dashboard/discovery", label: "新游发现", active: pathname.includes("/discovery") },
+    { href: "/dashboard/settings", label: "设置", active: pathname.includes("/settings") },
   ];
 
   return (
     <div className="sticky top-0 z-50 w-full border-b border-white/20 bg-white/70 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/70">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-6">
-          <div className="hidden md:block">
+          <Link href="/dashboard" className="hidden md:block">
             <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
               关键词研究台
             </h1>
-          </div>
+          </Link>
 
           <nav className="flex items-center gap-1">
             {steps.map((step) => (

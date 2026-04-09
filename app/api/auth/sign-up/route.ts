@@ -19,7 +19,8 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!email.includes("@")) {
+    const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
       return NextResponse.json({ error: "邮箱格式不正确" }, { status: 400 });
     }
 

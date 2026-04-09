@@ -302,7 +302,7 @@ const SERP_TOP_RESULTS = 5;
 const SERP_LLM_RESULTS = 3;
 const FILTER_CACHE_VERSION = "v4";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const normalizeDate = (value: string) => value.trim();
 
@@ -644,7 +644,7 @@ export const normalizeKeywords = (keywords: string[]) => {
 };
 
 
-const buildAuthHeaders = () => {
+export const buildAuthHeaders = () => {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
 
@@ -684,7 +684,7 @@ const fetchJsonWithTimeout = async (
   }
 };
 
-const requestWithRetry = async (
+export const requestWithRetry = async (
   method: "get" | "post",
   url: string,
   options: RequestInit = {},
@@ -1063,7 +1063,7 @@ const shouldUseSerpForKeyword = (keyword: string) => {
   return false;
 };
 
-type SerpSummary = {
+export type SerpSummary = {
   keyword: string;
   itemTypes: string[];
   itemTypeCounts: Record<string, number>;
@@ -1121,7 +1121,7 @@ const buildSerpTask = (keyword: string) => {
   return task;
 };
 
-const submitSerpTasks = async (keywords: string[]) => {
+export const submitSerpTasks = async (keywords: string[]) => {
   const batches = createBatches(keywords, SERP_TASK_BATCH_SIZE);
   const taskIds: string[] = [];
 
@@ -1146,7 +1146,7 @@ const submitSerpTasks = async (keywords: string[]) => {
   return taskIds;
 };
 
-const waitForSerpTasks = async (taskIds: string[]) => {
+export const waitForSerpTasks = async (taskIds: string[]) => {
   const pending = new Set(taskIds);
   const completed: string[] = [];
   const startedAt = Date.now();
@@ -1175,7 +1175,7 @@ const waitForSerpTasks = async (taskIds: string[]) => {
   return completed;
 };
 
-const summarizeSerpResult = (taskResult: Record<string, unknown>): SerpSummary => {
+export const summarizeSerpResult = (taskResult: Record<string, unknown>): SerpSummary => {
   const itemsRaw = taskResult.items;
   const items = Array.isArray(itemsRaw) ? itemsRaw : [];
   const toRecord = (value: unknown) =>
@@ -1217,7 +1217,7 @@ const summarizeSerpResult = (taskResult: Record<string, unknown>): SerpSummary =
   };
 };
 
-const getSerpResults = async (taskIds: string[]) => {
+export const getSerpResults = async (taskIds: string[]) => {
   const summaries = new Map<string, SerpSummary>();
 
   for (const taskId of taskIds) {

@@ -166,14 +166,16 @@ def scan_source(source):
     skipped = 0
     kw_list = list(keywords.items())
 
-    for i in range(0, len(kw_list), 14):
-        batch = kw_list[i:i + 100]
+    BATCH_SIZE = 10  # D1 has low SQL variable limit; 10 * 7 = 70 params
+    for i in range(0, len(kw_list), BATCH_SIZE):
+        batch = kw_list[i:i + BATCH_SIZE]
         norms = [k for k, v in batch]
 
-        # Check existing in chunks of 50
+        # Check existing in chunks
         existing = set()
-        for j in range(0, len(norms), 30):
-            chunk = norms[j:j + 50]
+        SELECT_CHUNK = 30
+        for j in range(0, len(norms), SELECT_CHUNK):
+            chunk = norms[j:j + SELECT_CHUNK]
             placeholders = ",".join(["?"] * len(chunk))
             result = d1_query(
                 f"SELECT keyword_normalized FROM discovered_keywords WHERE keyword_normalized IN ({placeholders})",

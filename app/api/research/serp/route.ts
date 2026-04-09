@@ -1,0 +1,91 @@
+import { NextResponse } from "next/server";
+
+import { authenticate } from "@/lib/auth_middleware";
+import { checkStudentAccess, incrementDailyUsage } from "@/lib/usage";
+import {
+  submitSerpTasks,
+  waitForSerpTasks,
+  getSerpResults,
+} from "@/lib/keyword-research";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// POST /api/research/serp — Run SERP analysis for keywords
+// Body: { keywords: string[], maxWaitMs?: number }
+// Returns: { results: Record<string, SerpResult> }
+export async function POST(request: Request) {
+  try {
+    const auth = await authenticate(request as any);
+    if (!auth.authenticated) {
+      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    }
+
+    const access = await checkStudentAccess(auth.userId!);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.reason, code: access.code },
+        { status: access.code === "trial_expired" ? 403 : 429 }
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const keywords = Array.isArray(body?.keywords) ? body.keywords : [];
+
+    if (keywords.length === 0 || keywords.length > 20) {
+      return NextResponse.json(
+        { error: "keywords is required (max 20)" },
+        { status: 400 }
+      );
+    }
+
+    // Submit SERP tasks
+    const taskIds = await submitSerpTasks(keywords);
+
+    // Count API usage
+    if (access.user.role === "student") {
+      await incrementDailyUsage(auth.userId!);
+    }
+
+    // Wait for results
+    const completed = await waitForSerpTasks(taskIds);
+
+    if (completed.length === 0) {
+      return NextResponse.json({ error: "SERP tasks timed out" }, { status: 504 });
+    }
+
+    // Get results
+    const summaries = await getSerpResults(completed);
+
+    // Convert to serializable format
+    const results: Record<string, Record<string, unknown>> = {};
+    for (const [keyword, summary] of summaries) {
+      results[keyword] = {
+        keyword: summary.keyword,
+        itemTypes: summary.itemTypes,
+        itemTypeCounts: summary.itemTypeCounts,
+        topResults: summary.topResults,
+        // Derived signals for skill consumption
+        signals: {
+          hasAiOverview: summary.itemTypes.includes("ai_overview"),
+          hasFeaturedSnippet: summary.itemTypes.includes("featured_snippet"),
+          hasKnowledgePanel: summary.itemTypes.includes("knowledge_graph"),
+          organicCount: (summary.itemTypeCounts["organic"] ?? 0),
+          authDomains: summary.topResults.filter((r) => {
+            const d = r.domain || "";
+            return ["wikipedia.org", "youtube.com", "reddit.com", "amazon.com", "facebook.com", "twitter.com", "instagram.com", "linkedin.com", "apple.com", "microsoft.com", "google.com", "adobe.com", "forbes.com", "nytimes.com", "bbc.com", "techcrunch.com"].some((a) => d.includes(a));
+          }).length,
+          nicheDomains: summary.topResults.filter((r) => {
+            const d = r.domain || "";
+            return !["wikipedia.org", "youtube.com", "reddit.com", "amazon.com", "facebook.com", "twitter.com", "instagram.com", "linkedin.com", "apple.com", "microsoft.com", "google.com", "adobe.com", "forbes.com", "nytimes.com", "bbc.com", "techcrunch.com"].some((a) => d.includes(a));
+          }).length,
+        },
+      };
+    }
+
+    return NextResponse.json({ results });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unexpected error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

@@ -1,25 +1,30 @@
 import { NextResponse } from "next/server";
 
-import { getAuthUser } from "@/lib/auth";
-import { getUserWithMeta, generateInviteCodes } from "@/lib/usage";
+import { requireAdmin, listInviteCodes, deleteInviteCode } from "@/lib/admin";
+import { generateInviteCodes } from "@/lib/usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// POST /api/admin/invite-codes
-// Body: { count: number, maxUsesPerCode?: number, expiresInDays?: number }
-export async function POST(request: Request) {
+// GET /api/admin/invite-codes — 列出所有邀请码
+export async function GET(request: Request) {
+  const { error } = await requireAdmin(request);
+  if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
+
   try {
-    const user = await getAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const codes = await listInviteCodes();
+    return NextResponse.json({ codes });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Query failed" }, { status: 500 });
+  }
+}
 
-    const meta = await getUserWithMeta(user.id);
-    if (!meta || meta.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden: admin only" }, { status: 403 });
-    }
+// POST /api/admin/invite-codes — 生成新邀请码
+export async function POST(request: Request) {
+  const { userId, error } = await requireAdmin(request);
+  if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
 
+  try {
     const body = await request.json().catch(() => ({}));
     const count = Math.min(Math.max(Number(body?.count) || 1, 1), 100);
     const maxUsesPerCode = Math.min(Math.max(Number(body?.maxUsesPerCode) || 1, 1), 100);
@@ -28,11 +33,24 @@ export async function POST(request: Request) {
       ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString()
       : undefined;
 
-    const codes = await generateInviteCodes(user.id, count, maxUsesPerCode, expiresAt);
-
+    const codes = await generateInviteCodes(userId, count, maxUsesPerCode, expiresAt);
     return NextResponse.json({ codes, count: codes.length });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unexpected error";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Unexpected error" }, { status: 500 });
+  }
+}
+
+// DELETE /api/admin/invite-codes — 撤销邀请码
+export async function DELETE(request: Request) {
+  const { error } = await requireAdmin(request);
+  if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
+
+  try {
+    const body = await request.json().catch(() => ({}));
+    if (!body.code) return NextResponse.json({ error: "code is required" }, { status: 400 });
+    await deleteInviteCode(body.code);
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Delete failed" }, { status: 500 });
   }
 }
