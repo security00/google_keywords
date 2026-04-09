@@ -76,14 +76,14 @@ export async function validateApiKey(
 
     try {
         const { rows } = await d1Query<{
-            user_id: number;
+            user_id: string;
             expires_at: string | null;
             trial_expires_at: string | null;
             role: string;
         }>(
             `SELECT ak.user_id, ak.expires_at, u.trial_expires_at, u.role
              FROM api_keys ak
-             JOIN auth_users u ON u.id = ak.user_id
+             JOIN auth_users_v2 u ON u.id = ak.user_id
              WHERE ak.key = ? AND ak.active = 1`,
             [apiKey]
         );
