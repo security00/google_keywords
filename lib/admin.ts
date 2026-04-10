@@ -1,4 +1,8 @@
 import { d1Query } from "@/lib/d1";
+import { createHash } from "crypto";
+
+const hashSessionToken = (token: string) =>
+  createHash("sha256").update(token).digest("hex");
 
 // ── Types ──
 
@@ -41,9 +45,10 @@ export async function requireAdmin(request: Request): Promise<{ userId: string; 
 
   if (!token) return { userId: "", error: "Unauthorized" };
 
+  const tokenHash = hashSessionToken(token);
   const { rows } = await d1Query<{ user_id: string }>(
-    `SELECT user_id FROM auth_sessions WHERE token = ? AND expires_at > datetime('now') LIMIT 1`,
-    [token]
+    `SELECT user_id FROM auth_sessions WHERE token_hash = ? AND expires_at > datetime('now') LIMIT 1`,
+    [tokenHash]
   );
 
   if (!rows.length) return { userId: "", error: "Unauthorized" };
