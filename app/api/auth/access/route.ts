@@ -19,7 +19,7 @@ export async function GET() {
     return NextResponse.json({
       userId: user.id,
       email: user.email,
-      role: access.allowed ? access.user.role : undefined,
+      role: access.allowed ? (access as any).user.role : user.role,  // 始终返回 role（用于权限检查）
       trial: access.allowed
         ? { active: access.trial.active, daysLeft: access.trial.daysLeft, expiresAt: access.trial.expiresAt }
         : undefined,

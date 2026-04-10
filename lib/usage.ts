@@ -149,6 +149,16 @@ export async function checkStudentAccess(userId: string): Promise<AccessCheckRes
     return { allowed: false, reason: "用户不存在", code: "unauthorized" };
   }
 
+  // 管理员豁免所有检查
+  if (user.role === "admin") {
+    return {
+      allowed: true,
+      user,
+      quota: { used: 0, limit: 999999 },
+      trial: { active: true, daysLeft: 9999, expiresAt: null },
+    };
+  }
+
   // 试用期检查
   const trial = isTrialActive(user);
   if (!trial.active) {
