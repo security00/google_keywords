@@ -80,7 +80,7 @@ export default function UsersPage() {
                     {new Date(u.created_at).toLocaleDateString("zh-CN")}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <Link href={`/admin/users/${u.id}`} className="text-blue-600 hover:underline dark:text-blue-400 text-xs">
+                    <Link href={`/dashboard/admin/users/${u.id}`} className="text-blue-600 hover:underline dark:text-blue-400 text-xs">
                       详情
                     </Link>
                   </td>

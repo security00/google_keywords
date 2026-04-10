@@ -178,7 +178,7 @@ export default function InviteCodesPage() {
                   <td className="px-3 py-2">{c.current_uses}/{c.max_uses}</td>
                   <td className="px-3 py-2">
                     {c.user_email ? (
-                      <Link href={`/admin/users/${c.used_by}`} className="text-blue-600 hover:underline dark:text-blue-400">
+                      <Link href={`/dashboard/admin/users/${c.used_by}`} className="text-blue-600 hover:underline dark:text-blue-400">
                         {c.user_email}
                       </Link>
                     ) : (
