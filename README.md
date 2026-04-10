@@ -102,9 +102,10 @@ http://localhost:3000
 
 ## 对外接口
 
-项目支持通过 API 向第三方输出发现结果，接口文档见：
+项目支持通过 API 向第三方输出发现结果，完整 API 文档：
 
-- `discovery-feed-api.md`
+- [API.md](./API.md) — 完整 REST API 文档（认证方式、配额、示例代码）
+- [discovery-feed-api.md](./discovery-feed-api.md) — 发现数据输出接口说明
 
 默认输出会尽量精简，只返回：
 
