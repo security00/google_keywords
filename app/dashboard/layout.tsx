@@ -66,35 +66,38 @@ function Navigation() {
           </Link>
 
           <nav className="flex items-center gap-1">
-            {isAdmin ? (
-              // 管理员菜单
-              adminSteps.map((step) => (
-                <Link
-                  key={step.href}
-                  href={step.href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
-                    step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {step.icon && <step.icon className="h-4 w-4" />}
-                  {step.label}
-                </Link>
-              ))
-            ) : (
-              // 学员菜单
-              studentSteps.map((step) => (
-                <Link
-                  key={step.href}
-                  href={step.href}
-                  className={cn(
-                    "relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
-                    step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {step.label}
-                </Link>
-              ))
+            {/* 研究菜单 - 所有人都能看到 */}
+            {studentSteps.map((step) => (
+              <Link
+                key={step.href}
+                href={step.href}
+                className={cn(
+                  "relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
+                  step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                {step.label}
+              </Link>
+            ))}
+
+            {/* 管理员菜单 - 只有管理员能看到 */}
+            {isAdmin && (
+              <>
+                <div className="mx-2 h-6 w-px bg-border" />
+                {adminSteps.map((step) => (
+                  <Link
+                    key={step.href}
+                    href={step.href}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
+                      step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {step.icon && <step.icon className="h-4 w-4" />}
+                    {step.label}
+                  </Link>
+                ))}
+              </>
             )}
           </nav>
         </div>
