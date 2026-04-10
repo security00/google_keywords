@@ -14,7 +14,7 @@ type UserDetail = {
   created_at: string;
   api_keys: { id: number; name: string; key: string; active: number; created_at: string }[];
   invite_codes: { code: string; max_uses: number; current_uses: number }[];
-  daily_usage: { date: string; expand_calls: number; compare_calls: number }[];
+  daily_usage: { date: string; api_calls: number }[];
 };
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -157,16 +157,14 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               <thead>
                 <tr className="border-b text-muted-foreground">
                   <th className="px-2 py-1 text-left">日期</th>
-                  <th className="px-2 py-1 text-right">扩展</th>
-                  <th className="px-2 py-1 text-right">对比</th>
+                  <th className="px-2 py-1 text-right">API 调用</th>
                 </tr>
               </thead>
               <tbody>
                 {user.daily_usage.map((d) => (
                   <tr key={d.date} className="border-b">
                     <td className="px-2 py-1">{d.date}</td>
-                    <td className="px-2 py-1 text-right">{d.expand_calls}</td>
-                    <td className="px-2 py-1 text-right">{d.compare_calls}</td>
+                    <td className="px-2 py-1 text-right">{d.api_calls}</td>
                   </tr>
                 ))}
               </tbody>

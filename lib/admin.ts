@@ -15,7 +15,7 @@ export type AdminUser = {
 export type AdminUserDetail = AdminUser & {
   api_keys: { id: number; name: string; key: string; active: number; created_at: string }[];
   invite_codes: { code: string; max_uses: number; current_uses: number }[];
-  daily_usage: { date: string; expand_calls: number; compare_calls: number }[];
+  daily_usage: { date: string; api_calls: number }[];
 };
 
 export type InviteCodeWithUser = {
@@ -104,7 +104,7 @@ export async function getUserDetail(id: string): Promise<AdminUserDetail | null>
       [id]
     ),
     d1Query<Record<string, unknown>>(
-      `SELECT date, expand_calls, compare_calls FROM daily_api_usage WHERE user_id = ? ORDER BY date DESC LIMIT 30`,
+      `SELECT date, api_calls FROM daily_api_usage WHERE user_id = ? ORDER BY date DESC LIMIT 30`,
       [id]
     ),
   ]);
