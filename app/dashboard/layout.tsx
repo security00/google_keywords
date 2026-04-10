@@ -53,7 +53,7 @@ function Navigation() {
     { href: "/dashboard/admin/users", label: "用户管理", icon: Users, active: pathname.includes("/admin/users") },
   ];
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = (user as any)?.role === "admin";
 
   return (
     <div className="sticky top-0 z-50 w-full border-b border-white/20 bg-white/70 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/70">
