@@ -13,7 +13,8 @@ import {
 import type { ExpandResponse } from "@/lib/types";
 
 import { authenticate } from "@/lib/auth_middleware";
-import { checkStudentAccess, incrementDailyUsage } from "@/lib/usage";
+import { checkStudentAccess } from "@/lib/usage";
+import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 import { createJob } from "@/lib/research-jobs";
 
 export const runtime = "nodejs";
@@ -114,6 +115,14 @@ export async function POST(request: Request) {
       }
     }
 
+    // 检查今天是否已有同关键词的已完成任务（缓存）
+    const d1CacheKey = buildCacheKey("expand", keywords, { dateFrom, dateTo });
+    const cachedJobId = await getCached<string>(d1CacheKey);
+    if (cachedJobId) {
+      if (debug) console.log("[api/expand] cache hit, existing job", { cachedJobId });
+      return NextResponse.json({ jobId: cachedJobId, fromCache: true });
+    }
+
     const taskIds = await submitExpansionTasks(keywords, dateFrom, dateTo);
     if (taskIds.length === 0) {
       if (debug) {
@@ -123,11 +132,6 @@ export async function POST(request: Request) {
         { error: "No tasks were created" },
         { status: 502 }
       );
-    }
-
-    // 消耗一次 API 配额（只在真正调用 DataForSEO 时计数）
-    if (access.user.role === "student") {
-      await incrementDailyUsage(auth.userId!);
     }
 
     if (debug) {
@@ -150,6 +154,9 @@ export async function POST(request: Request) {
         tookMs: Date.now() - startedAt,
       });
     }
+
+    // 缓存 jobId（同关键词同天不再调 DataForSEO）
+    await setCache(d1CacheKey, jobId);
 
     return NextResponse.json({ jobId });
   } catch (error) {

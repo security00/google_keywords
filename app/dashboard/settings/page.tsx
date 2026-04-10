@@ -184,8 +184,8 @@ export default function SettingsPage() {
               </div>
               <div className="font-semibold text-green-800 dark:text-green-200">
                 {access.quota
-                  ? access.quota.limit === Infinity
-                    ? "无限制"
+                  ? access.quota.limit >= 999
+                    ? "不限（缓存控制成本）"
                     : `${access.quota.used} / ${access.quota.limit}`
                   : "-"}
               </div>

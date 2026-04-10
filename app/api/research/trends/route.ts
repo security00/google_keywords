@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
-import { checkStudentAccess, incrementDailyUsage } from "@/lib/usage";
+import { checkStudentAccess } from "@/lib/usage";
 import {
   submitComparisonTasks,
   getComparisonResults,
   resolveComparisonDateRange,
 } from "@/lib/keyword-research";
+import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,13 +43,15 @@ export async function POST(request: Request) {
 
     const { dateFrom, dateTo } = resolveComparisonDateRange();
 
+    // 检查缓存（同关键词同天只调一次 DataForSEO）
+    const cacheKey = buildCacheKey("trends", keywords, { dateFrom, dateTo, benchmark: benchmark ?? "gpts" });
+    const cached = await getCached<{ results: unknown[] }>(cacheKey);
+    if (cached) {
+      return NextResponse.json({ results: cached.results, fromCache: true });
+    }
+
     // Submit trends tasks
     const taskIds = await submitComparisonTasks(keywords, dateFrom, dateTo, benchmark);
-
-    // Count API usage
-    if (access.user.role === "student") {
-      await incrementDailyUsage(auth.userId!);
-    }
 
     // Wait + get results (reuse existing functions)
     const { waitForTasks } = await import("@/lib/keyword-research");
@@ -60,21 +63,24 @@ export async function POST(request: Request) {
 
     const results = await getComparisonResults(completed, benchmark);
 
-    return NextResponse.json({
-      results: results.map((r) => ({
-        keyword: r.keyword,
-        ratio: r.ratio,
-        ratioMean: r.ratioMean,
-        ratioRecent: r.ratioRecent,
-        ratioPeak: r.ratioPeak,
-        ratioCoverage: r.ratioCoverage,
-        slopeRatio: r.slopeRatio,
-        volatility: r.volatility,
-        verdict: r.verdict,
-        avgValue: r.avgValue,
-        benchmarkValue: r.benchmarkValue,
-      })),
-    });
+    const mappedResults = results.map((r) => ({
+      keyword: r.keyword,
+      ratio: r.ratio,
+      ratioMean: r.ratioMean,
+      ratioRecent: r.ratioRecent,
+      ratioPeak: r.ratioPeak,
+      ratioCoverage: r.ratioCoverage,
+      slopeRatio: r.slopeRatio,
+      volatility: r.volatility,
+      verdict: r.verdict,
+      avgValue: r.avgValue,
+      benchmarkValue: r.benchmarkValue,
+    }));
+
+    // 缓存结果
+    await setCache(cacheKey, { results: mappedResults });
+
+    return NextResponse.json({ results: mappedResults });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: 500 });

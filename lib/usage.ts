@@ -7,7 +7,7 @@ import { d1Query } from "@/lib/d1";
 // ============================================
 
 const TRIAL_DAYS = 90; // 3个月
-const DAILY_API_LIMIT = 3; // 每人每天最多 3 次 API 调用（1 次扩展 + 1 次对比 + 1 次冗余）
+const DAILY_API_LIMIT = 999; // 缓存控制成本，不限次数（同关键词同天只调一次 DataForSEO）
 
 export type UserRole = "admin" | "student";
 

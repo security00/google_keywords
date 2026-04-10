@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
-import { checkStudentAccess, incrementDailyUsage } from "@/lib/usage";
+import { checkStudentAccess } from "@/lib/usage";
 import {
   submitSerpTasks,
   waitForSerpTasks,
   getSerpResults,
 } from "@/lib/keyword-research";
+import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,13 +40,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // 检查缓存（同关键词同天只调一次 DataForSEO）
+    const cacheKey = buildCacheKey("serp", keywords);
+    const cached = await getCached<Record<string, Record<string, unknown>>>(cacheKey);
+    if (cached) {
+      return NextResponse.json({ results: cached, fromCache: true });
+    }
+
     // Submit SERP tasks
     const taskIds = await submitSerpTasks(keywords);
-
-    // Count API usage
-    if (access.user.role === "student") {
-      await incrementDailyUsage(auth.userId!);
-    }
 
     // Wait for results
     const completed = await waitForSerpTasks(taskIds);
@@ -82,6 +85,9 @@ export async function POST(request: Request) {
         },
       };
     }
+
+    // 缓存结果
+    await setCache(cacheKey, results);
 
     return NextResponse.json({ results });
   } catch (error) {

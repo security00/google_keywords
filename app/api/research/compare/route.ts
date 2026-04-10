@@ -9,7 +9,8 @@ import {
 import type { ComparisonSignalConfig } from "@/lib/types";
 import { d1Query } from "@/lib/d1";
 import { authenticate } from "@/lib/auth_middleware";
-import { checkStudentAccess, incrementDailyUsage } from "@/lib/usage";
+import { checkStudentAccess } from "@/lib/usage";
+import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 import { createJob } from "@/lib/research-jobs";
 
 export const runtime = "nodejs";
@@ -357,6 +358,14 @@ export async function POST(request: Request) {
       });
     }
 
+    // 检查今天是否已有同关键词的已完成对比任务
+    const compareCacheKey = buildCacheKey("compare", selectedKeywords, { dateFrom, dateTo, benchmark });
+    const cachedCompareJobId = await getCached<string>(compareCacheKey);
+    if (cachedCompareJobId) {
+      if (debug) console.log("[api/compare] cache hit, existing job", { cachedCompareJobId });
+      return NextResponse.json({ jobId: cachedCompareJobId, strategy: appliedStrategy, fromCache: true });
+    }
+
     const taskIds = await submitComparisonTasks(
       selectedKeywords,
       dateFrom,
@@ -372,11 +381,6 @@ export async function POST(request: Request) {
         { error: "No tasks were created" },
         { status: 502 }
       );
-    }
-
-    // 消耗一次 API 配额
-    if (access.user.role === "student") {
-      await incrementDailyUsage(auth.userId!);
     }
 
     if (debug) {
@@ -403,6 +407,9 @@ export async function POST(request: Request) {
         tookMs: Date.now() - startedAt,
       });
     }
+
+    // 缓存 jobId（同关键词同天不再调 DataForSEO）
+    await setCache(compareCacheKey, jobId);
 
     return NextResponse.json({
       jobId,
