@@ -30,8 +30,8 @@ export default function UsersPage() {
       if (!res.ok) throw new Error("Unauthorized");
       const data = await res.json();
       setUsers(data.users || []);
-    } catch {
-      setError("无权限");
+    } catch (e: any) {
+      setError(e.message || "加载失败");
     } finally {
       setLoading(false);
     }

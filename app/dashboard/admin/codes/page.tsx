@@ -41,8 +41,8 @@ export default function InviteCodesPage() {
       if (!res.ok) throw new Error("Unauthorized");
       const data = await res.json();
       setCodes(data.codes || []);
-    } catch {
-      setError("无权限，请以管理员身份登录");
+    } catch (e: any) {
+      setError(e.message || "加载失败");
     } finally {
       setLoading(false);
     }
