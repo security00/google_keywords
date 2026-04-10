@@ -16,6 +16,7 @@ import { d1Query } from "@/lib/d1";
 export type AuthUser = {
   id: string;
   email: string;
+  role?: string;
 };
 
 type AuthUserRow = AuthUser & {
@@ -25,6 +26,7 @@ type AuthUserRow = AuthUser & {
 type AuthSessionRow = {
   user_id: string;
   email: string;
+  role?: string;
   expires_at: string;
 };
 
@@ -185,7 +187,7 @@ export const getAuthUser = async (): Promise<AuthUser | null> => {
 
   const tokenHash = hashSessionToken(token);
   const { rows } = await d1Query<AuthSessionRow>(
-    "SELECT s.user_id, s.expires_at, u.email FROM auth_sessions s JOIN auth_users_v2 u ON u.id = s.user_id WHERE s.token_hash = ? LIMIT 1",
+    "SELECT s.user_id, s.expires_at, u.email, u.role FROM auth_sessions s JOIN auth_users_v2 u ON u.id = s.user_id WHERE s.token_hash = ? LIMIT 1",
     [tokenHash]
   );
 
@@ -198,7 +200,7 @@ export const getAuthUser = async (): Promise<AuthUser | null> => {
     return null;
   }
 
-  return { id: session.user_id, email: session.email };
+  return { id: session.user_id, email: session.email, role: session.role };
 };
 
 export const setSessionCookie = (response: NextResponse, token: string) => {

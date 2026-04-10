@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Key, Users, Settings } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -38,13 +38,22 @@ function Navigation() {
     });
   }, [sessionList]);
 
-  const steps = [
+  // 学员菜单
+  const studentSteps = [
     { href: "/dashboard/expand", label: "1. 词根扩展", active: pathname.includes("/expand") },
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
     { href: "/dashboard/discovery", label: "新游发现", active: pathname.includes("/discovery") },
     { href: "/dashboard/settings", label: "设置", active: pathname.includes("/settings") },
   ];
+
+  // 管理员菜单
+  const adminSteps = [
+    { href: "/dashboard/admin/codes", label: "邀请码管理", icon: Key, active: pathname.includes("/admin/codes") },
+    { href: "/dashboard/admin/users", label: "用户管理", icon: Users, active: pathname.includes("/admin/users") },
+  ];
+
+  const isAdmin = user?.role === "admin";
 
   return (
     <div className="sticky top-0 z-50 w-full border-b border-white/20 bg-white/70 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/70">
@@ -57,18 +66,36 @@ function Navigation() {
           </Link>
 
           <nav className="flex items-center gap-1">
-            {steps.map((step) => (
-              <Link
-                key={step.href}
-                href={step.href}
-                className={cn(
-                  "relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
-                  step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                {step.label}
-              </Link>
-            ))}
+            {isAdmin ? (
+              // 管理员菜单
+              adminSteps.map((step) => (
+                <Link
+                  key={step.href}
+                  href={step.href}
+                  className={cn(
+                    "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
+                    step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {step.icon && <step.icon className="h-4 w-4" />}
+                  {step.label}
+                </Link>
+              ))
+            ) : (
+              // 学员菜单
+              studentSteps.map((step) => (
+                <Link
+                  key={step.href}
+                  href={step.href}
+                  className={cn(
+                    "relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
+                    step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {step.label}
+                </Link>
+              ))
+            )}
           </nav>
         </div>
 
@@ -77,34 +104,37 @@ function Navigation() {
             <>
               <span className="hidden text-xs text-muted-foreground md:inline-block">
                 {user.email}
+                {isAdmin && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">管理员</span>}
               </span>
 
-              <div className="flex items-center gap-2">
-                <select
-                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                  value={selectedSession}
-                  onChange={(event) => setSelectedSession(event.target.value)}
-                >
-                  <option value="latest">最近一次</option>
-                  {sessionOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+              {!isAdmin && (
+                <div className="flex items-center gap-2">
+                  <select
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                    value={selectedSession}
+                    onChange={(event) => setSelectedSession(event.target.value)}
+                  >
+                    <option value="latest">最近一次</option>
+                    {sessionOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    selectedSession === "latest"
-                      ? loadLatestSession()
-                      : loadSessionById(selectedSession)
-                  }
-                >
-                  恢复
-                </Button>
-              </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      selectedSession === "latest"
+                        ? loadLatestSession()
+                        : loadSessionById(selectedSession)
+                    }
+                  >
+                    恢复
+                  </Button>
+                </div>
+              )}
 
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 退出

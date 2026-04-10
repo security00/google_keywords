@@ -150,6 +150,8 @@ def scan_source(source):
     if not urls:
         return 0, 0
 
+    MAX_KEYWORDS = int(os.environ.get("MAX_KEYWORDS_PER_SOURCE", "5000"))
+
     keywords = {}
     for u in urls:
         kw = extract_keyword(u, rules)
@@ -159,6 +161,9 @@ def scan_source(source):
                 keywords[norm] = kw
 
     print(f"  {len(keywords)} unique keywords after filtering", flush=True)
+    if len(keywords) > MAX_KEYWORDS:
+        print(f"  ⏭️ Skipping {name}: {len(keywords)} keywords exceeds limit of {MAX_KEYWORDS}", flush=True)
+        return 0, 0
     if not keywords:
         return 0, 0
 

@@ -305,7 +305,7 @@ export default function SettingsPage() {
 
       {/* 管理后台入口 */}
       {access.role === "admin" && (
-        <Link href="/admin" className="flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 p-4 text-purple-700 transition-colors hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900">
+        <Link href="/dashboard/admin/codes" className="flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 p-4 text-purple-700 transition-colors hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900">
           <Settings className="h-5 w-5" />
           进入管理后台
         </Link>
