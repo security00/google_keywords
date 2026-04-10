@@ -1,8 +1,5 @@
 import { d1Query } from "@/lib/d1";
-import { createHash } from "crypto";
-
-const hashSessionToken = (token: string) =>
-  createHash("sha256").update(token).digest("hex");
+import { getAuthUser } from "@/lib/auth";
 
 // ── Types ──
 
@@ -35,35 +32,11 @@ export type InviteCodeWithUser = {
 
 // ── Admin check ──
 
-export async function requireAdmin(request: Request): Promise<{ userId: string; error?: string }> {
-  const cookie = request.headers.get("cookie") || "";
-  const token = cookie
-    .split(";")
-    .map((s) => s.trim())
-    .find((s) => s.startsWith("session="))
-    ?.slice(8);
-
-  if (!token) return { userId: "", error: "Unauthorized: no session cookie" };
-
-  const tokenHash = hashSessionToken(token);
-  const { rows } = await d1Query<{ user_id: string }>(
-    `SELECT user_id FROM auth_sessions WHERE token_hash = ? AND expires_at > datetime('now') LIMIT 1`,
-    [tokenHash]
-  );
-
-  if (!rows.length) return { userId: "", error: "Unauthorized: session not found or expired" };
-
-  const userId = rows[0].user_id;
-  const { rows: users } = await d1Query<{ role: string }>(
-    `SELECT role FROM auth_users_v2 WHERE id = ? LIMIT 1`,
-    [userId]
-  );
-
-  if (!users.length || users[0].role !== "admin") {
-    return { userId: "", error: "Forbidden: admin only" };
-  }
-
-  return { userId };
+export async function requireAdmin(): Promise<{ userId: string; error?: string }> {
+  const user = await getAuthUser();
+  if (!user) return { userId: "", error: "Unauthorized" };
+  if (user.role !== "admin") return { userId: "", error: "Forbidden: admin only" };
+  return { userId: user.id };
 }
 
 // ── Invite codes ──

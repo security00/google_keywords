@@ -10,7 +10,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
 
   const { id } = await params;
@@ -29,11 +29,11 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
 
   const { id } = await params;
-  const { userId: adminId, error: adminError } = await requireAdmin(request);
+  const { userId: adminId, error: adminError } = await requireAdmin();
   if (adminError) return NextResponse.json({ error: adminError }, { status: adminError === "Forbidden: admin only" ? 403 : 401 });
 
   try {

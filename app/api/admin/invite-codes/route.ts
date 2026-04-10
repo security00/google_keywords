@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/admin/invite-codes — 列出所有邀请码
 export async function GET(request: Request) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
 
   try {
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
 // POST /api/admin/invite-codes — 生成新邀请码
 export async function POST(request: Request) {
-  const { userId, error } = await requireAdmin(request);
+  const { userId, error } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
 
   try {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
 // DELETE /api/admin/invite-codes — 撤销邀请码
 export async function DELETE(request: Request) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
 
   try {

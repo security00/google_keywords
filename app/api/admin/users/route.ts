@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/admin/users
 export async function GET(request: Request) {
-  const { error } = await requireAdmin(request);
+  const { error } = await requireAdmin();
   if (error) return NextResponse.json({ error }, { status: error === "Forbidden: admin only" ? 403 : 401 });
 
   try {
