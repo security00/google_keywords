@@ -150,7 +150,7 @@ def scan_source(source):
     if not urls:
         return 0, 0
 
-    MAX_KEYWORDS = int(os.environ.get("MAX_KEYWORDS_PER_SOURCE", "5000"))
+    MAX_KEYWORDS = int(os.environ.get("MAX_KEYWORDS_PER_SOURCE", "2000"))
 
     keywords = {}
     for u in urls:

@@ -41,9 +41,9 @@ export async function requireAdmin(request: Request): Promise<{ userId: string; 
     .split(";")
     .map((s) => s.trim())
     .find((s) => s.startsWith("session="))
-    ?.split("=")[1];
+    ?.slice(8);
 
-  if (!token) return { userId: "", error: "Unauthorized" };
+  if (!token) return { userId: "", error: "Unauthorized: no session cookie" };
 
   const tokenHash = hashSessionToken(token);
   const { rows } = await d1Query<{ user_id: string }>(
@@ -51,7 +51,7 @@ export async function requireAdmin(request: Request): Promise<{ userId: string; 
     [tokenHash]
   );
 
-  if (!rows.length) return { userId: "", error: "Unauthorized" };
+  if (!rows.length) return { userId: "", error: "Unauthorized: session not found or expired" };
 
   const userId = rows[0].user_id;
   const { rows: users } = await d1Query<{ role: string }>(
