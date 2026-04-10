@@ -42,48 +42,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      {/* 返回链接 */}
-      <div className="border-b bg-muted/30">
-        <div className="container mx-auto px-4 py-3">
-          <Link href="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" />
-            返回工作台
-          </Link>
-        </div>
-      </div>
-
-      <div className="flex flex-1">
-        {/* 侧边栏 */}
-        <aside className="hidden w-64 shrink-0 border-r bg-muted/10 md:block">
-          <div className="p-4">
-            <h2 className="mb-4 text-sm font-semibold uppercase text-muted-foreground">管理后台</h2>
-            <nav className="space-y-1">
-              {nav.map((item) => {
-                const active = pathname.includes(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </aside>
-
-        {/* 主内容 */}
-        <main className="flex-1 overflow-auto p-6">{children}</main>
-      </div>
-    </div>
-  );
+  return <>{children}</>;
 }
