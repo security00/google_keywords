@@ -498,8 +498,10 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!user) {
             setSessionList([]);
+        } else {
+            loadSessionList();
         }
-    }, [user]);
+    }, [user, loadSessionList]);
 
     const handleExpand = async () => {
         setLoadingExpand(true);
