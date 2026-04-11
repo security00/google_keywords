@@ -34,6 +34,8 @@ type DbCandidate = {
   type: string | null;
   source: string | null;
   filtered: number | null;
+  score: number | null;
+  confidence: number | null;
   created_at: string | null;
 };
 
@@ -99,6 +101,8 @@ export type SessionPayload = {
     type: "top" | "rising" | null;
     source: string | null;
     filtered: boolean;
+    score: number | null;
+    confidence: number | null;
     created_at: string | null;
   }>;
   comparison: {
@@ -207,6 +211,8 @@ export const fetchSessionPayload = async (
     type: row.type === "top" || row.type === "rising" ? row.type : null,
     source: row.source,
     filtered: toBool(row.filtered),
+    score: row.score,
+    confidence: row.confidence,
     created_at: row.created_at,
   }));
 

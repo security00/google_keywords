@@ -43,7 +43,9 @@ function recordFailedAttempt(fingerprint: string) {
 }
 
 // Validate API key format before hitting DB
-const API_KEY_PATTERN = /^gk_live_[0-9a-f]{32}$/;
+// Standard keys: gk_live_ + 32 hex (40 chars)
+// Admin/internal keys: gk_live_ + 32+ hex (longer, used by precompute etc)
+const API_KEY_PATTERN = /^gk_live_[0-9a-f]{32,64}$/;
 
 export async function validateApiKey(
     apiKey: string,

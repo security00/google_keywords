@@ -144,6 +144,8 @@ export async function GET(request: Request) {
             value: Number(item.value ?? 0),
             type: normalizeCandidateType(item.type),
             source: item.source ?? "",
+            score: Number(item.score ?? 0),
+            confidence: item.confidence ?? undefined,
           }));
 
         const filteredOut = (payload.candidates ?? [])
@@ -153,6 +155,8 @@ export async function GET(request: Request) {
             value: Number(item.value ?? 0),
             type: normalizeCandidateType(item.type),
             source: item.source ?? "",
+            score: Number(item.score ?? 0),
+            confidence: item.confidence ?? undefined,
           }));
 
         const organized = organizeCandidates(unfiltered);
@@ -455,6 +459,8 @@ export async function GET(request: Request) {
           candidate.type,
           candidate.source,
           0,
+          candidate.score ?? 0,
+          candidate.confidence ?? null,
           now,
         ]),
         ...(filteredOut ?? []).map((candidate) => [
@@ -466,6 +472,8 @@ export async function GET(request: Request) {
           candidate.type,
           candidate.source,
           1,
+          candidate.score ?? 0,
+          candidate.confidence ?? null,
           now,
         ]),
       ];
@@ -509,6 +517,8 @@ export async function GET(request: Request) {
               "type",
               "source",
               "filtered",
+              "score",
+              "confidence",
               "created_at",
             ],
             candidateRows,
