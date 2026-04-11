@@ -114,6 +114,18 @@ export type ExpandResponse = {
     checkedAt: string;
     isGame: true;
   }>;
+  trendsSummary?: {
+    benchmark: string;
+    totalCompared: number;
+    keywords: Record<string, {
+      ratio: number;
+      ratioMean: number;
+      ratioRecent: number;
+      slopeRatio?: number;
+      volatility: number;
+      verdict: string;
+    }>;
+  };
 };
 
 export type CompareResponse = {

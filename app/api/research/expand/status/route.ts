@@ -387,21 +387,29 @@ export async function GET(request: Request) {
 
       // === Enrich candidates with trends comparison (top 10 vs benchmark) ===
       let trendsMap: Record<string, { ratio: number; ratioMean: number; ratioRecent: number; slopeRatio?: number; volatility: number; verdict: string; }> = {};
+      console.log("[trends] step starting, candidates:", candidates.length);
       try {
         const trendCandidates = candidates
           .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
           .slice(0, 10)
           .map((c) => c.keyword);
 
+        console.log("[trends] trendCandidates:", trendCandidates.length, trendCandidates.slice(0, 3));
+
         if (trendCandidates.length > 0) {
           const benchmark = resolveBenchmark();
           const { dateFrom: compFrom, dateTo: compTo } = resolveComparisonDateRange();
           const compareTaskIds = await submitComparisonTasks(trendCandidates, compFrom, compTo, benchmark);
 
+          console.log("[trends] submitComparisonTasks returned:", compareTaskIds.length);
           if (compareTaskIds.length > 0) {
+            console.log("[trends] waitForTasks starting...");
             const completedIds = await waitForTasks(compareTaskIds);
+            console.log("[trends] waitForTasks completed:", completedIds.length);
             if (completedIds.length > 0) {
+              console.log("[trends] getComparisonResults starting...");
               const compResults = await getComparisonResults(completedIds, benchmark);
+              console.log("[trends] getComparisonResults returned:", compResults.length);
               for (const r of compResults) {
                 trendsMap[r.keyword.toLowerCase()] = {
                   ratio: r.ratio,
