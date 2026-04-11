@@ -24,6 +24,37 @@ import { getSerpConfidence, setSerpConfidence } from "@/lib/cache";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const getGameKeywords = async () => {
+  try {
+    const { rows } = await d1Query<{
+      keyword: string;
+      source_site: string;
+      trend_ratio: number;
+      trend_slope: number;
+      trend_verdict: string;
+      trend_checked_at: string;
+    }>(
+      `SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict, trend_checked_at
+       FROM game_keyword_pipeline
+       WHERE status = 'worth_doing'
+       ORDER BY trend_ratio DESC
+       LIMIT 20`
+    );
+    if (!rows.length) return undefined;
+    return rows.map((r) => ({
+      keyword: r.keyword,
+      source: r.source_site,
+      ratio: Number(r.trend_ratio),
+      slope: Number(r.trend_slope),
+      verdict: r.trend_verdict,
+      checkedAt: r.trend_checked_at,
+      isGame: true,
+    }));
+  } catch {
+    return undefined;
+  }
+};
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const shouldRetryD1 = (message: string) => {
@@ -161,6 +192,9 @@ export async function GET(request: Request) {
 
         const organized = organizeCandidates(unfiltered);
 
+        // Include game keywords (worth_doing + low SERP competition)
+        const gameKws = await getGameKeywords();
+
         const response: ExpandResponse = {
           keywords: payload.session.keywords ?? [],
           dateFrom: payload.session.date_from ?? "",
@@ -172,6 +206,7 @@ export async function GET(request: Request) {
           filter: payload.session.filter_summary ?? undefined,
           filteredOut,
           sessionId: payload.session.id,
+          gameKeywords: gameKws,
         };
 
         return NextResponse.json({ status: "complete", ...response });
@@ -534,6 +569,7 @@ export async function GET(request: Request) {
       );
 
       const organized = organizeCandidates(enrichedCandidates);
+      const gameKws = await getGameKeywords();
       const response: ExpandResponse = {
         keywords,
         dateFrom: dateFrom ?? "",
@@ -549,6 +585,7 @@ export async function GET(request: Request) {
           blocked: ruleBlockedSet.size,
           kept: ruleKeptMap.size,
         },
+        gameKeywords: gameKws,
       };
 
       return NextResponse.json({ status: "complete", ...response });

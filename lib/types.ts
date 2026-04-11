@@ -105,6 +105,15 @@ export type ExpandResponse = {
   filteredOut?: Candidate[];
   sessionId?: string;
   ruleStats?: { blocked: number; kept: number };
+  gameKeywords?: Array<{
+    keyword: string;
+    source: string;
+    ratio: number;
+    slope: number;
+    verdict: string;
+    checkedAt: string;
+    isGame: true;
+  }>;
 };
 
 export type CompareResponse = {

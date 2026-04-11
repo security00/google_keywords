@@ -323,15 +323,66 @@ def call_trends_api(keywords):
         return None
 
 
-def save_result(keyword, source_site, ratio, slope, verdict):
+def save_result(keyword, source_site, ratio, slope, verdict, status="done"):
     """Save trend result to D1."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     return d1_execute(
         """INSERT OR REPLACE INTO game_keyword_pipeline 
            (keyword, source_site, trend_ratio, trend_slope, trend_verdict, trend_checked_at, status)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        [keyword, source_site, ratio, slope, verdict, now, "done"]
+        [keyword, source_site, ratio, slope, verdict, now, status]
     )
+
+
+def call_serp_api(keywords):
+    """Call /api/research/serp with keywords, return results."""
+    import subprocess
+    url = f"{API_URL}/api/research/serp"
+    payload = json.dumps({"keywords": keywords})
+    cmd = [
+        "curl", "-sL", "--max-time", "120", url,
+        "-H", "Content-Type: application/json",
+        "-H", f"Authorization: Bearer {API_KEY}",
+        "-d", payload,
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=130)
+        if result.returncode != 0:
+            print(f"    ⚠️ SERP curl exit {result.returncode}: {result.stderr[:200]}", file=sys.stderr)
+            return None
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as e:
+        print(f"    ⚠️ SERP JSON parse failed: {e}", file=sys.stderr)
+        return None
+    except subprocess.TimeoutExpired:
+        print(f"    ⚠️ SERP curl timed out", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"    ⚠️ SERP API failed: {e}", file=sys.stderr)
+        return None
+
+
+def check_serp_competition(serp_data):
+    """Analyze SERP result and return competition level.
+    
+    Returns: (is_low_competition, organic_count, auth_domain_count, has_featured_snippet)
+    
+    Low competition = can rank for this keyword:
+    - No authority domains in top 3 (chess.com, wikipedia, etc.)
+    - organic count < 8 (not saturated)
+    """
+    organic_count = serp_data.get("organicCount", 0)
+    auth_domains = serp_data.get("authDomains", 0)
+    has_featured = serp_data.get("hasFeaturedSnippet", False)
+    niche_domains = serp_data.get("nicheDomains", 0)
+    has_ai_overview = serp_data.get("hasAiOverview", False)
+    
+    # Authority domains in top results = hard to compete
+    # We consider it low competition if auth_domains == 0
+    # OR auth_domains <= 1 AND niche_domains >= 1 (small players exist)
+    is_low = auth_domains == 0 or (auth_domains <= 1 and niche_domains >= 2)
+    
+    return is_low, organic_count, auth_domains, has_featured
 
 
 # ─── Validation ───────────────────────────────────────────────────────
@@ -454,8 +505,51 @@ def main():
         if i + BATCH_SIZE < len(to_check):
             time.sleep(1)
 
-    # ── Summary ──
+    # ── Phase 4: SERP competition check for worth_doing keywords ──
     worth_doing = [r for r in results if r["ratio"] > MIN_RATIO and r["slope"] > MIN_SLOPE]
+
+    if worth_doing:
+        print(f"\n🔎 Phase 4: SERP competition check for {len(worth_doing)} trending keywords", flush=True)
+        serp_kws = [r["keyword"] for r in worth_doing]
+        
+        # Batch SERP check (max 10 per batch to avoid timeout)
+        SERP_BATCH = 10
+        for i in range(0, len(serp_kws), SERP_BATCH):
+            batch = serp_kws[i:i + SERP_BATCH]
+            print(f"  SERP batch: {batch}", flush=True)
+            
+            serp_resp = call_serp_api(batch)
+            if not serp_resp:
+                print("  ❌ SERP API failed", flush=True)
+                continue
+            
+            serp_results = serp_resp.get("results", {})
+            for r in worth_doing:
+                kw = r["keyword"].lower()
+                kw_data = serp_results.get(kw) or serp_results.get(r["keyword"])
+                if not kw_data:
+                    r["serp_status"] = "no_data"
+                    continue
+                
+                is_low, organic, auth, featured = check_serp_competition(kw_data)
+                r["serp_low_competition"] = is_low
+                r["serp_organic"] = organic
+                r["serp_auth"] = auth
+                r["serp_featured"] = featured
+                r["serp_status"] = "low" if is_low else "high"
+                
+                status_str = "🟢" if is_low else "🔴"
+                print(f"  {status_str} {r['keyword']}: organic={organic}, auth={auth}, featured={featured} → {'LOW comp' if is_low else 'HIGH comp'}", flush=True)
+                
+                # Update D1 status: only keep worth_doing if low competition
+                if not args.dry_run:
+                    new_status = "worth_doing" if is_low else "done"
+                    save_result(r["keyword"], r["source"], r["ratio"], r["slope"], r["verdict"], new_status)
+            
+            time.sleep(1)
+        
+        # Filter to only truly worth doing (low competition)
+        worth_doing = [r for r in worth_doing if r.get("serp_status") == "low"]
 
     print(f"\n{'='*60}")
     print(f"📊 SUMMARY — {ts}")
@@ -466,9 +560,9 @@ def main():
     print(f"{'='*60}")
 
     if worth_doing:
-        print(f"\n🎮 WORTH DOING (游戏词推荐):")
+        print(f"\n🎮 WORTH DOING (low competition, trending game keywords):")
         for r in sorted(worth_doing, key=lambda x: x["ratio"], reverse=True):
-            print(f"  {r['keyword']} | ratio={r['ratio']:.3f} | slope={r['slope']:.3f} | {r['verdict']} | src={r['source']}")
+            print(f"  {r['keyword']} | ratio={r['ratio']:.3f} | slope={r['slope']:.3f} | organic={r.get('serp_organic', '?')} | auth={r.get('serp_auth', '?')} | {r['verdict']} | src={r['source']}")
 
     if args.dry_run:
         print(f"\n⚠️ Dry run — nothing saved to D1")
