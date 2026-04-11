@@ -48,7 +48,7 @@ const getGameKeywords = async () => {
       slope: Number(r.trend_slope),
       verdict: r.trend_verdict,
       checkedAt: r.trend_checked_at,
-      isGame: true,
+      isGame: true as const,
     }));
   } catch {
     return undefined;
