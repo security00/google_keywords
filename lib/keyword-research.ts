@@ -1121,12 +1121,22 @@ const buildSerpTask = (keyword: string) => {
   return task;
 };
 
-export const submitSerpTasks = async (keywords: string[]) => {
+export const submitSerpTasks = async (
+  keywords: string[],
+  options?: { postbackUrl?: string; cacheKey?: string }
+) => {
   const batches = createBatches(keywords, SERP_TASK_BATCH_SIZE);
   const taskIds: string[] = [];
 
   for (const batch of batches) {
-    const payload = batch.map((keyword) => buildSerpTask(keyword));
+    const postback = options?.postbackUrl && options?.cacheKey
+      ? `${options.postbackUrl}?type=serp&tag=${encodeURIComponent(options.cacheKey)}&task_id=$id`
+      : undefined;
+
+    const payload = batch.map((keyword) => ({
+      ...buildSerpTask(keyword),
+      ...(postback ? { postback_url: postback } : {}),
+    }));
     const result = await requestWithRetry("post", SERP_TASK_POST_URL, {
       headers: buildAuthHeaders(),
       body: JSON.stringify(payload),
@@ -1382,14 +1392,20 @@ export const saveCache = async (
 export const submitExpansionTasks = async (
   keywords: string[],
   dateFrom: string,
-  dateTo: string
+  dateTo: string,
+  options?: { postbackUrl?: string; cacheKey?: string }
 ) => {
+  const postback = options?.postbackUrl && options?.cacheKey
+    ? `${options.postbackUrl}?type=expand&tag=${encodeURIComponent(options.cacheKey)}&task_id=$id`
+    : undefined;
+
   const payload = keywords.map((keyword) => ({
     keywords: [keyword],
     date_from: normalizeDate(dateFrom),
     date_to: normalizeDate(dateTo),
     type: "web",
     item_types: ["google_trends_queries_list"],
+    ...(postback ? { postback_url: postback } : {}),
   }));
 
   const result = await requestWithRetry("post", TASK_POST_URL, {
@@ -1851,14 +1867,20 @@ export const submitComparisonTasks = async (
   keywords: string[],
   dateFrom: string,
   dateTo: string,
-  benchmark = DEFAULT_BENCHMARK
+  benchmark = DEFAULT_BENCHMARK,
+  options?: { postbackUrl?: string; cacheKey?: string }
 ) => {
   const batches = createBatches(keywords, 4);
+  const postback = options?.postbackUrl && options?.cacheKey
+    ? `${options.postbackUrl}?type=trends&tag=${encodeURIComponent(options.cacheKey)}&task_id=$id`
+    : undefined;
+
   const payload = batches.map((batch) => ({
     keywords: [...batch, benchmark],
     date_from: normalizeDate(dateFrom),
     date_to: normalizeDate(dateTo),
     type: "web",
+    ...(postback ? { postback_url: postback } : {}),
   }));
 
   const result = await requestWithRetry("post", TASK_POST_URL, {

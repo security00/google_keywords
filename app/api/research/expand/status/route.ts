@@ -179,13 +179,30 @@ export async function GET(request: Request) {
     const filterConfig = parseFilterConfig(payload.filterConfig);
     const cacheKey = typeof payload.cacheKey === "string" ? payload.cacheKey : "";
 
-    const readyIds = await getReadyTaskIds(job.task_ids);
-    if (readyIds.length < job.task_ids.length) {
-      return NextResponse.json({
-        status: "pending",
-        ready: readyIds.length,
-        total: job.task_ids.length,
-      });
+    // Check if all tasks have postback results (avoids calling DataForSEO)
+    const postbackResults: string[] = [];
+    for (const tid of job.task_ids) {
+      const { rows } = await d1Query<{ result_data: string }>(
+        `SELECT result_data FROM postback_results WHERE task_id = ? LIMIT 1`,
+        [tid]
+      );
+      if (rows.length > 0) {
+        postbackResults.push(rows[0].result_data);
+      }
+    }
+
+    const usePostback = postbackResults.length === job.task_ids.length;
+
+    if (!usePostback) {
+      // Fallback: check DataForSEO tasks_ready endpoint
+      const readyIds = await getReadyTaskIds(job.task_ids);
+      if (readyIds.length < job.task_ids.length) {
+        return NextResponse.json({
+          status: "pending",
+          ready: readyIds.length,
+          total: job.task_ids.length,
+        });
+      }
     }
 
     let stage = "mark-processing";
@@ -193,7 +210,43 @@ export async function GET(request: Request) {
       await retryD1("job processing", () => updateJobStatus(job.id, "processing"));
 
       stage = "fetch-results";
-      let candidates = await getExpansionResults(job.task_ids);
+      let candidates;
+      if (usePostback) {
+        // Parse results from postback (no DataForSEO HTTP call needed)
+        stage = "parse-postback";
+        candidates = [];
+        for (const resultJson of postbackResults) {
+          const parsed = JSON.parse(resultJson);
+          // DataForSEO task_get format: { tasks: [{ result: [...] }] }
+          const taskResult = parsed?.tasks?.[0]?.result;
+          if (Array.isArray(taskResult)) {
+            for (const item of taskResult) {
+              const kw = item?.keyword;
+              if (!kw) continue;
+              // Extract related keywords from google_trends_queries_list
+              const items = Array.isArray(item?.items) ? item.items : [];
+              for (const sub of items) {
+                if (sub?.type === "google_trends_queries_list" && Array.isArray(sub?.items)) {
+                  for (const entry of sub.items) {
+                    const keyword = entry?.keyword;
+                    const value = entry?.keyword_info?.search_volume ?? 0;
+                    if (keyword) {
+                      candidates.push({
+                        keyword,
+                        value: Number(value) || 0,
+                        type: entry?.type === "top" ? "top" as const : "rising" as const,
+                        source: "google_trends",
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else {
+        candidates = await getExpansionResults(job.task_ids);
+      }
       if (!includeTop) {
         candidates = candidates.filter((candidate) => candidate.type === "rising");
       }

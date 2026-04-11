@@ -123,7 +123,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ jobId: cachedJobId, fromCache: true });
     }
 
-    const taskIds = await submitExpansionTasks(keywords, dateFrom, dateTo);
+    const POSTBACK_BASE = process.env.PUBLIC_BASE_URL || "https://discoverkeywords.co";
+    const postbackUrl = `${POSTBACK_BASE}/api/research/webhook`;
+
+    const taskIds = await submitExpansionTasks(keywords, dateFrom, dateTo, {
+      postbackUrl,
+      cacheKey: d1CacheKey,
+    });
     if (taskIds.length === 0) {
       if (debug) {
         console.log("[api/expand] task creation failed");
