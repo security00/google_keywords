@@ -514,6 +514,7 @@ const buildVerdictExplanation = ({
   const surge = recentMean >= surgeThreshold;
 
   const metrics = {
+    isNew: baselineLow && surge,
     poolQualified,
     baselineMean: formatNumber(baselineMean),
     baselinePeak: formatNumber(baselinePeak),
@@ -2216,4 +2217,3 @@ export const summarizeResults = (results: ComparisonResult[]) => {
     { strong: 0, pass: 0, close: 0, watch: 0, fail: 0 }
   );
 };
-

@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "google-keywords",
+  "compatibility_date": "2025-04-05",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "google-keywords"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "BENCHMARK_KEYWORD": "gpts",
+    "NEXT_PUBLIC_BENCHMARK_KEYWORD": "gpts",
+    "CACHE_EXPIRY_HOURS": "24",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_MODEL": "openai/gpt-5.2",
+    "OPENROUTER_FILTER_TERMS": "赌博,博彩,赌场,投注,链接,新闻,名人,电影",
+    "OPENROUTER_SITE_URL": "",
+    "OPENROUTER_APP_NAME": "keyword-research",
+    "NEXT_PUBLIC_FILTER_TERMS": "gambling,betting,casino,news,celebrity,movie,film,lottery,博彩,赌博,赌场,投注,新闻,名人,电影",
+    "DEBUG_API_LOGS": "true",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://bugkrlhktolrmulfnrsh.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1Z2tybGhrdG9scm11bGZucnNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk1NjY3MjcsImV4cCI6MjA3NTE0MjcyN30.9M8UbEKq-Tb1eRORTGgTTyQgzlglpX03vGsQKmH8hBg",
+    "SERP_LOCATION_NAME": "United States",
+    "SERP_LANGUAGE_CODE": "en",
+    "SERP_DEVICE": "desktop",
+    "SERP_OS": "windows",
+    "SERP_DEPTH": "10",
+    "D1_DATABASE_NAME": "ai-trends"
+  }
+}
