@@ -73,3 +73,64 @@ export async function setCache(
     [id, cacheKey, JSON.stringify(data), now]
   );
 }
+
+/**
+ * SERP confidence cache — per keyword per day.
+ * Avoids redundant SERP API calls for the same keyword on the same day.
+ */
+const SERP_CONFIDENCE_TABLE = "serp_confidence_cache";
+
+type SerpConfidenceRow = {
+  keyword_normalized: string;
+  cache_date: string;
+  confidence: number;
+  organic_count: number;
+  has_featured: number;
+  ai_in_titles: number;
+  updated_at: string;
+};
+
+export async function getSerpConfidence(
+  keywords: string[]
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (keywords.length === 0) return result;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const norms = [...new Set(keywords.map((k) => k.toLowerCase().trim()))];
+  const ph = norms.map(() => "?").join(",");
+
+  const { rows } = await d1Query<SerpConfidenceRow>(
+    `SELECT keyword_normalized, confidence FROM ${SERP_CONFIDENCE_TABLE} WHERE keyword_normalized IN (${ph}) AND cache_date = ?`,
+    [...norms, today]
+  );
+
+  for (const r of rows) {
+    result.set(r.keyword_normalized, r.confidence);
+  }
+  return result;
+}
+
+export async function setSerpConfidence(
+  entries: Array<{
+    keyword: string;
+    confidence: number;
+    organicCount: number;
+    hasFeatured: boolean;
+    aiInTitles: number;
+  }>
+): Promise<void> {
+  if (entries.length === 0) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date().toISOString();
+
+  for (const e of entries) {
+    const norm = e.keyword.toLowerCase().trim();
+    await d1Query(
+      `INSERT INTO ${SERP_CONFIDENCE_TABLE} (keyword_normalized, cache_date, confidence, organic_count, has_featured, ai_in_titles, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(keyword_normalized, cache_date) DO UPDATE SET confidence = excluded.confidence, organic_count = excluded.organic_count, has_featured = excluded.has_featured, ai_in_titles = excluded.ai_in_titles, updated_at = excluded.updated_at`,
+      [norm, today, e.confidence, e.organicCount, e.hasFeatured ? 1 : 0, e.aiInTitles, now]
+    );
+  }
+}

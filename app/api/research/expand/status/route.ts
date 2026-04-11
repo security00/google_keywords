@@ -19,6 +19,7 @@ import { fetchSessionPayload } from "@/lib/session-store";
 import { getJob, updateJobStatus } from "@/lib/research-jobs";
 import { batchScoreKeywords } from "@/lib/rule-engine";
 import { saveKeywordHistory, getFilterCache, setFilterCache } from "@/lib/history";
+import { getSerpConfidence, setSerpConfidence } from "@/lib/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -369,39 +370,68 @@ export async function GET(request: Request) {
         return { ...c, isNew, score };
       });
 
-      // === Optimization 5: Cross-validation (expand × SERP) ===
-      // Check top candidates against SERP for confidence scoring
+      // === Optimization 5: Cross-validation (expand × SERP) with per-day cache ===
       const crossValidateTopN = 20;
-      const keywordsToValidate = enrichedCandidates.slice(0, crossValidateTopN).map(c => c.keyword);
+      const topCandidates = enrichedCandidates.slice(0, crossValidateTopN);
+      const keywordsToValidate = topCandidates.map(c => c.keyword);
 
       if (keywordsToValidate.length > 0) {
         try {
           stage = "cross-validate";
-          const serpTaskIds = await submitSerpTasks(keywordsToValidate);
-          const completedIds = await waitForSerpTasks(serpTaskIds);
-          const serpResults = await getSerpResults(completedIds);
 
-          for (const kw of keywordsToValidate) {
-            const serpData = serpResults.get(kw.toLowerCase());
-            let confidence = 10; // base low if no data
-            if (serpData) {
-              const organicCount = serpData.topResults?.length ?? 0;
-              const hasFeatured = (serpData.itemTypes ?? []).some((t: string) =>
-                t.includes("featured_snippet") || t.includes("knowledge_graph")
-              );
-              confidence = 50;
-              if (organicCount >= 5) confidence += 25;
-              else if (organicCount >= 2) confidence += 15;
-              if (hasFeatured) confidence += 15;
-              const aiInTitles = (serpData.topResults ?? []).filter((r: { title?: string }) =>
-                /\b(ai|tool|generator|builder|free|online|app)\b/i.test(r.title ?? "")
-              ).length;
-              confidence += Math.min(aiInTitles * 5, 15);
-              confidence = Math.min(confidence, 100);
+          // Check cache first — same keyword same day = skip SERP API call
+          const cachedConfidence = await getSerpConfidence(keywordsToValidate);
+          const uncachedKeywords = keywordsToValidate.filter(
+            kw => !cachedConfidence.has(kw.toLowerCase().trim())
+          );
+
+          // Compute confidence from SERP only for uncached keywords
+          const newEntries: Array<{ keyword: string; confidence: number; organicCount: number; hasFeatured: boolean; aiInTitles: number }> = [];
+
+          if (uncachedKeywords.length > 0) {
+            const serpTaskIds = await submitSerpTasks(uncachedKeywords);
+            const completedIds = await waitForSerpTasks(serpTaskIds);
+            const serpResults = await getSerpResults(completedIds);
+
+            for (const kw of uncachedKeywords) {
+              const serpData = serpResults.get(kw.toLowerCase());
+              let confidence = 10;
+              let organicCount = 0;
+              let hasFeatured = false;
+              let aiInTitles = 0;
+
+              if (serpData) {
+                organicCount = serpData.topResults?.length ?? 0;
+                hasFeatured = (serpData.itemTypes ?? []).some((t: string) =>
+                  t.includes("featured_snippet") || t.includes("knowledge_graph")
+                );
+                confidence = 50;
+                if (organicCount >= 5) confidence += 25;
+                else if (organicCount >= 2) confidence += 15;
+                if (hasFeatured) confidence += 15;
+                aiInTitles = (serpData.topResults ?? []).filter((r: { title?: string }) =>
+                  /\b(ai|tool|generator|builder|free|online|app)\b/i.test(r.title ?? "")
+                ).length;
+                confidence += Math.min(aiInTitles * 5, 15);
+                confidence = Math.min(confidence, 100);
+              }
+              newEntries.push({ keyword: kw, confidence, organicCount, hasFeatured, aiInTitles });
             }
-            const idx = enrichedCandidates.findIndex(c => c.keyword.toLowerCase() === kw.toLowerCase());
-            if (idx >= 0) {
-              enrichedCandidates[idx] = { ...enrichedCandidates[idx], confidence };
+
+            // Cache new results for today
+            try { await setSerpConfidence(newEntries); } catch (e) { console.warn("[cross-validate] cache write failed", e); }
+          }
+
+          // Merge cached + new confidence into candidates
+          const allConfidence = new Map(cachedConfidence);
+          for (const e of newEntries) {
+            allConfidence.set(e.keyword.toLowerCase().trim(), e.confidence);
+          }
+          for (const c of topCandidates) {
+            const conf = allConfidence.get(c.keyword.toLowerCase().trim());
+            if (conf !== undefined) {
+              const idx = enrichedCandidates.findIndex(ec => ec.keyword.toLowerCase() === c.keyword.toLowerCase());
+              if (idx >= 0) enrichedCandidates[idx] = { ...enrichedCandidates[idx], confidence: conf };
             }
           }
         } catch (e) {
