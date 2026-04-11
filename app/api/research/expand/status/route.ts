@@ -214,6 +214,7 @@ export async function GET(request: Request) {
           filteredOut,
           sessionId: payload.session.id,
           gameKeywords: gameKws,
+          trendsSummary: payload.session.trends_summary ? JSON.parse(payload.session.trends_summary) : undefined,
         };
 
         return NextResponse.json({ status: "complete", ...response });
@@ -575,8 +576,8 @@ export async function GET(request: Request) {
         await d1Query("DELETE FROM research_sessions WHERE id = ?", [sessionId]);
         stage = "db:insert-session";
         await d1Query(
-          `INSERT INTO research_sessions (id, user_id, title, keywords, date_from, date_to, benchmark, include_top, use_filter, filter_terms, filter_prompt, filter_summary, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO research_sessions (id, user_id, title, keywords, date_from, date_to, benchmark, include_top, use_filter, filter_terms, filter_prompt, filter_summary, trends_summary, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             sessionId,
             user.id,
@@ -590,6 +591,11 @@ export async function GET(request: Request) {
             JSON.stringify(filterConfig?.terms ?? []),
             filterConfig?.prompt ?? null,
             filterSummary ? JSON.stringify(filterSummary) : null,
+            Object.keys(trendsMap).length > 0 ? JSON.stringify({
+              benchmark: resolveBenchmark(),
+              totalCompared: Object.keys(trendsMap).length,
+              keywords: trendsMap,
+            }) : null,
             now,
           ]
         );
