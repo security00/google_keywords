@@ -22,6 +22,7 @@ type DbSession = {
   filter_terms: string | null;
   filter_prompt: string | null;
   filter_summary: string | null;
+  trends_summary: string | null;
   created_at: string | null;
 };
 
@@ -90,6 +91,7 @@ export type SessionPayload = {
     filter_terms: string[];
     filter_prompt: string | null;
     filter_summary: FilterSummary | null;
+    trends_summary: string | null;
     created_at: string | null;
   } | null;
   candidates: Array<{
@@ -195,6 +197,7 @@ export const fetchSessionPayload = async (
     use_filter: toBool(sessionRow.use_filter),
     filter_terms: parseJsonArray<string>(sessionRow.filter_terms),
     filter_summary: parseJson<FilterSummary>(sessionRow.filter_summary),
+    trends_summary: sessionRow.trends_summary as string | null,
   };
 
   const { rows: candidateRows } = await d1Query<DbCandidate>(
