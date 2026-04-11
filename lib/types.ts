@@ -12,6 +12,7 @@ export type Candidate = {
   source: string;
   isNew?: boolean;
   score?: number;
+  confidence?: number;
 };
 
 export type OrganizedCandidates = {

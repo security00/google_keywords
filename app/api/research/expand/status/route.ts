@@ -7,6 +7,9 @@ import {
   getReadyTaskIds,
   organizeCandidates,
   flattenOrganizedCandidates,
+  submitSerpTasks,
+  waitForSerpTasks,
+  getSerpResults,
 } from "@/lib/keyword-research";
 import type { ExpandResponse, Candidate, FilterSummary } from "@/lib/types";
 import type { FilterConfig } from "@/lib/keyword-research";
@@ -264,8 +267,8 @@ export async function GET(request: Request) {
 
       // Sort by rule score (descending) — trend acceleration proxy
       candidates.sort((a, b) => {
-        const sa = ruleKeptMap.get(a.keyword.toLowerCase()) ?? 0;
-        const sb = ruleKeptMap.get(b.keyword.toLowerCase()) ?? 0;
+        const sa = Number(ruleKeptMap.get(a.keyword.toLowerCase())) || 0;
+        const sb = Number(ruleKeptMap.get(b.keyword.toLowerCase())) || 0;
         return sb - sa;
       });
 
@@ -357,14 +360,54 @@ export async function GET(request: Request) {
         }
       }
 
-      const enrichedCandidates: Candidate[] = filteredCandidates.map(c => {
+      let enrichedCandidates: Candidate[] = filteredCandidates.map(c => {
         const norm = c.keyword.toLowerCase().trim();
         const dates = seenDates.get(norm);
         const firstSeen = dates?.size ? [...dates].sort()[0] : null;
         const isNew = firstSeen === today;
-        const score = ruleKeptMap.get(norm) ?? 0;
+        const score = Number(ruleKeptMap.get(norm)) || 0;
         return { ...c, isNew, score };
       });
+
+      // === Optimization 5: Cross-validation (expand × SERP) ===
+      // Check top candidates against SERP for confidence scoring
+      const crossValidateTopN = 20;
+      const keywordsToValidate = enrichedCandidates.slice(0, crossValidateTopN).map(c => c.keyword);
+
+      if (keywordsToValidate.length > 0) {
+        try {
+          stage = "cross-validate";
+          const serpTaskIds = await submitSerpTasks(keywordsToValidate);
+          const completedIds = await waitForSerpTasks(serpTaskIds);
+          const serpResults = await getSerpResults(completedIds);
+
+          for (const kw of keywordsToValidate) {
+            const serpData = serpResults.get(kw.toLowerCase());
+            let confidence = 10; // base low if no data
+            if (serpData) {
+              const organicCount = serpData.topResults?.length ?? 0;
+              const hasFeatured = (serpData.itemTypes ?? []).some((t: string) =>
+                t.includes("featured_snippet") || t.includes("knowledge_graph")
+              );
+              confidence = 50;
+              if (organicCount >= 5) confidence += 25;
+              else if (organicCount >= 2) confidence += 15;
+              if (hasFeatured) confidence += 15;
+              const aiInTitles = (serpData.topResults ?? []).filter((r: { title?: string }) =>
+                /\b(ai|tool|generator|builder|free|online|app)\b/i.test(r.title ?? "")
+              ).length;
+              confidence += Math.min(aiInTitles * 5, 15);
+              confidence = Math.min(confidence, 100);
+            }
+            const idx = enrichedCandidates.findIndex(c => c.keyword.toLowerCase() === kw.toLowerCase());
+            if (idx >= 0) {
+              enrichedCandidates[idx] = { ...enrichedCandidates[idx], confidence };
+            }
+          }
+        } catch (e) {
+          console.warn("[cross-validate] failed, skipping", e);
+        }
+      }
 
       // D1 cache already populated by webhook (postback_results + query_cache)
       // Filesystem cache not supported on CF Workers (fs.mkdir unsupported)
