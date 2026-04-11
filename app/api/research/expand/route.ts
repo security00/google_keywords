@@ -91,9 +91,11 @@ export async function POST(request: Request) {
     // D1 cache check below handles all caching
 
     // 检查今天是否已有同关键词的已完成任务（缓存）
+    // Note: webhook may overwrite cache with raw DataForSEO response;
+    // only treat it as a jobId cache hit if the value looks like a UUID
     const d1CacheKey = buildCacheKey("expand", keywords, { dateFrom, dateTo });
     const cachedJobId = await getCached<string>(d1CacheKey);
-    if (cachedJobId) {
+    if (cachedJobId && typeof cachedJobId === "string" && /^[0-9a-f]{8}-/.test(cachedJobId)) {
       if (debug) console.log("[api/expand] cache hit, existing job", { cachedJobId });
       return NextResponse.json({ jobId: cachedJobId, fromCache: true });
     }
