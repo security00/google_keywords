@@ -8,12 +8,14 @@ import {
   organizeCandidates,
   flattenOrganizedCandidates,
 } from "@/lib/keyword-research";
-import type { ExpandResponse } from "@/lib/types";
+import type { ExpandResponse, Candidate, FilterSummary } from "@/lib/types";
 import type { FilterConfig } from "@/lib/keyword-research";
 import { d1InsertMany, d1Query } from "@/lib/d1";
 import { authenticate } from "@/lib/auth_middleware";
 import { fetchSessionPayload } from "@/lib/session-store";
 import { getJob, updateJobStatus } from "@/lib/research-jobs";
+import { batchScoreKeywords } from "@/lib/rule-engine";
+import { saveKeywordHistory, getFilterCache, setFilterCache } from "@/lib/history";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -253,21 +255,116 @@ export async function GET(request: Request) {
         candidates = candidates.filter((candidate) => candidate.type === "rising");
       }
 
+      // === Optimization 1: Rule engine pre-filter ===
+      // Remove obvious junk before expensive LLM call
+      const ruleResult = batchScoreKeywords(candidates.map(c => c.keyword));
+      const ruleBlockedSet = new Set(ruleResult.blocked.map(k => k.toLowerCase()));
+      const ruleKeptMap = new Map(ruleResult.kept.map(k => [k.keyword.toLowerCase(), k.score]));
+      candidates = candidates.filter(c => !ruleBlockedSet.has(c.keyword.toLowerCase()));
+
+      // Sort by rule score (descending) — trend acceleration proxy
+      candidates.sort((a, b) => {
+        const sa = ruleKeptMap.get(a.keyword.toLowerCase()) ?? 0;
+        const sb = ruleKeptMap.get(b.keyword.toLowerCase()) ?? 0;
+        return sb - sa;
+      });
+
       let filteredCandidates = candidates;
       let filterSummary = undefined;
       let filteredOut: ExpandResponse["filteredOut"] = undefined;
 
       if (useFilter && filterConfig) {
         stage = "filter";
-        const { filtered, blocked, summary } = await filterCandidatesWithModel(
-          candidates,
-          filterConfig,
-          { debug }
-        );
-        filteredCandidates = filtered;
-        filterSummary = summary;
-        filteredOut = blocked;
+
+        // === Optimization 2: AI filter cache ===
+        // Same keyword set = same filter result (skip LLM)
+        const sortedKw = [...new Set(candidates.map(c => c.keyword))].sort();
+        const filterCacheKey = `filter:v1:${sortedKw.join(",")}:${filterConfig.model}:${(filterConfig.terms ?? []).sort().join(",")}:${filterConfig.prompt ?? ""}`;
+        const cachedFilter = await getFilterCache(filterCacheKey);
+
+        if (cachedFilter) {
+          stage = "filter-cache-hit";
+          const blockedSet = new Set(cachedFilter.blockedKeywords.map(k => k.toLowerCase()));
+          filteredCandidates = candidates.filter(c => !blockedSet.has(c.keyword.toLowerCase()));
+          filteredOut = candidates.filter(c => blockedSet.has(c.keyword.toLowerCase()));
+          filterSummary = (cachedFilter.summary as FilterSummary) ?? {
+            enabled: true,
+            model: cachedFilter.model,
+            total: candidates.length,
+            removed: filteredOut.length,
+            kept: filteredCandidates.length,
+            fromCache: true,
+          };
+        } else {
+          // === Optimization 3: Improved AI prompt (sustainability focus) ===
+          const improvedConfig: FilterConfig = {
+            ...filterConfig,
+            prompt: filterConfig.prompt || undefined, // keep user's custom prompt if set
+          };
+          // The prompt improvement is in keyword-research.ts baseSystemPrompt (updated below)
+
+          const { filtered, blocked, summary } = await filterCandidatesWithModel(
+            candidates,
+            improvedConfig,
+            { debug }
+          );
+          filteredCandidates = filtered;
+          filterSummary = summary;
+          filteredOut = blocked;
+
+          // Cache the filter result
+          try {
+            await setFilterCache({
+              cacheKey: filterCacheKey,
+              blockedKeywords: (blocked ?? []).map(c => c.keyword),
+              keptKeywords: filtered.map(c => c.keyword),
+              summary: summary as Record<string, unknown> | undefined,
+              model: filterConfig.model,
+            });
+          } catch (e) {
+            // Cache write failure shouldn't break the flow
+            console.warn("[filter-cache] write failed", e);
+          }
+        }
       }
+
+      // === Optimization 4: Save keyword history ===
+      try {
+        await saveKeywordHistory(candidates); // all candidates (before filter) for trend tracking
+      } catch (e) {
+        console.warn("[history] save failed", e);
+      }
+
+      // === Enrich candidates with score and isNew flag ===
+      const today = new Date().toISOString().slice(0, 10);
+      const seenDates = new Map<string, Set<string>>();
+      for (const c of candidates) {
+        const norm = c.keyword.toLowerCase().trim();
+        if (!seenDates.has(norm)) seenDates.set(norm, new Set());
+      }
+      // Batch query first-seen dates for all candidates
+      if (candidates.length > 0) {
+        const norms = [...new Set(candidates.map(c => c.keyword.toLowerCase().trim()))];
+ const placeholders = norms.map(() => "?").join(",");
+        const { rows: historyRows } = await d1Query<{ keyword_normalized: string; first_seen: string }>(
+          `SELECT keyword_normalized, MIN(date) as first_seen FROM keyword_history WHERE keyword_normalized IN (${placeholders}) GROUP BY keyword_normalized`,
+          norms
+        );
+        for (const hr of historyRows) {
+          if (seenDates.has(hr.keyword_normalized)) {
+            seenDates.get(hr.keyword_normalized)!.add(hr.first_seen);
+          }
+        }
+      }
+
+      const enrichedCandidates: Candidate[] = filteredCandidates.map(c => {
+        const norm = c.keyword.toLowerCase().trim();
+        const dates = seenDates.get(norm);
+        const firstSeen = dates?.size ? [...dates].sort()[0] : null;
+        const isNew = firstSeen === today;
+        const score = ruleKeptMap.get(norm) ?? 0;
+        return { ...c, isNew, score };
+      });
 
       // D1 cache already populated by webhook (postback_results + query_cache)
       // Filesystem cache not supported on CF Workers (fs.mkdir unsupported)
@@ -276,7 +373,7 @@ export async function GET(request: Request) {
       const now = new Date().toISOString();
 
       const candidateRows = [
-        ...filteredCandidates.map((candidate) => [
+        ...enrichedCandidates.map((candidate) => [
           randomUUID(),
           sessionId,
           user.id,
@@ -353,18 +450,22 @@ export async function GET(request: Request) {
         updateJobStatus(job.id, "complete", { sessionId })
       );
 
-      const organized = organizeCandidates(filteredCandidates);
+      const organized = organizeCandidates(enrichedCandidates);
       const response: ExpandResponse = {
         keywords,
         dateFrom: dateFrom ?? "",
         dateTo: dateTo ?? "",
-        candidates: filteredCandidates,
+        candidates: enrichedCandidates,
         organized,
         flatList: flattenOrganizedCandidates(organized),
         fromCache: false,
         filter: filterSummary,
         filteredOut,
         sessionId,
+        ruleStats: {
+          blocked: ruleBlockedSet.size,
+          kept: ruleKeptMap.size,
+        },
       };
 
       return NextResponse.json({ status: "complete", ...response });

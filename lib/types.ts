@@ -10,6 +10,8 @@ export type Candidate = {
   value: number;
   type: CandidateType;
   source: string;
+  isNew?: boolean;
+  score?: number;
 };
 
 export type OrganizedCandidates = {
@@ -101,6 +103,7 @@ export type ExpandResponse = {
   filter?: FilterSummary;
   filteredOut?: Candidate[];
   sessionId?: string;
+  ruleStats?: { blocked: number; kept: number };
 };
 
 export type CompareResponse = {
