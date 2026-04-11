@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 
 import {
   buildFilterCacheKey,
-  flattenOrganizedCandidates,
-  loadCache,
-  organizeCandidates,
   normalizeKeywords,
   resolveFilterConfig,
   resolveDateRange,
@@ -90,30 +87,8 @@ export async function POST(request: Request) {
       });
     }
 
-    if (useCache) {
-      const cached = await loadCache(keywords, dateFrom, dateTo, cacheKey);
-      if (cached) {
-        if (debug) {
-          console.log("[api/expand] cache hit", {
-            candidates: cached.candidates.length,
-            filter: cached.filterSummary,
-          });
-        }
-        const organized = organizeCandidates(cached.candidates);
-        const response: ExpandResponse = {
-          keywords: cached.keywords,
-          dateFrom: cached.dateFrom,
-          dateTo: cached.dateTo,
-          candidates: cached.candidates,
-          organized,
-          flatList: flattenOrganizedCandidates(organized),
-          fromCache: true,
-          filter: cached.filterSummary,
-          filteredOut: cached.filteredOut,
-        };
-        return NextResponse.json(response);
-      }
-    }
+    // Filesystem cache not supported on CF Workers — skip
+    // D1 cache check below handles all caching
 
     // 检查今天是否已有同关键词的已完成任务（缓存）
     const d1CacheKey = buildCacheKey("expand", keywords, { dateFrom, dateTo });

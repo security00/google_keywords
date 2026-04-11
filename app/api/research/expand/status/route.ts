@@ -5,7 +5,6 @@ import {
   filterCandidatesWithModel,
   getExpansionResults,
   getReadyTaskIds,
-  saveCache,
   organizeCandidates,
   flattenOrganizedCandidates,
 } from "@/lib/keyword-research";
@@ -217,28 +216,31 @@ export async function GET(request: Request) {
         candidates = [];
         for (const resultJson of postbackResults) {
           const parsed = JSON.parse(resultJson);
-          // DataForSEO task_get format: { tasks: [{ result: [...] }] }
+          // DataForSEO postback format: { tasks: [{ result: [...] }] }
           const taskResult = parsed?.tasks?.[0]?.result;
-          if (Array.isArray(taskResult)) {
-            for (const item of taskResult) {
-              const kw = item?.keyword;
-              if (!kw) continue;
-              // Extract related keywords from google_trends_queries_list
-              const items = Array.isArray(item?.items) ? item.items : [];
-              for (const sub of items) {
-                if (sub?.type === "google_trends_queries_list" && Array.isArray(sub?.items)) {
-                  for (const entry of sub.items) {
-                    const keyword = entry?.keyword;
-                    const value = entry?.keyword_info?.search_volume ?? 0;
-                    if (keyword) {
-                      candidates.push({
-                        keyword,
-                        value: Number(value) || 0,
-                        type: entry?.type === "top" ? "top" as const : "rising" as const,
-                        source: "google_trends",
-                      });
-                    }
-                  }
+          if (!Array.isArray(taskResult)) continue;
+
+          for (const entry of taskResult) {
+            const sourceKeyword = entry?.keywords?.[0] ?? "unknown";
+            const items = Array.isArray(entry?.items) ? entry.items : [];
+
+            for (const item of items) {
+              if (item?.type !== "google_trends_queries_list") continue;
+              const data = item?.data;
+
+              if (Array.isArray(data)) {
+                for (const qi of data) {
+                  const kw = qi?.query ?? "";
+                  if (kw) candidates.push({ keyword: kw, value: Number(qi?.value ?? 0), type: String(qi?.type ?? "").toLowerCase().includes("rising") ? "rising" as const : "top" as const, source: sourceKeyword });
+                }
+              } else if (data && typeof data === "object") {
+                for (const qi of data.top ?? []) {
+                  const kw = qi?.query ?? "";
+                  if (kw) candidates.push({ keyword: kw, value: Number(qi?.value ?? 0), type: "top" as const, source: sourceKeyword });
+                }
+                for (const qi of data.rising ?? []) {
+                  const kw = qi?.query ?? "";
+                  if (kw) candidates.push({ keyword: kw, value: Number(qi?.value ?? 0), type: "rising" as const, source: sourceKeyword });
                 }
               }
             }
@@ -267,18 +269,8 @@ export async function GET(request: Request) {
         filteredOut = blocked;
       }
 
-      if (keywords.length && dateFrom && dateTo) {
-        stage = "cache";
-        await saveCache(
-          keywords,
-          dateFrom,
-          dateTo,
-          filteredCandidates,
-          filterSummary,
-          filteredOut,
-          cacheKey
-        );
-      }
+      // D1 cache already populated by webhook (postback_results + query_cache)
+      // Filesystem cache not supported on CF Workers (fs.mkdir unsupported)
 
       const sessionId = randomUUID();
       const now = new Date().toISOString();
