@@ -13,6 +13,13 @@ import {
 } from "@/lib/keyword-research";
 import type { ExpandResponse, Candidate, FilterSummary } from "@/lib/types";
 import type { FilterConfig } from "@/lib/keyword-research";
+import {
+  submitComparisonTasks,
+  waitForTasks,
+  getComparisonResults,
+  resolveBenchmark,
+  resolveComparisonDateRange,
+} from "@/lib/keyword-research";
 import { d1InsertMany, d1Query } from "@/lib/d1";
 import { authenticate } from "@/lib/auth_middleware";
 import { fetchSessionPayload } from "@/lib/session-store";
@@ -378,6 +385,43 @@ export async function GET(request: Request) {
         console.warn("[history] save failed", e);
       }
 
+      // === Enrich candidates with trends comparison (top 10 vs benchmark) ===
+      let trendsMap: Record<string, { ratio: number; ratioMean: number; ratioRecent: number; slopeRatio?: number; volatility: number; verdict: string; }> = {};
+      try {
+        const trendCandidates = candidates
+          .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+          .slice(0, 10)
+          .map((c) => c.keyword);
+
+        if (trendCandidates.length > 0) {
+          const benchmark = resolveBenchmark();
+          const { dateFrom: compFrom, dateTo: compTo } = resolveComparisonDateRange();
+          const compareTaskIds = await submitComparisonTasks(trendCandidates, compFrom, compTo, benchmark);
+
+          if (compareTaskIds.length > 0) {
+            const completedIds = await waitForTasks(compareTaskIds);
+            if (completedIds.length > 0) {
+              const compResults = await getComparisonResults(completedIds, benchmark);
+              for (const r of compResults) {
+                trendsMap[r.keyword.toLowerCase()] = {
+                  ratio: r.ratio,
+                  ratioMean: r.ratioMean,
+                  ratioRecent: r.ratioRecent,
+                  slopeRatio: r.slopeRatio,
+                  volatility: r.volatility,
+                  verdict: r.verdict,
+                };
+              }
+            }
+          }
+        }
+        log("trends done", { keywords: Object.keys(trendsMap).length });
+      } catch (trendErr) {
+        // Non-blocking: trends failure should not break whole pipeline
+        const trendMsg = trendErr instanceof Error ? trendErr.message : String(trendErr);
+        log("trends failed (non-blocking)", { error: trendMsg });
+      }
+
       // === Enrich candidates with score and isNew flag ===
       const today = new Date().toISOString().slice(0, 10);
       const seenDates = new Map<string, Set<string>>();
@@ -406,7 +450,8 @@ export async function GET(request: Request) {
         const firstSeen = dates?.size ? [...dates].sort()[0] : null;
         const isNew = firstSeen === today;
         const score = Number(ruleKeptMap.get(norm)) || 0;
-        return { ...c, isNew, score };
+        const trends = trendsMap[norm];
+        return { ...c, isNew, score, trends };
       });
 
       // === Optimization 5: Cross-validation (expand × SERP) with per-day cache ===
@@ -586,6 +631,11 @@ export async function GET(request: Request) {
           kept: ruleKeptMap.size,
         },
         gameKeywords: gameKws,
+        trendsSummary: Object.keys(trendsMap).length > 0 ? {
+          benchmark: resolveBenchmark(),
+          totalCompared: Object.keys(trendsMap).length,
+          keywords: trendsMap,
+        } : undefined,
       };
 
       return NextResponse.json({ status: "complete", ...response });
