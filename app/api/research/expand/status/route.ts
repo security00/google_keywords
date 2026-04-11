@@ -298,6 +298,7 @@ export async function GET(request: Request) {
             }
           }
         }
+        console.log("[parse-postback] parsed candidates:", candidates.length);
       } else {
         candidates = await getExpansionResults(job.task_ids);
       }
