@@ -1131,7 +1131,7 @@ export const submitSerpTasks = async (
 
   for (const batch of batches) {
     const postback = options?.postbackUrl && options?.cacheKey
-      ? `${options.postbackUrl}?type=serp&tag=${encodeURIComponent(options.cacheKey)}&task_id=$id`
+      ? options.postbackUrl // Just the base URL, no query params
       : undefined;
 
     const payload = batch.map((keyword) => ({
@@ -1397,7 +1397,7 @@ export const submitExpansionTasks = async (
   options?: { postbackUrl?: string; cacheKey?: string }
 ) => {
   const postback = options?.postbackUrl && options?.cacheKey
-    ? `${options.postbackUrl}?type=expand&tag=${encodeURIComponent(options.cacheKey)}&task_id=$id`
+    ? options.postbackUrl // Just the base URL, no query params
     : undefined;
 
   const payload = keywords.map((keyword) => ({
@@ -1887,7 +1887,7 @@ export const submitComparisonTasks = async (
 ) => {
   const batches = createBatches(keywords, 4);
   const postback = options?.postbackUrl && options?.cacheKey
-    ? `${options.postbackUrl}?type=trends&tag=${encodeURIComponent(options.cacheKey)}&task_id=$id`
+    ? options.postbackUrl // Just the base URL, no query params
     : undefined;
 
   const payload = batches.map((batch) => ({
