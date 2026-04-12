@@ -50,10 +50,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Extract params from query string (passed via $tag and $id in postback_url)
-  const cacheKey = request.nextUrl.searchParams.get("tag");
-  const apiType = request.nextUrl.searchParams.get("type") || "unknown";
-  const dfsTaskId = request.nextUrl.searchParams.get("task_id") || "";
+  // Extract params from query string OR POST body (DataForSEO may send either way)
+  let cacheKey = request.nextUrl.searchParams.get("tag");
+  let apiType = request.nextUrl.searchParams.get("type") || "unknown";
+  let dfsTaskId = request.nextUrl.searchParams.get("task_id") || "";
+
+  try {
+    // Try to read POST body first (might have params there)
+    const contentType = request.headers.get("content-type") || "";
+    const body = contentType.includes("application/json")
+      ? await request.json().catch(() => ({}))
+      : {};
+
+    // Override with body params if present
+    if (body && typeof body === "object") {
+      if (body.tag) cacheKey = cacheKey || body.tag;
+      if (body.type) apiType = apiType || body.type;
+      if (body.task_id) dfsTaskId = dfsTaskId || body.task_id;
+    }
+
+    console.log("[webhook] params", { cacheKey, apiType, dfsTaskId });
+  } catch (err) {
+    // Ignore JSON parse errors (body might be gzipped data)
+  }
 
   try {
     // Decompress gzip body
