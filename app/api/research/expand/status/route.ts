@@ -391,41 +391,47 @@ export async function GET(request: Request) {
       let trendsMap: Record<string, { ratio: number; ratioMean: number; ratioRecent: number; slopeRatio?: number; volatility: number; verdict: string; }> = {};
       console.log("[trends] step starting, candidates:", candidates.length);
       try {
-        const trendCandidates = candidates
-          .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
-          .slice(0, 10)
-          .map((c) => c.keyword);
+        // Skip trends if candidates are too few (avoid unnecessary API calls and OOM)
+        if (candidates.length < 3) {
+          console.log("[trends] skipped: too few candidates", candidates.length);
+          log("trends skipped", { reason: "too few candidates", count: candidates.length });
+        } else {
+          const trendCandidates = candidates
+            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
+            .slice(0, 10)
+            .map((c) => c.keyword);
 
-        console.log("[trends] trendCandidates:", trendCandidates.length, trendCandidates.slice(0, 3));
+          console.log("[trends] trendCandidates:", trendCandidates.length, trendCandidates.slice(0, 3));
 
-        if (trendCandidates.length > 0) {
-          const benchmark = resolveBenchmark();
-          const { dateFrom: compFrom, dateTo: compTo } = resolveComparisonDateRange();
-          const compareTaskIds = await submitComparisonTasks(trendCandidates, compFrom, compTo, benchmark);
+          if (trendCandidates.length > 0) {
+            const benchmark = resolveBenchmark();
+            const { dateFrom: compFrom, dateTo: compTo } = resolveComparisonDateRange();
+            const compareTaskIds = await submitComparisonTasks(trendCandidates, compFrom, compTo, benchmark);
 
-          console.log("[trends] submitComparisonTasks returned:", compareTaskIds.length);
-          if (compareTaskIds.length > 0) {
-            console.log("[trends] waitForTasks starting...");
-            const completedIds = await waitForTasks(compareTaskIds);
-            console.log("[trends] waitForTasks completed:", completedIds.length);
-            if (completedIds.length > 0) {
-              console.log("[trends] getComparisonResults starting...");
-              const compResults = await getComparisonResults(completedIds, benchmark);
-              console.log("[trends] getComparisonResults returned:", compResults.length);
-              for (const r of compResults) {
-                trendsMap[r.keyword.toLowerCase()] = {
-                  ratio: r.ratio,
-                  ratioMean: r.ratioMean,
-                  ratioRecent: r.ratioRecent,
-                  slopeRatio: r.slopeRatio,
-                  volatility: r.volatility,
-                  verdict: r.verdict,
-                };
+            console.log("[trends] submitComparisonTasks returned:", compareTaskIds.length);
+            if (compareTaskIds.length > 0) {
+              console.log("[trends] waitForTasks starting...");
+              const completedIds = await waitForTasks(compareTaskIds);
+              console.log("[trends] waitForTasks completed:", completedIds.length);
+              if (completedIds.length > 0) {
+                console.log("[trends] getComparisonResults starting...");
+                const compResults = await getComparisonResults(completedIds, benchmark);
+                console.log("[trends] getComparisonResults returned:", compResults.length);
+                for (const r of compResults) {
+                  trendsMap[r.keyword.toLowerCase()] = {
+                    ratio: r.ratio,
+                    ratioMean: r.ratioMean,
+                    ratioRecent: r.ratioRecent,
+                    slopeRatio: r.slopeRatio,
+                    volatility: r.volatility,
+                    verdict: r.verdict,
+                  };
+                }
               }
             }
           }
+          log("trends done", { keywords: Object.keys(trendsMap).length });
         }
-        log("trends done", { keywords: Object.keys(trendsMap).length });
       } catch (trendErr) {
         // Non-blocking: trends failure should not break whole pipeline
         const trendMsg = trendErr instanceof Error ? trendErr.message : String(trendErr);
