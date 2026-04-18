@@ -2,16 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Key, Users, ArrowLeft, ShieldAlert } from "lucide-react";
-import { usePathname } from "next/navigation";
-
-const nav = [
-  { href: "/dashboard/admin/codes", label: "邀请码管理", icon: Key },
-  { href: "/dashboard/admin/users", label: "用户管理", icon: Users },
-];
+import { ShieldAlert } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 

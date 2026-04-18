@@ -2,34 +2,74 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 
 import {
-  filterCandidatesWithModel,
   getExpansionResults,
   getReadyTaskIds,
   organizeCandidates,
   flattenOrganizedCandidates,
-  submitSerpTasks,
-  waitForSerpTasks,
-  getSerpResults,
+  filterCandidatesWithKeywordModel,
 } from "@/lib/keyword-research";
 import type { ExpandResponse, Candidate, FilterSummary } from "@/lib/types";
 import type { FilterConfig } from "@/lib/keyword-research";
-import {
-  submitComparisonTasks,
-  waitForTasks,
-  getComparisonResults,
-  resolveBenchmark,
-  resolveComparisonDateRange,
-} from "@/lib/keyword-research";
 import { d1InsertMany, d1Query } from "@/lib/d1";
 import { authenticate } from "@/lib/auth_middleware";
 import { fetchSessionPayload } from "@/lib/session-store";
 import { getJob, updateJobStatus } from "@/lib/research-jobs";
 import { batchScoreKeywords } from "@/lib/rule-engine";
-import { saveKeywordHistory, getFilterCache, setFilterCache } from "@/lib/history";
-import { getSerpConfidence, setSerpConfidence } from "@/lib/cache";
+import { saveKeywordHistory } from "@/lib/history";
+import { setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const D1_IN_QUERY_CHUNK_SIZE = 100;
+const EXPAND_PARTIAL_COMPLETE_MIN_TOTAL = 20;
+const EXPAND_PARTIAL_COMPLETE_RATIO = 0.98;
+const PROCESSING_STALE_MS = 2 * 60 * 1000;
+
+const parseResponseLimit = (value: unknown) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.min(Math.max(Math.floor(parsed), 50), 5000);
+};
+
+const trimExpandResponse = (response: ExpandResponse, limit?: number) => {
+  if (!limit || response.flatList.length <= limit) return response;
+
+  const fullOrganized = organizeCandidates(response.candidates);
+  const sectionKeys = ["explosive", "fastRising", "steadyRising", "slowRising"] as const;
+  const baseQuota = Math.floor(limit / sectionKeys.length);
+  const organized = {
+    explosive: [] as typeof response.candidates,
+    fastRising: [] as typeof response.candidates,
+    steadyRising: [] as typeof response.candidates,
+    slowRising: [] as typeof response.candidates,
+  };
+
+  let remaining = limit;
+  for (const key of sectionKeys) {
+    const take = Math.min(fullOrganized[key].length, baseQuota, remaining);
+    organized[key] = fullOrganized[key].slice(0, take);
+    remaining -= take;
+  }
+  for (const key of sectionKeys) {
+    if (remaining <= 0) break;
+    const alreadyTaken = organized[key].length;
+    const extra = fullOrganized[key].slice(alreadyTaken, alreadyTaken + remaining);
+    organized[key] = [...organized[key], ...extra];
+    remaining -= extra.length;
+  }
+
+  const limitedCandidates = flattenOrganizedCandidates(organized);
+
+  return {
+    ...response,
+    candidates: limitedCandidates,
+    organized,
+    flatList: limitedCandidates,
+    totalCandidates: response.flatList.length,
+    returnedCandidates: limitedCandidates.length,
+    hasMoreCandidates: true,
+  };
+};
 
 const getGameKeywords = async () => {
   try {
@@ -63,6 +103,43 @@ const getGameKeywords = async () => {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const loadPostbackResults = async (taskIds: string[]) => {
+  const rows: { task_id: string; result_data: string }[] = [];
+
+  for (let index = 0; index < taskIds.length; index += D1_IN_QUERY_CHUNK_SIZE) {
+    const chunk = taskIds.slice(index, index + D1_IN_QUERY_CHUNK_SIZE);
+    const placeholders = chunk.map(() => "?").join(",");
+    const result = await d1Query<{ task_id: string; result_data: string }>(
+      `SELECT task_id, result_data
+       FROM postback_results
+       WHERE task_id IN (${placeholders})`,
+      chunk
+    );
+    rows.push(...result.rows);
+  }
+
+  return rows;
+};
+
+const loadKeywordHistoryFirstSeen = async (keywords: string[]) => {
+  const rows: { keyword_normalized: string; first_seen: string }[] = [];
+
+  for (let index = 0; index < keywords.length; index += D1_IN_QUERY_CHUNK_SIZE) {
+    const chunk = keywords.slice(index, index + D1_IN_QUERY_CHUNK_SIZE);
+    const placeholders = chunk.map(() => "?").join(",");
+    const result = await d1Query<{ keyword_normalized: string; first_seen: string }>(
+      `SELECT keyword_normalized, MIN(date) as first_seen
+       FROM keyword_history
+       WHERE keyword_normalized IN (${placeholders})
+       GROUP BY keyword_normalized`,
+      chunk
+    );
+    rows.push(...result.rows);
+  }
+
+  return rows;
+};
 
 const shouldRetryD1 = (message: string) => {
   const lowered = message.toLowerCase();
@@ -107,6 +184,22 @@ const parseFilterConfig = (value: unknown): FilterConfig | null => {
   };
 };
 
+const isCronAuthorized = (request: Request) => {
+  const secret = process.env.CRON_SECRET;
+  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
+  if (!secret && !externalSecret) return false;
+
+  const headerSecret = request.headers.get("x-cron-secret");
+  if (secret && headerSecret === secret) return true;
+  if (externalSecret && headerSecret === externalSecret) return true;
+
+  const authHeader = request.headers.get("authorization");
+  if (secret && authHeader === `Bearer ${secret}`) return true;
+  if (externalSecret && authHeader === `Bearer ${externalSecret}`) return true;
+
+  return false;
+};
+
 export async function GET(request: Request) {
   const debug = process.env.DEBUG_API_LOGS === "true";
   const log = (message: string, meta?: Record<string, unknown>) => {
@@ -138,7 +231,7 @@ export async function GET(request: Request) {
     }
   };
   try {
-    const auth = await authenticate(request as any);
+    const auth = await authenticate(request as Parameters<typeof authenticate>[0]);
     if (!auth.authenticated) { return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 }); }
     const user = { id: auth.userId! };
     if (!user) {
@@ -161,8 +254,30 @@ export async function GET(request: Request) {
     }
 
     if (job.status === "processing") {
+      const updatedAtMs = Date.parse(job.updated_at);
+      const isStaleProcessing =
+        !job.session_id &&
+        (!Number.isFinite(updatedAtMs) || Date.now() - updatedAtMs > PROCESSING_STALE_MS);
+
+      if (!isStaleProcessing) {
+        return NextResponse.json({
+          status: "pending",
+          stage: "processing",
+          ready: job.task_ids.length,
+          total: job.task_ids.length,
+        });
+      }
+
+      log("recovering stale processing job", {
+        jobId: job.id,
+        updatedAt: job.updated_at,
+      });
+    }
+
+    if (job.status === "processing" && job.session_id) {
       return NextResponse.json({
         status: "pending",
+        stage: "processing",
         ready: job.task_ids.length,
         total: job.task_ids.length,
       });
@@ -170,6 +285,12 @@ export async function GET(request: Request) {
 
     if (job.status === "complete") {
       if (job.session_id) {
+        const payloadConfig = job.payload ?? {};
+        const sharedResultCacheKey =
+          typeof payloadConfig.sharedResultCacheKey === "string"
+            ? payloadConfig.sharedResultCacheKey
+            : "";
+        const responseLimit = parseResponseLimit(payloadConfig.responseLimit);
         const payload = await fetchSessionPayload(user.id, job.session_id);
         if (!payload?.session) {
           return NextResponse.json({ status: "complete" });
@@ -217,7 +338,17 @@ export async function GET(request: Request) {
           trendsSummary: payload.session.trends_summary ? JSON.parse(payload.session.trends_summary) : undefined,
         };
 
-        return NextResponse.json({ status: "complete", ...response });
+        if (sharedResultCacheKey) {
+          try {
+            await setCache(sharedResultCacheKey, response);
+          } catch (cacheError) {
+            log("shared result cache write failed for completed job", {
+              message: cacheError instanceof Error ? cacheError.message : "Unexpected error",
+            });
+          }
+        }
+
+        return NextResponse.json({ status: "complete", ...trimExpandResponse(response, responseLimit) });
       }
       return NextResponse.json({ status: "complete" });
     }
@@ -229,32 +360,54 @@ export async function GET(request: Request) {
     const includeTop = payload.includeTop === true;
     const useFilter = payload.useFilter !== false;
     const filterConfig = parseFilterConfig(payload.filterConfig);
-    const cacheKey = typeof payload.cacheKey === "string" ? payload.cacheKey : "";
+    const enableLlmFilter = payload.enableLlmFilter === true;
+    const sharedResultCacheKey =
+      typeof payload.sharedResultCacheKey === "string"
+        ? payload.sharedResultCacheKey
+        : "";
+    const responseLimit = parseResponseLimit(payload.responseLimit);
+    const isSharedPrecomputeRequest =
+      Boolean(sharedResultCacheKey) && isCronAuthorized(request);
 
     // Check if all tasks have postback results (avoids calling DataForSEO)
     const postbackResults: string[] = [];
-    for (const tid of job.task_ids) {
-      const { rows } = await d1Query<{ result_data: string }>(
-        `SELECT result_data FROM postback_results WHERE task_id = ? LIMIT 1`,
-        [tid]
-      );
-      if (rows.length > 0) {
-        postbackResults.push(rows[0].result_data);
+    const postbackTaskIds: string[] = [];
+    if (job.task_ids.length > 0) {
+      const rows = await loadPostbackResults(job.task_ids);
+      const resultMap = new Map(rows.map((row) => [row.task_id, row.result_data]));
+      for (const taskId of job.task_ids) {
+        const result = resultMap.get(taskId);
+        if (result) {
+          postbackTaskIds.push(taskId);
+          postbackResults.push(result);
+        }
       }
     }
 
-    const usePostback = postbackResults.length === job.task_ids.length;
+    const usePostback = job.task_ids.length > 0 && postbackResults.length === job.task_ids.length;
+    let taskIdsToProcess = job.task_ids;
 
     if (!usePostback) {
       // Fallback: check DataForSEO tasks_ready endpoint
       const readyIds = await getReadyTaskIds(job.task_ids);
-      if (readyIds.length < job.task_ids.length) {
+      const availableIds = Array.from(new Set([...postbackTaskIds, ...readyIds]));
+      const minReadyForPartial = Math.max(
+        job.task_ids.length - 1,
+        Math.ceil(job.task_ids.length * EXPAND_PARTIAL_COMPLETE_RATIO)
+      );
+      const allowPartialComplete =
+        job.task_ids.length >= EXPAND_PARTIAL_COMPLETE_MIN_TOTAL &&
+        availableIds.length >= minReadyForPartial;
+
+      if (readyIds.length < job.task_ids.length && !allowPartialComplete) {
         return NextResponse.json({
           status: "pending",
-          ready: readyIds.length,
+          ready: Math.max(postbackResults.length, availableIds.length),
           total: job.task_ids.length,
         });
       }
+
+      taskIdsToProcess = availableIds;
     }
 
     let stage = "mark-processing";
@@ -301,7 +454,7 @@ export async function GET(request: Request) {
         }
         console.log("[parse-postback] parsed candidates:", candidates.length);
       } else {
-        candidates = await getExpansionResults(job.task_ids);
+        candidates = await getExpansionResults(taskIdsToProcess);
       }
       if (!includeTop) {
         candidates = candidates.filter((candidate) => candidate.type === "rising");
@@ -312,6 +465,7 @@ export async function GET(request: Request) {
       const ruleResult = batchScoreKeywords(candidates.map(c => c.keyword));
       const ruleBlockedSet = new Set(ruleResult.blocked.map(k => k.toLowerCase()));
       const ruleKeptMap = new Map(ruleResult.kept.map(k => [k.keyword.toLowerCase(), k.score]));
+      const ruleFilteredOut = candidates.filter(c => ruleBlockedSet.has(c.keyword.toLowerCase()));
       candidates = candidates.filter(c => !ruleBlockedSet.has(c.keyword.toLowerCase()));
 
       // Sort by rule score (descending) — trend acceleration proxy
@@ -322,121 +476,57 @@ export async function GET(request: Request) {
       });
 
       let filteredCandidates = candidates;
-      let filterSummary = undefined;
-      let filteredOut: ExpandResponse["filteredOut"] = undefined;
+      let modelFilteredOut: Candidate[] = [];
+      let modelFilterSummary: FilterSummary | undefined;
 
-      if (useFilter && filterConfig) {
-        stage = "filter";
-
-        // === Optimization 2: AI filter cache ===
-        // Same keyword set = same filter result (skip LLM)
-        const sortedKw = [...new Set(candidates.map(c => c.keyword))].sort();
-        const filterCacheKey = `filter:v1:${sortedKw.join(",")}:${filterConfig.model}:${(filterConfig.terms ?? []).sort().join(",")}:${filterConfig.prompt ?? ""}`;
-        const cachedFilter = await getFilterCache(filterCacheKey);
-
-        if (cachedFilter) {
-          stage = "filter-cache-hit";
-          const blockedSet = new Set(cachedFilter.blockedKeywords.map(k => k.toLowerCase()));
-          filteredCandidates = candidates.filter(c => !blockedSet.has(c.keyword.toLowerCase()));
-          filteredOut = candidates.filter(c => blockedSet.has(c.keyword.toLowerCase()));
-          filterSummary = (cachedFilter.summary as FilterSummary) ?? {
-            enabled: true,
-            model: cachedFilter.model,
-            total: candidates.length,
-            removed: filteredOut.length,
-            kept: filteredCandidates.length,
-            fromCache: true,
-          };
-        } else {
-          // === Optimization 3: Improved AI prompt (sustainability focus) ===
-          const improvedConfig: FilterConfig = {
-            ...filterConfig,
-            prompt: filterConfig.prompt || undefined, // keep user's custom prompt if set
-          };
-          // The prompt improvement is in keyword-research.ts baseSystemPrompt (updated below)
-
-          const { filtered, blocked, summary } = await filterCandidatesWithModel(
-            candidates,
-            improvedConfig,
+      if (enableLlmFilter && useFilter && filterConfig) {
+        stage = "precompute-llm-filter";
+        try {
+          const modelFilter = await filterCandidatesWithKeywordModel(
+            filteredCandidates,
+            filterConfig,
             { debug }
           );
-          filteredCandidates = filtered;
-          filterSummary = summary;
-          filteredOut = blocked;
-
-          // Cache the filter result
-          try {
-            await setFilterCache({
-              cacheKey: filterCacheKey,
-              blockedKeywords: (blocked ?? []).map(c => c.keyword),
-              keptKeywords: filtered.map(c => c.keyword),
-              summary: summary as Record<string, unknown> | undefined,
-              model: filterConfig.model,
-            });
-          } catch (e) {
-            // Cache write failure shouldn't break the flow
-            console.warn("[filter-cache] write failed", e);
-          }
+          filteredCandidates = modelFilter.filtered;
+          modelFilteredOut = modelFilter.blocked;
+          modelFilterSummary = modelFilter.summary;
+        } catch (filterError) {
+          log("precompute LLM filter failed, falling back to rule filter", {
+            message: filterError instanceof Error ? filterError.message : "Unexpected error",
+          });
         }
       }
+
+      const filteredOut: ExpandResponse["filteredOut"] = [
+        ...ruleFilteredOut,
+        ...modelFilteredOut,
+      ];
+      const filterSummary: FilterSummary | undefined =
+        useFilter && filterConfig
+          ? {
+              enabled: true,
+              model: modelFilterSummary?.model ?? filterConfig.model,
+              total: filteredCandidates.length + filteredOut.length,
+              removed: filteredOut.length,
+              kept: filteredCandidates.length,
+              skippedReason: enableLlmFilter
+                ? modelFilterSummary?.skippedReason
+                : "AI filter deferred",
+            }
+          : undefined;
 
       // === Optimization 4: Save keyword history ===
-      try {
-        await saveKeywordHistory(candidates); // all candidates (before filter) for trend tracking
-      } catch (e) {
-        console.warn("[history] save failed", e);
-      }
-
-      // === Enrich candidates with trends comparison (top 10 vs benchmark) ===
-      let trendsMap: Record<string, { ratio: number; ratioMean: number; ratioRecent: number; slopeRatio?: number; volatility: number; verdict: string; }> = {};
-      console.log("[trends] step starting, candidates:", candidates.length);
-      try {
-        // Skip trends if candidates are too few (avoid unnecessary API calls and OOM)
-        if (candidates.length < 3) {
-          console.log("[trends] skipped: too few candidates", candidates.length);
-          log("trends skipped", { reason: "too few candidates", count: candidates.length });
-        } else {
-          const trendCandidates = candidates
-            .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
-            .slice(0, 10)
-            .map((c) => c.keyword);
-
-          console.log("[trends] trendCandidates:", trendCandidates.length, trendCandidates.slice(0, 3));
-
-          if (trendCandidates.length > 0) {
-            const benchmark = resolveBenchmark();
-            const { dateFrom: compFrom, dateTo: compTo } = resolveComparisonDateRange();
-            const compareTaskIds = await submitComparisonTasks(trendCandidates, compFrom, compTo, benchmark);
-
-            console.log("[trends] submitComparisonTasks returned:", compareTaskIds.length);
-            if (compareTaskIds.length > 0) {
-              console.log("[trends] waitForTasks starting...");
-              const completedIds = await waitForTasks(compareTaskIds);
-              console.log("[trends] waitForTasks completed:", completedIds.length);
-              if (completedIds.length > 0) {
-                console.log("[trends] getComparisonResults starting...");
-                const compResults = await getComparisonResults(completedIds, benchmark);
-                console.log("[trends] getComparisonResults returned:", compResults.length);
-                for (const r of compResults) {
-                  trendsMap[r.keyword.toLowerCase()] = {
-                    ratio: r.ratio,
-                    ratioMean: r.ratioMean,
-                    ratioRecent: r.ratioRecent,
-                    slopeRatio: r.slopeRatio,
-                    volatility: r.volatility,
-                    verdict: r.verdict,
-                  };
-                }
-              }
-            }
-          }
-          log("trends done", { keywords: Object.keys(trendsMap).length });
+      if (!isSharedPrecomputeRequest) {
+        try {
+          await saveKeywordHistory(candidates); // all candidates (before filter) for trend tracking
+        } catch (e) {
+          console.warn("[history] save failed", e);
         }
-      } catch (trendErr) {
-        // Non-blocking: trends failure should not break whole pipeline
-        const trendMsg = trendErr instanceof Error ? trendErr.message : String(trendErr);
-        log("trends failed (non-blocking)", { error: trendMsg });
       }
+
+      // Heavy enrichments are intentionally deferred so the first expand pass can
+      // reach "complete" quickly and let the user enter the next step.
+      const trendsMap: Record<string, { ratio: number; ratioMean: number; ratioRecent: number; slopeRatio?: number; volatility: number; verdict: string; }> = {};
 
       // === Enrich candidates with score and isNew flag ===
       const today = new Date().toISOString().slice(0, 10);
@@ -446,13 +536,9 @@ export async function GET(request: Request) {
         if (!seenDates.has(norm)) seenDates.set(norm, new Set());
       }
       // Batch query first-seen dates for all candidates
-      if (candidates.length > 0) {
+      if (!isSharedPrecomputeRequest && candidates.length > 0) {
         const norms = [...new Set(candidates.map(c => c.keyword.toLowerCase().trim()))];
- const placeholders = norms.map(() => "?").join(",");
-        const { rows: historyRows } = await d1Query<{ keyword_normalized: string; first_seen: string }>(
-          `SELECT keyword_normalized, MIN(date) as first_seen FROM keyword_history WHERE keyword_normalized IN (${placeholders}) GROUP BY keyword_normalized`,
-          norms
-        );
+        const historyRows = await loadKeywordHistoryFirstSeen(norms);
         for (const hr of historyRows) {
           if (seenDates.has(hr.keyword_normalized)) {
             seenDates.get(hr.keyword_normalized)!.add(hr.first_seen);
@@ -460,178 +546,112 @@ export async function GET(request: Request) {
         }
       }
 
-      let enrichedCandidates: Candidate[] = filteredCandidates.map(c => {
+      const enrichedCandidates: Candidate[] = filteredCandidates.map(c => {
         const norm = c.keyword.toLowerCase().trim();
         const dates = seenDates.get(norm);
         const firstSeen = dates?.size ? [...dates].sort()[0] : null;
-        const isNew = firstSeen === today;
+        const isNew = !isSharedPrecomputeRequest && firstSeen === today;
         const score = Number(ruleKeptMap.get(norm)) || 0;
         const trends = trendsMap[norm];
         return { ...c, isNew, score, trends };
       });
 
-      // === Optimization 5: Cross-validation (expand × SERP) with per-day cache ===
-      const crossValidateTopN = 20;
-      const topCandidates = enrichedCandidates.slice(0, crossValidateTopN);
-      const keywordsToValidate = topCandidates.map(c => c.keyword);
-
-      if (keywordsToValidate.length > 0) {
-        try {
-          stage = "cross-validate";
-
-          // Check cache first — same keyword same day = skip SERP API call
-          const cachedConfidence = await getSerpConfidence(keywordsToValidate);
-          const uncachedKeywords = keywordsToValidate.filter(
-            kw => !cachedConfidence.has(kw.toLowerCase().trim())
-          );
-
-          // Compute confidence from SERP only for uncached keywords
-          const newEntries: Array<{ keyword: string; confidence: number; organicCount: number; hasFeatured: boolean; aiInTitles: number }> = [];
-
-          if (uncachedKeywords.length > 0) {
-            const serpTaskIds = await submitSerpTasks(uncachedKeywords);
-            const completedIds = await waitForSerpTasks(serpTaskIds);
-            const serpResults = await getSerpResults(completedIds);
-
-            for (const kw of uncachedKeywords) {
-              const serpData = serpResults.get(kw.toLowerCase());
-              let confidence = 10;
-              let organicCount = 0;
-              let hasFeatured = false;
-              let aiInTitles = 0;
-
-              if (serpData) {
-                organicCount = serpData.topResults?.length ?? 0;
-                hasFeatured = (serpData.itemTypes ?? []).some((t: string) =>
-                  t.includes("featured_snippet") || t.includes("knowledge_graph")
-                );
-                confidence = 50;
-                if (organicCount >= 5) confidence += 25;
-                else if (organicCount >= 2) confidence += 15;
-                if (hasFeatured) confidence += 15;
-                aiInTitles = (serpData.topResults ?? []).filter((r: { title?: string }) =>
-                  /\b(ai|tool|generator|builder|free|online|app)\b/i.test(r.title ?? "")
-                ).length;
-                confidence += Math.min(aiInTitles * 5, 15);
-                confidence = Math.min(confidence, 100);
-              }
-              newEntries.push({ keyword: kw, confidence, organicCount, hasFeatured, aiInTitles });
-            }
-
-            // Cache new results for today
-            try { await setSerpConfidence(newEntries); } catch (e) { console.warn("[cross-validate] cache write failed", e); }
-          }
-
-          // Merge cached + new confidence into candidates
-          const allConfidence = new Map(cachedConfidence);
-          for (const e of newEntries) {
-            allConfidence.set(e.keyword.toLowerCase().trim(), e.confidence);
-          }
-          for (const c of topCandidates) {
-            const conf = allConfidence.get(c.keyword.toLowerCase().trim());
-            if (conf !== undefined) {
-              const idx = enrichedCandidates.findIndex(ec => ec.keyword.toLowerCase() === c.keyword.toLowerCase());
-              if (idx >= 0) enrichedCandidates[idx] = { ...enrichedCandidates[idx], confidence: conf };
-            }
-          }
-        } catch (e) {
-          console.warn("[cross-validate] failed, skipping", e);
-        }
-      }
-
       // D1 cache already populated by webhook (postback_results + query_cache)
       // Filesystem cache not supported on CF Workers (fs.mkdir unsupported)
 
-      const sessionId = randomUUID();
       const now = new Date().toISOString();
+      let sessionId: string | undefined;
+      if (!isSharedPrecomputeRequest) {
+        sessionId = randomUUID();
 
-      const candidateRows = [
-        ...enrichedCandidates.map((candidate) => [
-          randomUUID(),
-          sessionId,
-          user.id,
-          candidate.keyword,
-          candidate.value ?? null,
-          candidate.type,
-          candidate.source,
-          0,
-          candidate.score ?? 0,
-          candidate.confidence ?? null,
-          now,
-        ]),
-        ...(filteredOut ?? []).map((candidate) => [
-          randomUUID(),
-          sessionId,
-          user.id,
-          candidate.keyword,
-          candidate.value ?? null,
-          candidate.type,
-          candidate.source,
-          1,
-          candidate.score ?? 0,
-          candidate.confidence ?? null,
-          now,
-        ]),
-      ];
-
-      stage = "persist-session";
-      const persistSession = async () => {
-        stage = "db:clear-candidates";
-        await d1Query("DELETE FROM candidates WHERE session_id = ?", [sessionId]);
-        stage = "db:clear-session";
-        await d1Query("DELETE FROM research_sessions WHERE id = ?", [sessionId]);
-        stage = "db:insert-session";
-        await d1Query(
-          `INSERT INTO research_sessions (id, user_id, title, keywords, date_from, date_to, benchmark, include_top, use_filter, filter_terms, filter_prompt, filter_summary, trends_summary, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
+        const candidateRows = [
+          ...enrichedCandidates.map((candidate) => [
+            randomUUID(),
             sessionId,
             user.id,
-            keywords.slice(0, 3).join(", "),
-            JSON.stringify(keywords),
-            dateFrom ?? null,
-            dateTo ?? null,
-            process.env.BENCHMARK_KEYWORD ?? "gpts",
-            includeTop ? 1 : 0,
-            useFilter ? 1 : 0,
-            JSON.stringify(filterConfig?.terms ?? []),
-            filterConfig?.prompt ?? null,
-            filterSummary ? JSON.stringify(filterSummary) : null,
-            Object.keys(trendsMap).length > 0 ? JSON.stringify({
-              benchmark: resolveBenchmark(),
-              totalCompared: Object.keys(trendsMap).length,
-              keywords: trendsMap,
-            }) : null,
+            candidate.keyword,
+            candidate.value ?? null,
+            candidate.type,
+            candidate.source,
+            0,
+            candidate.score ?? 0,
+            candidate.confidence ?? null,
             now,
-          ]
-        );
-        if (candidateRows.length > 0) {
-          stage = "db:insert-candidates";
-          await d1InsertMany(
-            "candidates",
+          ]),
+          ...(filteredOut ?? []).map((candidate) => [
+            randomUUID(),
+            sessionId,
+            user.id,
+            candidate.keyword,
+            candidate.value ?? null,
+            candidate.type,
+            candidate.source,
+            1,
+            candidate.score ?? 0,
+            candidate.confidence ?? null,
+            now,
+          ]),
+        ];
+
+        stage = "persist-session";
+        const persistSession = async () => {
+          stage = "db:clear-candidates";
+          await d1Query("DELETE FROM candidates WHERE session_id = ?", [sessionId]);
+          stage = "db:clear-session";
+          await d1Query("DELETE FROM research_sessions WHERE id = ?", [sessionId]);
+          stage = "db:insert-session";
+          await d1Query(
+            `INSERT INTO research_sessions (id, user_id, title, keywords, date_from, date_to, benchmark, include_top, use_filter, filter_terms, filter_prompt, filter_summary, trends_summary, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
-              "id",
-              "session_id",
-              "user_id",
-              "keyword",
-              "value",
-              "type",
-              "source",
-              "filtered",
-              "score",
-              "confidence",
-              "created_at",
-            ],
-            candidateRows,
-            200
+              sessionId,
+              user.id,
+              keywords.slice(0, 3).join(", "),
+              JSON.stringify(keywords),
+              dateFrom ?? null,
+              dateTo ?? null,
+              process.env.BENCHMARK_KEYWORD ?? "gpts",
+              includeTop ? 1 : 0,
+              useFilter ? 1 : 0,
+              JSON.stringify(filterConfig?.terms ?? []),
+              filterConfig?.prompt ?? null,
+              filterSummary ? JSON.stringify(filterSummary) : null,
+              Object.keys(trendsMap).length > 0 ? JSON.stringify({
+                benchmark: process.env.BENCHMARK_KEYWORD ?? "gpts",
+                totalCompared: Object.keys(trendsMap).length,
+                keywords: trendsMap,
+              }) : null,
+              now,
+            ]
           );
-        }
-      };
-      await retryD1("persist session", persistSession);
+          if (candidateRows.length > 0) {
+            stage = "db:insert-candidates";
+            await d1InsertMany(
+              "candidates",
+              [
+                "id",
+                "session_id",
+                "user_id",
+                "keyword",
+                "value",
+                "type",
+                "source",
+                "filtered",
+                "score",
+                "confidence",
+                "created_at",
+              ],
+              candidateRows,
+              200
+            );
+          }
+        };
+        await retryD1("persist session", persistSession);
+      }
 
       stage = "job-complete";
       await retryD1("job complete", () =>
-        updateJobStatus(job.id, "complete", { sessionId })
+        updateJobStatus(job.id, "complete", { sessionId: sessionId ?? null })
       );
 
       const organized = organizeCandidates(enrichedCandidates);
@@ -653,13 +673,26 @@ export async function GET(request: Request) {
         },
         gameKeywords: gameKws,
         trendsSummary: Object.keys(trendsMap).length > 0 ? {
-          benchmark: resolveBenchmark(),
+          benchmark: process.env.BENCHMARK_KEYWORD ?? "gpts",
           totalCompared: Object.keys(trendsMap).length,
           keywords: trendsMap,
         } : undefined,
       };
 
-      return NextResponse.json({ status: "complete", ...response });
+      if (sharedResultCacheKey) {
+        try {
+          await setCache(sharedResultCacheKey, response);
+        } catch (cacheError) {
+          log("shared result cache write failed", {
+            message: cacheError instanceof Error ? cacheError.message : "Unexpected error",
+          });
+        }
+      }
+
+      return NextResponse.json({
+        status: "complete",
+        ...trimExpandResponse(response, responseLimit),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected error";
       const errorMessage = `${stage}: ${message}`;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { generateApiKey, listApiKeys, revokeApiKey } from '@/lib/api_keys';
+import { checkStudentAccess } from '@/lib/usage';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,14 @@ export async function POST(req: NextRequest) {
     const user = await getAuthUser();
     if (!user) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const access = await checkStudentAccess(String(user.id));
+    if (!access.allowed) {
+        return NextResponse.json(
+            { error: access.reason, code: access.code },
+            { status: 403 }
+        );
     }
 
     let body: { name?: string } = {};

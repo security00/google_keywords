@@ -44,6 +44,40 @@ export function scoreKeyword(keyword: string): RuleResult {
   if (/\b(login|sign in|sign up|register|log in|auth|portal)\b/i.test(lower))
     return { action: "block", reason: "auth_page", score: -80 };
 
+  // Spam, gambling, adult, and suspicious domain-like queries
+  if (/\b(casino|casinos|gambling|betting|sportsbook|lottery|slot|slots|bet slip|odds|aams|echtgeld|casinovergleich)\b/i.test(lower))
+    return { action: "block", reason: "gambling", score: -100 };
+  if (/\b[a-z0-9-]+\.(com|net|org|de|it|io|co|site|shop|xyz|th)\b/i.test(lower))
+    return { action: "block", reason: "domain_spam", score: -100 };
+  if (/\b(porn|xxx|adult|escort|onlyfans|nsfw)\b/i.test(lower))
+    return { action: "block", reason: "adult", score: -100 };
+
+  // One-off news, politics, celebrity, and entertainment trends
+  if (/\b(trump|biden|election|president|minister|senator|congress|politics|palestine|iran|israel|epstein)\b/i.test(lower))
+    return { action: "block", reason: "politics", score: -90 };
+  if (/\b(celebrity|actor|singer|idol|movie|film|tv show|episode|season|cast|trailer|netflix|coachella|american idol)\b/i.test(lower))
+    return { action: "block", reason: "entertainment", score: -90 };
+  if (/\b(arrested|arrest|lawsuit|scandal|killed|shot|bleeding|poison|crime|dui|foul ball)\b/i.test(lower))
+    return { action: "block", reason: "news_event", score: -90 };
+
+  // Exams, answers, word games, and short-lived puzzle intent
+  if (/\b(exam|result|answer key|answer|wordle|crossword|clue|hint|jamb|jee|cbse|dsssb|nta|bitsat|cutoff|reprint)\b/i.test(lower))
+    return { action: "block", reason: "exam_or_puzzle", score: -90 };
+
+  // Finance, trading, market, and commodity noise
+  if (/\b(stock|stocks|equity|equities|futures|trading|forex|crypto|bitcoin|gold price|share price|dividend|ipo)\b/i.test(lower))
+    return { action: "block", reason: "finance", score: -90 };
+
+  // Sports, games, and transient event trackers
+  if (/\b(pokemon|fifa|football|soccer|rugby|nba|nhl|pga|masters|marathon|champions|team builder|draft|league|leagues|score chart)\b/i.test(lower))
+    return { action: "block", reason: "sports_or_game", score: -80 };
+  if (/\b(cyclone|typhoon|ship tracker|marine traffic|tanker tracker|hurricane|weather tracker)\b/i.test(lower))
+    return { action: "block", reason: "event_tracker", score: -80 };
+
+  // Coupon, redeem, and code snippets that are not durable tool demand.
+  if (/\b(coupon|promo code|redeem code|presale code|hsn code|area code)\b/i.test(lower))
+    return { action: "block", reason: "coupon_or_code", score: -80 };
+
   // How-to / generic queries
   if (/^(how to|where to|what is|who is|why does|when does)\b/i.test(lower))
     return { action: "block", reason: "generic_query", score: -70 };

@@ -45,6 +45,7 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const activeKeys = keys.filter((k) => k.active);
 
   const fetchData = useCallback(async () => {
     try {
@@ -82,8 +83,8 @@ export default function SettingsPage() {
       setNewKey(data.key);
       setNewKeyName("");
       fetchData(); // refresh list
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "生成失败");
     } finally {
       setActionLoading(false);
     }
@@ -101,8 +102,8 @@ export default function SettingsPage() {
       });
       if (!res.ok) throw new Error("撤销失败");
       fetchData();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "撤销失败");
     } finally {
       setActionLoading(false);
     }
@@ -113,6 +114,8 @@ export default function SettingsPage() {
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
   };
+
+  const canManageApiKeys = access ? !access.blocked : false;
 
   if (loading) {
     return (
@@ -125,9 +128,9 @@ export default function SettingsPage() {
   if (!access) {
     return (
       <div className="mx-auto max-w-2xl py-10">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950">
+        <div className="rounded-xl border border-red-500/25 bg-red-500/8 p-6 text-center shadow-sm shadow-red-950/10">
           <AlertCircle className="mx-auto mb-3 h-8 w-8 text-red-500" />
-          <p className="text-red-700 dark:text-red-300">{error || "请先登录"}</p>
+          <p className="text-red-700 dark:text-red-200">{error || "请先登录"}</p>
         </div>
       </div>
     );
@@ -139,37 +142,39 @@ export default function SettingsPage() {
 
       {/* 账号状态 */}
       {access.blocked ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-950">
-          <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+        <div className="rounded-xl border border-red-500/25 bg-red-500/8 p-5 shadow-sm shadow-red-950/10">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-200">
             <AlertCircle className="h-5 w-5" />
             <span className="font-medium">
-              {access.blockedCode === "trial_expired"
+              {access.blockedCode === "trial_inactive"
+                ? "等待管理员开通"
+                : access.blockedCode === "trial_expired"
                 ? "试用期已过期"
                 : access.blockedCode === "quota_exceeded"
                 ? "今日配额已用完"
                 : "账号受限"}
             </span>
           </div>
-          <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+          <p className="mt-2 text-sm text-red-600 dark:text-red-300">
             {access.blockedReason}
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-5 dark:border-green-800 dark:bg-green-950">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/8 p-5 shadow-sm shadow-emerald-950/10">
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
-              <Shield className="mx-auto mb-1 h-6 w-6 text-green-600 dark:text-green-400" />
-              <div className="text-xs text-green-700 dark:text-green-300">状态</div>
-              <div className="font-semibold text-green-800 dark:text-green-200">
+              <Shield className="mx-auto mb-1 h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+              <div className="text-xs text-emerald-700 dark:text-emerald-300">状态</div>
+              <div className="font-semibold text-emerald-800 dark:text-emerald-100">
                 {access.role === "admin" ? "管理员" : "正常"}
               </div>
             </div>
             <div className="text-center">
-              <Clock className="mx-auto mb-1 h-6 w-6 text-green-600 dark:text-green-400" />
-              <div className="text-xs text-green-700 dark:text-green-300">
+              <Clock className="mx-auto mb-1 h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+              <div className="text-xs text-emerald-700 dark:text-emerald-300">
                 试用剩余
               </div>
-              <div className="font-semibold text-green-800 dark:text-green-200">
+              <div className="font-semibold text-emerald-800 dark:text-emerald-100">
                 {access.trial
                   ? access.trial.daysLeft === Infinity
                     ? "永久"
@@ -178,14 +183,14 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="text-center">
-              <Zap className="mx-auto mb-1 h-6 w-6 text-green-600 dark:text-green-400" />
-              <div className="text-xs text-green-700 dark:text-green-300">
+              <Zap className="mx-auto mb-1 h-6 w-6 text-emerald-600 dark:text-emerald-300" />
+              <div className="text-xs text-emerald-700 dark:text-emerald-300">
                 今日用量
               </div>
-              <div className="font-semibold text-green-800 dark:text-green-200">
+              <div className="font-semibold text-emerald-800 dark:text-emerald-100">
                 {access.quota
                   ? access.quota.limit >= 999
-                    ? "不限（缓存控制成本）"
+                    ? "不限"
                     : `${access.quota.used} / ${access.quota.limit}`
                   : "-"}
               </div>
@@ -195,24 +200,24 @@ export default function SettingsPage() {
       )}
 
       {/* API Keys */}
-      <div className="rounded-lg border bg-card p-5">
+      <div className="rounded-xl border border-border/80 bg-card/90 p-5 shadow-sm shadow-black/5 backdrop-blur-sm dark:shadow-black/25">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="flex items-center gap-2 text-lg font-semibold">
             <Key className="h-5 w-5" /> API Keys
           </h3>
           <span className="text-xs text-muted-foreground">
-            {keys.filter((k) => k.active).length} / 5
+            {activeKeys.length} / 5
           </span>
         </div>
 
         {/* 新生成的 key 提示 */}
         {newKey && (
-          <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
-            <p className="mb-2 text-sm font-medium text-yellow-800 dark:text-yellow-200">
+          <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+            <p className="mb-2 text-sm font-medium text-amber-900 dark:text-amber-200">
               ⚠️ 请立即保存此 Key，关闭后将无法再次查看
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded bg-yellow-100 px-3 py-2 text-sm dark:bg-yellow-900">
+              <code className="flex-1 overflow-x-auto rounded-lg border border-amber-500/15 bg-black/[0.03] px-3 py-2 text-sm dark:bg-white/[0.04]">
                 {newKey}
               </code>
               <Button
@@ -239,25 +244,20 @@ export default function SettingsPage() {
         )}
 
         {/* Key 列表 */}
-        {keys.length === 0 ? (
+        {activeKeys.length === 0 ? (
           <p className="py-4 text-center text-sm text-muted-foreground">
             还没有 API Key，点击下方按钮生成
           </p>
         ) : (
           <div className="space-y-2">
-            {keys.map((k) => (
+            {activeKeys.map((k) => (
               <div
                 key={k.id}
-                className="flex items-center justify-between rounded-lg border px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-border/70 bg-background/55 px-4 py-3 shadow-sm shadow-black/5 dark:bg-background/35 dark:shadow-black/20"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{k.name}</span>
-                    {!k.active && (
-                      <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-600 dark:bg-red-900 dark:text-red-400">
-                        已撤销
-                      </span>
-                    )}
                   </div>
                   <code className="text-xs text-muted-foreground">{k.key}</code>
                   <div className="text-xs text-muted-foreground">
@@ -287,44 +287,51 @@ export default function SettingsPage() {
             placeholder="Key 名称（可选）"
             value={newKeyName}
             onChange={(e) => setNewKeyName(e.target.value)}
-            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="flex-1 rounded-lg border border-input bg-background/80 px-3 py-2 text-sm shadow-inner shadow-black/5 dark:bg-background/60"
             onKeyDown={(e) => e.key === "Enter" && handleGenerateKey()}
+            disabled={!canManageApiKeys || actionLoading}
           />
           <Button
             onClick={handleGenerateKey}
             disabled={
+              !canManageApiKeys ||
               actionLoading ||
-              keys.filter((k) => k.active).length >= 5
+              activeKeys.length >= 5
             }
           >
             <Plus className="mr-1 h-4 w-4" />
             生成 Key
           </Button>
         </div>
+        {!canManageApiKeys && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            账号开通后才可以生成和管理 API Key。
+          </p>
+        )}
       </div>
 
       {/* 管理后台入口 */}
       {access.role === "admin" && (
-        <Link href="/dashboard/admin/codes" className="flex items-center justify-center gap-2 rounded-lg border border-purple-200 bg-purple-50 p-4 text-purple-700 transition-colors hover:bg-purple-100 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900">
+        <Link href="/dashboard/admin/codes" className="flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/8 p-4 text-primary transition-colors hover:bg-primary/12">
           <Settings className="h-5 w-5" />
           进入管理后台
         </Link>
       )}
 
       {/* 使用说明 */}
-      <div className="rounded-lg border bg-muted/50 p-5">
+      <div className="rounded-xl border border-border/70 bg-muted/35 p-5 shadow-sm shadow-black/5 dark:shadow-black/20">
         <h3 className="mb-2 font-semibold">使用说明</h3>
         <ul className="space-y-1 text-sm text-muted-foreground">
           <li>
             1. 生成 API Key 后，用以下方式调用接口：
           </li>
           <li className="ml-4">
-            <code className="rounded bg-background px-1.5 py-0.5 text-xs">
+            <code className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-xs">
               Authorization: Bearer gk_live_xxxx
             </code>
           </li>
           <li className="ml-4">
-            <code className="rounded bg-background px-1.5 py-0.5 text-xs">
+            <code className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-xs">
               ?api_key=gk_live_xxxx
             </code>
           </li>
@@ -334,7 +341,7 @@ export default function SettingsPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+        <div className="rounded-xl border border-red-500/25 bg-red-500/8 p-3 text-sm text-red-700 dark:text-red-200">
           {error}
         </div>
       )}

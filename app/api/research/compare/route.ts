@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 
 import {
+  addFreshnessToComparisonResults,
+  enrichComparisonResultsWithIntent,
   normalizeKeywords,
   resolveBenchmark,
   resolveComparisonDateRange,
+  summarizeResults,
   submitComparisonTasks,
 } from "@/lib/keyword-research";
-import type { ComparisonSignalConfig } from "@/lib/types";
+import type { CompareResponse, ComparisonSignalConfig } from "@/lib/types";
 import { d1Query } from "@/lib/d1";
 import { authenticate } from "@/lib/auth_middleware";
 import { checkStudentAccess } from "@/lib/usage";
 import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 import { createJob } from "@/lib/research-jobs";
+import { batchScoreKeywords } from "@/lib/rule-engine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +44,7 @@ const MAX_COMPARE_MAX_ITEMS = 400;
 const AUTO_COMPARE_RECENT_HOURS = 24;
 const AUTO_COMPARE_LOOKBACK_HOURS = 7 * 24;
 const AUTO_COMPARE_POOL_MULTIPLIER = 12;
+const DEFAULT_COMPARE_MIN_RULE_SCORE = 20;
 const DEFAULT_COMPARISON_SIGNAL_CONFIG: ComparisonSignalConfig = {
   avgRatioMin: 1,
   lastPointRatioMin: 1,
@@ -62,6 +67,22 @@ const COMPARISON_SIGNAL_CONFIG_RANGES: Record<
   risingStrongMinSlopeRatio: [0.5, 20],
   risingStrongMinTailRatio: [0.2, 10],
   nearOneTolerance: [0.01, 0.5],
+};
+
+const isCronAuthorized = (request: Request) => {
+  const secret = process.env.CRON_SECRET;
+  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
+  if (!secret && !externalSecret) return false;
+
+  const headerSecret = request.headers.get("x-cron-secret");
+  if (secret && headerSecret === secret) return true;
+  if (externalSecret && headerSecret === externalSecret) return true;
+
+  const authHeader = request.headers.get("authorization");
+  if (secret && authHeader === `Bearer ${secret}`) return true;
+  if (externalSecret && authHeader === `Bearer ${externalSecret}`) return true;
+
+  return false;
 };
 
 const parseComparisonSignalConfig = (
@@ -116,6 +137,124 @@ const normalizeIntInRange = (
   const intValue = Math.floor(parsed);
   if (!Number.isFinite(intValue)) return fallback;
   return Math.min(max, Math.max(min, intValue));
+};
+
+const getLatestSharedCompareResult = async (params: {
+  dateFrom: string;
+  dateTo: string;
+  benchmark: string;
+}) => {
+  const suffix = `benchmark=${params.benchmark},dateFrom=${params.dateFrom},dateTo=${params.dateTo}`;
+  const { rows } = await d1Query<{ response_data: string; cache_key: string; created_at: string }>(
+    `SELECT response_data, cache_key, created_at
+     FROM query_cache
+     WHERE instr(cache_key, ':compare_result:') > 0
+     ORDER BY created_at DESC
+     LIMIT 50`
+  );
+  const row = rows.find((candidate) => candidate.cache_key.endsWith(suffix));
+  if (!row) return null;
+  try {
+    return {
+      response: JSON.parse(row.response_data) as CompareResponse,
+      cacheKey: row.cache_key,
+      createdAt: row.created_at,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const getLatestSuccessfulSharedCompareResult = async (params: {
+  keywords: string[];
+  benchmark: string;
+}) => {
+  const { rows } = await d1Query<{
+    response_data: string;
+    cache_key: string;
+    created_at: string;
+  }>(
+    `SELECT response_data, cache_key, created_at
+     FROM query_cache
+     WHERE instr(cache_key, ':compare_result:') > 0
+     ORDER BY created_at DESC
+     LIMIT 50`
+  );
+  const expectedKeywords = [...params.keywords].sort();
+
+  for (const row of rows) {
+    try {
+      const response = JSON.parse(row.response_data) as CompareResponse;
+      const responseKeywords = Array.isArray(response.results)
+        ? response.results
+            .map((item) => item?.keyword)
+            .filter((item): item is string => typeof item === "string")
+            .sort()
+        : [];
+      const responseBenchmark =
+        typeof (response as CompareResponse & { benchmark?: unknown }).benchmark === "string"
+          ? (response as CompareResponse & { benchmark?: string }).benchmark
+          : params.benchmark;
+      const matchesKeywords =
+        responseKeywords.length === expectedKeywords.length &&
+        responseKeywords.every((item, index) => item === expectedKeywords[index]);
+      if (
+        matchesKeywords &&
+        responseBenchmark === params.benchmark &&
+        Array.isArray(response.results) &&
+        response.results.length > 0
+      ) {
+        return {
+          response,
+          cacheKey: row.cache_key,
+          createdAt: row.created_at,
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+};
+
+const getLatestSuccessfulSharedCompareResultAny = async (benchmark: string) => {
+  const { rows } = await d1Query<{
+    response_data: string;
+    cache_key: string;
+    created_at: string;
+  }>(
+    `SELECT response_data, cache_key, created_at
+     FROM query_cache
+     WHERE instr(cache_key, ':compare_result:') > 0
+     ORDER BY created_at DESC
+     LIMIT 50`
+  );
+
+  for (const row of rows) {
+    try {
+      const response = JSON.parse(row.response_data) as CompareResponse;
+      const responseBenchmark =
+        typeof (response as CompareResponse & { benchmark?: unknown }).benchmark === "string"
+          ? (response as CompareResponse & { benchmark?: string }).benchmark
+          : benchmark;
+      if (
+        responseBenchmark === benchmark &&
+        Array.isArray(response.results) &&
+        response.results.length > 0
+      ) {
+        return {
+          response,
+          cacheKey: row.cache_key,
+          createdAt: row.created_at,
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 };
 
 const normalizeKeywordIdList = (raw: unknown) => {
@@ -281,7 +420,7 @@ export async function POST(request: Request) {
   const debug = process.env.DEBUG_API_LOGS === "true";
   const startedAt = Date.now();
   try {
-    const auth = await authenticate(request as any);
+    const auth = await authenticate(request as Parameters<typeof authenticate>[0]);
     if (!auth.authenticated) {
       return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
     }
@@ -295,8 +434,12 @@ export async function POST(request: Request) {
         { status: access.code === "trial_expired" ? 403 : 429 }
       );
     }
+    const isStudent = access.user.role === "student";
 
     const body = await request.json().catch(() => ({}));
+    const allowCreateSharedJob = isCronAuthorized(request);
+    const refreshIntent = allowCreateSharedJob && body?.refreshIntent === true;
+    const enableIntentLlm = allowCreateSharedJob && body?.enableIntentLlm === true;
     const strategy = normalizeStrategy(body?.strategy);
     const maxItems = normalizeIntInRange(
       body?.maxItems ?? body?.limit,
@@ -339,11 +482,82 @@ export async function POST(request: Request) {
       );
     }
 
+    const minRuleScore = normalizeIntInRange(
+      body?.minRuleScore,
+      DEFAULT_COMPARE_MIN_RULE_SCORE,
+      -100,
+      100
+    );
+    const ruleResult = batchScoreKeywords(selectedKeywords);
+    const ruleScoreMap = new Map(
+      ruleResult.kept.map((item) => [item.keyword.toLowerCase(), item.score])
+    );
+    const compareEligibleKeywords = ruleResult.kept
+      .filter((item) => item.score >= minRuleScore)
+      .map((item) => item.keyword);
+    const compareFilteredOut =
+      selectedKeywords.length - compareEligibleKeywords.length;
     const { dateFrom, dateTo } = resolveComparisonDateRange(
       body?.dateFrom,
       body?.dateTo
     );
     const benchmark = resolveBenchmark(body?.benchmark);
+
+    if (compareEligibleKeywords.length === 0) {
+      if (!allowCreateSharedJob && isStudent) {
+        const latestShared = await getLatestSharedCompareResult({
+          dateFrom,
+          dateTo,
+          benchmark,
+        });
+        if (latestShared?.response?.results?.length) {
+          const decoratedResults = addFreshnessToComparisonResults(latestShared.response.results);
+          return NextResponse.json({
+            status: "complete",
+            ...latestShared.response,
+            results: decoratedResults,
+            summary: summarizeResults(decoratedResults),
+            fromCache: true,
+            cacheFallback: "latest_shared_compare_result",
+          });
+        }
+
+        const latestSuccessfulShared = await getLatestSuccessfulSharedCompareResultAny(
+          benchmark
+        );
+        if (latestSuccessfulShared?.response?.results?.length) {
+          const decoratedResults = addFreshnessToComparisonResults(
+            latestSuccessfulShared.response.results
+          );
+          return NextResponse.json({
+            status: "complete",
+            ...latestSuccessfulShared.response,
+            results: decoratedResults,
+            summary: summarizeResults(decoratedResults),
+            fromCache: true,
+            cacheFallback: "latest_successful_shared_compare_result",
+          });
+        }
+      }
+
+      return NextResponse.json(
+        {
+          error: "选择的关键词都被规则过滤掉了，请回到候选词页选择更像工具/软件/AI/SaaS 需求的关键词。",
+          filteredOut: compareFilteredOut,
+          minRuleScore,
+        },
+        { status: 400 }
+      );
+    }
+
+    selectedKeywords = compareEligibleKeywords.sort((a, b) => {
+      const scoreDiff =
+        Number(ruleScoreMap.get(b.toLowerCase()) ?? 0) -
+        Number(ruleScoreMap.get(a.toLowerCase()) ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return a.localeCompare(b);
+    });
+    selectedCount = selectedKeywords.length;
 
     if (debug) {
       console.log("[api/compare] start", {
@@ -358,19 +572,130 @@ export async function POST(request: Request) {
       });
     }
 
-    // 检查今天是否已有同关键词的已完成对比任务
-    const compareCacheKey = buildCacheKey("compare", selectedKeywords, { dateFrom, dateTo, benchmark });
+    // Shared full-site cache: same keywords/date/benchmark should not be tied to a user.
+    const compareCacheParams = {
+      dateFrom,
+      dateTo,
+      benchmark,
+    };
+    const compareResultCacheKey = buildCacheKey(
+      "compare_result",
+      selectedKeywords,
+      compareCacheParams
+    );
+    const cachedCompareResult = await getCached<CompareResponse>(compareResultCacheKey);
+    if (cachedCompareResult?.results?.length) {
+      if (refreshIntent && enableIntentLlm) {
+        const refreshedResults = await enrichComparisonResultsWithIntent(
+          cachedCompareResult.results,
+          { enableIntentLlm: true }
+        );
+        const decoratedResults = addFreshnessToComparisonResults(refreshedResults);
+        const refreshedResponse: CompareResponse = {
+          ...cachedCompareResult,
+          results: decoratedResults,
+          summary: summarizeResults(decoratedResults),
+        };
+        await setCache(compareResultCacheKey, {
+          ...refreshedResponse,
+          fromCache: false,
+        });
+        if (debug) console.log("[api/compare] shared intent cache refreshed", { compareResultCacheKey });
+        return NextResponse.json({
+          status: "complete",
+          ...refreshedResponse,
+          fromCache: false,
+          intentRefreshed: true,
+        });
+      }
+      if (debug) console.log("[api/compare] shared result cache hit", { compareResultCacheKey });
+      const decoratedResults = addFreshnessToComparisonResults(cachedCompareResult.results);
+      return NextResponse.json({
+        status: "complete",
+        ...cachedCompareResult,
+        results: decoratedResults,
+        summary: summarizeResults(decoratedResults),
+        fromCache: true,
+      });
+    }
+
+    const compareCacheKey = buildCacheKey("compare_job", selectedKeywords, compareCacheParams);
     const cachedCompareJobId = await getCached<string>(compareCacheKey);
     if (cachedCompareJobId) {
       if (debug) console.log("[api/compare] cache hit, existing job", { cachedCompareJobId });
-      return NextResponse.json({ jobId: cachedCompareJobId, strategy: appliedStrategy, fromCache: true });
+      return NextResponse.json({ jobId: cachedCompareJobId, status: "pending", strategy: appliedStrategy, fromCache: true });
     }
+
+    if (!allowCreateSharedJob) {
+      const latestShared = await getLatestSharedCompareResult({ dateFrom, dateTo, benchmark });
+      if (latestShared?.response?.results?.length) {
+        const decoratedResults = addFreshnessToComparisonResults(latestShared.response.results);
+        if (debug) {
+          console.log("[api/compare] latest shared result fallback hit", {
+            requested: selectedKeywords.length,
+            cacheKey: latestShared.cacheKey,
+            createdAt: latestShared.createdAt,
+          });
+        }
+        return NextResponse.json({
+          status: "complete",
+          ...latestShared.response,
+          results: decoratedResults,
+          summary: summarizeResults(decoratedResults),
+          fromCache: true,
+          cacheFallback: "latest_shared_compare_result",
+        });
+      }
+
+      const latestSuccessfulShared = await getLatestSuccessfulSharedCompareResultAny(
+        benchmark
+      );
+      if (latestSuccessfulShared?.response?.results?.length) {
+        const decoratedResults = addFreshnessToComparisonResults(
+          latestSuccessfulShared.response.results
+        );
+        if (debug) {
+          console.log("[api/compare] latest successful shared result fallback hit", {
+            requested: selectedKeywords.length,
+            cacheKey: latestSuccessfulShared.cacheKey,
+            createdAt: latestSuccessfulShared.createdAt,
+            fallbackMode: "shared_any",
+          });
+        }
+        return NextResponse.json({
+          status: "complete",
+          ...latestSuccessfulShared.response,
+          results: decoratedResults,
+          summary: summarizeResults(decoratedResults),
+          fromCache: true,
+          cacheFallback: "latest_successful_shared_compare_result",
+        });
+      }
+
+      return NextResponse.json(
+        {
+          error: "今日趋势对比共享缓存尚未预计算完成，请稍后重试或先运行预计算脚本。",
+          status: "cache_miss",
+          selectedCount,
+          minRuleScore,
+          filteredOut: compareFilteredOut,
+        },
+        { status: 409 }
+      );
+    }
+
+    const POSTBACK_BASE = process.env.PUBLIC_BASE_URL || "https://discoverkeywords.co";
+    const postbackUrl = `${POSTBACK_BASE}/api/research/webhook`;
 
     const taskIds = await submitComparisonTasks(
       selectedKeywords,
       dateFrom,
       dateTo,
-      benchmark
+      benchmark,
+      {
+        postbackUrl,
+        cacheKey: compareCacheKey,
+      }
     );
 
     if (taskIds.length === 0) {
@@ -399,6 +724,9 @@ export async function POST(request: Request) {
       benchmark,
       sessionId,
       comparisonSignalConfig,
+      cacheKey: compareCacheKey,
+      resultCacheKey: compareResultCacheKey,
+      enableIntentLlm,
     });
 
     if (debug) {
@@ -413,6 +741,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       jobId,
+      status: "pending",
       strategy: appliedStrategy,
       budget: maxItems,
       selectedCount,

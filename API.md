@@ -226,17 +226,24 @@ POST /api/research/expand
 
 ```json
 {
-  "seeds": ["ai tattoo generator", "ai portrait generator"]
+  "keywords": ["ai tattoo generator", "ai portrait generator"]
 }
 ```
 
-**响应（立即）：**
+**说明：**
+
+- 该接口现在采用异步任务模式
+- `POST /api/research/expand` 只负责提交任务并返回 `jobId`
+- 调用方必须继续轮询 `GET /api/research/expand/status?jobId=...` 获取最终结果
+- 缓存命中时也会优先返回已有 `jobId`，而不是直接同步回完整数据
+
+**响应（提交成功）：**
 
 ```json
 {
   "jobId": "123e4567-e89b-12d3-a456-426614174000",
   "status": "pending",
-  "cached": false
+  "fromCache": false
 }
 ```
 
@@ -244,15 +251,9 @@ POST /api/research/expand
 
 ```json
 {
-  "status": "completed",
-  "cached": true,
-  "results": [
-    {
-      "keyword": "ai tattoo generator",
-      "value": 85,
-      "items": ["ai tattoo generator", "free ai tattoo", "tattoo ai app"]
-    }
-  ]
+  "jobId": "123e4567-e89b-12d3-a456-426614174000",
+  "status": "pending",
+  "fromCache": true
 }
 ```
 
@@ -270,8 +271,9 @@ GET /api/research/expand/status?jobId=123e4567-e89b-12d3-a456-426614174000
 
 ```json
 {
-  "jobId": "123e4567-e89b-12d3-a456-426614174000",
-  "status": "running"
+  "status": "pending",
+  "ready": 1,
+  "total": 2
 }
 ```
 
@@ -279,15 +281,19 @@ GET /api/research/expand/status?jobId=123e4567-e89b-12d3-a456-426614174000
 
 ```json
 {
-  "jobId": "123e4567-e89b-12d3-a456-426614174000",
-  "status": "completed",
-  "results": [
+  "status": "complete",
+  "keywords": ["ai tattoo generator", "ai portrait generator"],
+  "dateFrom": "2026-04-07",
+  "dateTo": "2026-04-14",
+  "flatList": [
     {
-      "keyword": "ai tattoo generator",
+      "keyword": "free ai tattoo",
       "value": 85,
-      "items": ["ai tattoo generator", "free ai tattoo", "tattoo ai app"]
+      "type": "rising",
+      "source": "ai tattoo generator"
     }
-  ]
+  ],
+  "sessionId": "0d16c1e2-6d1d-47a6-b0f3-0f4abdbf9501"
 }
 ```
 
@@ -307,7 +313,25 @@ POST /api/research/compare
 }
 ```
 
-**响应：** 同 expand 接口，返回 jobId 或缓存结果
+**说明：**
+
+- compare 也采用异步任务模式
+- `POST /api/research/compare` 返回 `jobId`
+- 最终结果通过 `GET /api/research/compare/status?jobId=...` 获取
+
+**响应（提交成功）：**
+
+```json
+{
+  "jobId": "123e4567-e89b-12d3-a456-426614174000",
+  "status": "pending",
+  "strategy": "manual",
+  "budget": 20,
+  "selectedCount": 3,
+  "availableCount": 3,
+  "keywordIds": []
+}
+```
 
 **配额消耗：** 1 次（缓存命中不计）
 
@@ -581,33 +605,36 @@ PATCH /api/admin/users/3420d268-bce3-435e-89e7-8dee4b9dbc92
 
 ```python
 import os
+import time
 import requests
 
 API_KEY = os.environ["GK_API_KEY"]
 BASE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
 
 def expand_keywords(seeds):
-    res = requests.post(
+    submit_res = requests.post(
         f"{BASE_URL}/api/research/expand",
-        json={"seeds": seeds},
+        json={"keywords": seeds},
         headers={"Authorization": f"Bearer {API_KEY}"}
     )
-    data = res.json()
+    submit_res.raise_for_status()
+    submit_data = submit_res.json()
+    job_id = submit_data["jobId"]
 
-    if "jobId" in data:
-        # 轮询结果
-        while True:
-            status_res = requests.get(
-                f"{BASE_URL}/api/research/expand/status?jobId={data['jobId']}",
-                headers={"Authorization": f"Bearer {API_KEY}"}
-            )
-            status_data = status_res.json()
-            if status_data["status"] == "completed":
-                return status_data["results"]
-            time.sleep(2)
-    else:
-        # 缓存命中
-        return data["results"]
+    while True:
+        status_res = requests.get(
+            f"{BASE_URL}/api/research/expand/status?jobId={job_id}",
+            headers={"Authorization": f"Bearer {API_KEY}"}
+        )
+        status_res.raise_for_status()
+        status_data = status_res.json()
+
+        if status_data["status"] == "complete":
+            return status_data["flatList"]
+        if status_data["status"] == "failed":
+            raise RuntimeError(status_data.get("error", "expand failed"))
+
+        time.sleep(3)
 ```
 
 ### cURL

@@ -101,8 +101,17 @@ export async function validateApiKey(
             return { valid: false, error: 'API key expired' };
         }
 
+        // Students must have an active trial window before an API key can be used.
+        if (result.role !== 'admin' && !result.trial_expires_at) {
+            return { valid: false, error: 'Account not activated yet. Please contact your administrator.' };
+        }
+
         // Check trial expiry (unless admin)
-        if (result.role !== 'admin' && result.trial_expires_at && new Date(result.trial_expires_at).getTime() < Date.now()) {
+        if (
+            result.role !== 'admin' &&
+            result.trial_expires_at &&
+            new Date(result.trial_expires_at).getTime() < Date.now()
+        ) {
             return { valid: false, error: 'Trial expired. Please upgrade your plan.' };
         }
 
@@ -117,6 +126,25 @@ export async function validateApiKey(
 const MAX_KEYS_PER_USER = 5;
 
 export async function generateApiKey(userId: string, name: string = 'default'): Promise<string> {
+    const { rows: users } = await d1Query<{ role: string; trial_expires_at: string | null }>(
+        `SELECT role, trial_expires_at FROM auth_users_v2 WHERE id = ? LIMIT 1`,
+        [userId]
+    );
+    const user = users[0];
+    if (!user) {
+        throw new Error('User not found.');
+    }
+    if (user.role !== 'admin' && !user.trial_expires_at) {
+        throw new Error('账号尚未开通，暂时不能生成 API Key。');
+    }
+    if (
+        user.role !== 'admin' &&
+        user.trial_expires_at &&
+        new Date(user.trial_expires_at).getTime() < Date.now()
+    ) {
+        throw new Error('试用期已过期，暂时不能生成 API Key。');
+    }
+
     // Check key limit
     const { rows } = await d1Query<{ cnt: number }>(
         `SELECT COUNT(*) as cnt FROM api_keys WHERE user_id = ? AND active = 1`,
@@ -128,7 +156,15 @@ export async function generateApiKey(userId: string, name: string = 'default'): 
     }
 
     // Sanitize name
-    const safeName = String(name).slice(0, 50).replace(/[<>"'&]/g, '');
+    const safeName = String(name).slice(0, 50).replace(/[<>"'&]/g, '').trim() || 'default';
+
+    const { rows: nameRows } = await d1Query<{ id: number }>(
+        `SELECT id FROM api_keys WHERE user_id = ? AND active = 1 AND lower(name) = lower(?) LIMIT 1`,
+        [userId, safeName]
+    );
+    if (nameRows[0]) {
+        throw new Error('已存在同名的有效 API Key，请换一个名称。');
+    }
 
     // Generate key: gk_live_ + 32 random hex chars (128 bits of entropy)
     const bytes = new Uint8Array(16);

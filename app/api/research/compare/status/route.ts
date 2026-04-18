@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 
-import { getComparisonResults, getReadyTaskIds, summarizeResults } from "@/lib/keyword-research";
+import {
+  getComparisonResults,
+  getComparisonResultsFromTasks,
+  getReadyTaskIds,
+  summarizeResults,
+} from "@/lib/keyword-research";
 import type { CompareResponse, ComparisonResult, ComparisonSignalConfig } from "@/lib/types";
 import { d1InsertMany, d1Query } from "@/lib/d1";
 import { authenticate } from "@/lib/auth_middleware";
-import { getJob, updateJobStatus } from "@/lib/research-jobs";
+import { getCached, setCache } from "@/lib/cache";
+import { getJob, getJobById, updateJobStatus } from "@/lib/research-jobs";
 
 const METRICS_VERSION = "v1";
 const DEFAULT_COMPARISON_SIGNAL_CONFIG: ComparisonSignalConfig = {
@@ -43,8 +49,28 @@ const safeJsonParse = <T,>(value: string | null) => {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const D1_IN_QUERY_CHUNK_SIZE = 100;
+const PROCESSING_STALE_MS = 2 * 60 * 1000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const loadPostbackResults = async (taskIds: string[]) => {
+  const rows: { task_id: string; result_data: string }[] = [];
+
+  for (let index = 0; index < taskIds.length; index += D1_IN_QUERY_CHUNK_SIZE) {
+    const chunk = taskIds.slice(index, index + D1_IN_QUERY_CHUNK_SIZE);
+    const placeholders = chunk.map(() => "?").join(",");
+    const result = await d1Query<{ task_id: string; result_data: string }>(
+      `SELECT task_id, result_data
+       FROM postback_results
+       WHERE task_id IN (${placeholders})`,
+      chunk
+    );
+    rows.push(...result.rows);
+  }
+
+  return rows;
+};
 
 const shouldRetryD1 = (message: string) => {
   const lowered = message.toLowerCase();
@@ -123,7 +149,7 @@ export async function GET(request: Request) {
     }
   };
   try {
-    const auth = await authenticate(request as any);
+    const auth = await authenticate(request as Parameters<typeof authenticate>[0]);
     if (!auth.authenticated) { return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 }); }
     const user = { id: auth.userId! };
     if (!user) {
@@ -136,7 +162,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
     }
 
-    const job = await getJob(jobId, user.id);
+    const job = (await getJob(jobId, user.id)) ?? (await getJobById(jobId, "compare"));
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
@@ -146,10 +172,24 @@ export async function GET(request: Request) {
     }
 
     if (job.status === "processing") {
-      return NextResponse.json({
-        status: "pending",
-        ready: job.task_ids.length,
-        total: job.task_ids.length,
+      const updatedAtMs = Date.parse(job.updated_at);
+      const isStaleProcessing =
+        !job.session_id &&
+        (!Number.isFinite(updatedAtMs) || Date.now() - updatedAtMs > PROCESSING_STALE_MS);
+
+      if (!isStaleProcessing) {
+        const rows = await loadPostbackResults(job.task_ids);
+        return NextResponse.json({
+          status: "pending",
+          stage: "processing",
+          ready: rows.length,
+          total: job.task_ids.length,
+        });
+      }
+
+      log("recovering stale processing compare job", {
+        jobId: job.id,
+        updatedAt: job.updated_at,
       });
     }
 
@@ -233,6 +273,21 @@ export async function GET(request: Request) {
         return NextResponse.json({ status: "complete", ...response });
       }
 
+      const resultCacheKey =
+        typeof payloadForComplete.resultCacheKey === "string"
+          ? payloadForComplete.resultCacheKey
+          : undefined;
+      if (resultCacheKey) {
+        const cachedResult = await getCached<CompareResponse>(resultCacheKey);
+        if (cachedResult?.results?.length) {
+          return NextResponse.json({
+            status: "complete",
+            ...cachedResult,
+            fromCache: true,
+          });
+        }
+      }
+
       return NextResponse.json({ status: "complete" });
     }
 
@@ -244,14 +299,31 @@ export async function GET(request: Request) {
     const comparisonSignalConfig = parseComparisonSignalConfig(
       payload.comparisonSignalConfig
     );
+    const enableIntentLlm = payload.enableIntentLlm === true;
 
-    const readyIds = await getReadyTaskIds(job.task_ids);
-    if (readyIds.length < job.task_ids.length) {
-      return NextResponse.json({
-        status: "pending",
-        ready: readyIds.length,
-        total: job.task_ids.length,
-      });
+    const postbackResults: string[] = [];
+    if (job.task_ids.length > 0) {
+      const rows = await loadPostbackResults(job.task_ids);
+      const resultMap = new Map(rows.map((row) => [row.task_id, row.result_data]));
+      for (const taskId of job.task_ids) {
+        const result = resultMap.get(taskId);
+        if (result) {
+          postbackResults.push(result);
+        }
+      }
+    }
+
+    const usePostback = job.task_ids.length > 0 && postbackResults.length === job.task_ids.length;
+
+    if (!usePostback) {
+      const readyIds = await getReadyTaskIds(job.task_ids);
+      if (readyIds.length < job.task_ids.length) {
+        return NextResponse.json({
+          status: "pending",
+          ready: Math.max(postbackResults.length, readyIds.length),
+          total: job.task_ids.length,
+        });
+      }
     }
 
     let stage = "mark-processing";
@@ -259,11 +331,27 @@ export async function GET(request: Request) {
       await retryD1("job processing", () => updateJobStatus(job.id, "processing"));
 
       stage = "fetch-results";
-      const results = await getComparisonResults(
-        job.task_ids,
-        benchmark,
-        comparisonSignalConfig
-      );
+      const results = usePostback
+        ? await getComparisonResultsFromTasks(
+            postbackResults.flatMap((resultJson) => {
+              const parsed = safeJsonParse<{ tasks?: unknown[] }>(resultJson);
+              return Array.isArray(parsed?.tasks)
+                ? parsed.tasks.filter(
+                    (task): task is Record<string, unknown> =>
+                      Boolean(task) && typeof task === "object"
+                  )
+                : [];
+            }),
+            benchmark,
+            comparisonSignalConfig,
+            { enableIntentLlm }
+          )
+        : await getComparisonResults(
+            job.task_ids,
+            benchmark,
+            comparisonSignalConfig,
+            { enableIntentLlm }
+          );
       if (results.length === 0) {
         const errorMessage = "fetch-results: No comparison results";
         await retryD1("job failed", () =>
@@ -377,10 +465,22 @@ export async function GET(request: Request) {
         comparisonId,
       };
 
+      const resultCacheKey =
+        typeof payload.resultCacheKey === "string" ? payload.resultCacheKey : undefined;
+      if (resultCacheKey) {
+        await retryD1("set compare result cache", () =>
+          setCache(resultCacheKey, {
+            ...response,
+            fromCache: false,
+          })
+        );
+      }
+
       if (debug) {
         console.log("[api/compare] completed", {
           results: results.length,
           comparisonId,
+          resultCached: Boolean(resultCacheKey),
         });
       }
 

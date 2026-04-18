@@ -123,14 +123,24 @@ export async function setSerpConfidence(
   if (entries.length === 0) return;
   const today = new Date().toISOString().slice(0, 10);
   const now = new Date().toISOString();
+  const normalizedEntries = entries.map((entry) => [
+    entry.keyword.toLowerCase().trim(),
+    today,
+    entry.confidence,
+    entry.organicCount,
+    entry.hasFeatured ? 1 : 0,
+    entry.aiInTitles,
+    now,
+  ]);
+  const placeholders = normalizedEntries
+    .map(() => "(?, ?, ?, ?, ?, ?, ?)")
+    .join(", ");
+  const params = normalizedEntries.flat();
 
-  for (const e of entries) {
-    const norm = e.keyword.toLowerCase().trim();
-    await d1Query(
-      `INSERT INTO ${SERP_CONFIDENCE_TABLE} (keyword_normalized, cache_date, confidence, organic_count, has_featured, ai_in_titles, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(keyword_normalized, cache_date) DO UPDATE SET confidence = excluded.confidence, organic_count = excluded.organic_count, has_featured = excluded.has_featured, ai_in_titles = excluded.ai_in_titles, updated_at = excluded.updated_at`,
-      [norm, today, e.confidence, e.organicCount, e.hasFeatured ? 1 : 0, e.aiInTitles, now]
-    );
-  }
+  await d1Query(
+    `INSERT INTO ${SERP_CONFIDENCE_TABLE} (keyword_normalized, cache_date, confidence, organic_count, has_featured, ai_in_titles, updated_at)
+     VALUES ${placeholders}
+     ON CONFLICT(keyword_normalized, cache_date) DO UPDATE SET confidence = excluded.confidence, organic_count = excluded.organic_count, has_featured = excluded.has_featured, ai_in_titles = excluded.ai_in_titles, updated_at = excluded.updated_at`,
+    params
+  );
 }

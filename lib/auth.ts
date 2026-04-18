@@ -112,7 +112,11 @@ const createSessionToken = () => randomBytes(32).toString("base64url");
 export const createUser = async (
   email: string,
   password: string,
-  options?: { role?: "admin" | "student"; trialDays?: number }
+  options?: {
+    role?: "admin" | "student";
+    trialDays?: number;
+    activateTrial?: boolean;
+  }
 ): Promise<AuthUser> => {
   const normalized = normalizeEmail(email);
   const { rows: existing } = await d1Query<AuthUserRow>(
@@ -129,11 +133,15 @@ export const createUser = async (
   const passwordHash = await createPasswordHash(password);
   const role = options?.role ?? "student";
   const trialDays = options?.trialDays ?? 90; // 默认 3 个月
-  const trialStartedAt = now.toISOString();
+  const activateTrial = role === "admin" ? true : options?.activateTrial ?? true;
+  const trialStartedAt =
+    role === "admin" || activateTrial ? now.toISOString() : null;
   const trialExpiresAt =
     role === "admin"
       ? "2099-12-31T23:59:59.000Z"
-      : new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000).toISOString();
+      : activateTrial
+        ? new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000).toISOString()
+        : null;
 
   await d1Query(
     `INSERT INTO auth_users_v2

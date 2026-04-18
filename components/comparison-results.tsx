@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 
-import type { CompareResponse, ComparisonResult } from "@/lib/types";
+import type { CompareResponse, ComparisonFreshnessStatus, ComparisonResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,13 @@ const verdictBadge = (verdict: ComparisonResult["verdict"]) => {
   if (verdict === "close") return "bg-amber-100 text-amber-700";
   if (verdict === "watch") return "bg-sky-100 text-sky-700";
   return "bg-rose-100 text-rose-700";
+};
+
+const freshnessBadge = (status: ComparisonFreshnessStatus) => {
+  if (status === "new") return "bg-violet-100 text-violet-700 border-violet-200";
+  if (status === "old_hot") return "bg-orange-100 text-orange-700 border-orange-200";
+  if (status === "stable_old") return "bg-slate-100 text-slate-600 border-slate-200";
+  return "bg-zinc-100 text-zinc-600 border-zinc-200";
 };
 
 const groupResults = (results: ComparisonResult[]) => {
@@ -122,8 +129,24 @@ export function ComparisonResultsCard({
     () => groupResults(compareData.results),
     [compareData.results]
   );
-  const [showMetrics, setShowMetrics] = useState(false);
-  const [expandedKeyword, setExpandedKeyword] = useState<string | null>(null);
+  const defaultExpandedKeyword = useMemo(() => {
+    const orderedGroups = [
+      groupedResults.strong,
+      groupedResults.pass,
+      groupedResults.close,
+      groupedResults.watch,
+      groupedResults.fail,
+    ];
+    for (const group of orderedGroups) {
+      if (group.length > 0) {
+        return group[0].keyword;
+      }
+    }
+    return null;
+  }, [groupedResults]);
+  const [expandedKeyword, setExpandedKeyword] = useState<string | null | undefined>(undefined);
+  const currentExpandedKeyword =
+    expandedKeyword === undefined ? defaultExpandedKeyword : expandedKeyword;
 
   return (
     <Card>
@@ -170,18 +193,6 @@ export function ComparisonResultsCard({
           ))}
         </div>
 
-        <div className="flex items-center justify-end">
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-            <input
-              type="checkbox"
-              className="rounded border-zinc-300 text-primary focus:ring-ring"
-              checked={showMetrics}
-              onChange={(event) => setShowMetrics(event.target.checked)}
-            />
-            显示详细指标
-          </label>
-        </div>
-
         <div className="space-y-6">
           {(["strong", "pass", "close", "watch", "fail"] as const).map(
             (groupKey) => {
@@ -220,6 +231,15 @@ export function ComparisonResultsCard({
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-base">{item.keyword}</span>
+                                {item.freshness ? (
+                                  <Badge
+                                    variant="outline"
+                                    className={cn("text-[10px]", freshnessBadge(item.freshness.status))}
+                                  >
+                                    {item.freshness.label}
+                                    {item.freshness.window !== "none" ? ` · ${item.freshness.window}` : ""}
+                                  </Badge>
+                                ) : null}
                               </div>
                               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                 <span>热度: {item.avgValue}</span>
@@ -242,25 +262,20 @@ export function ComparisonResultsCard({
                                     className="h-7 px-2 text-xs"
                                     onClick={() =>
                                       setExpandedKeyword((prev) =>
-                                        prev === item.keyword ? null : item.keyword
+                                        (prev === undefined ? defaultExpandedKeyword : prev) === item.keyword
+                                          ? null
+                                          : item.keyword
                                       )
                                     }
                                   >
-                                    {expandedKeyword === item.keyword ? "收起" : "查看趋势/原因"}
+                                    {currentExpandedKeyword === item.keyword ? "收起" : "查看趋势/原因"}
                                   </Button>
                                 )}
                               </div>
-                              {showMetrics && (
-                                <div className="text-[10px] text-muted-foreground text-right w-full sm:max-w-md">
-                                  M:{item.ratioMean} R:{item.ratioRecent} L:{item.ratioLastPoint ?? 0} Peak:{item.ratioPeak} Cov:
-                                  {Math.round(item.ratioCoverage * 100)}% SR:{item.slopeRatio ?? 0} Vol:
-                                  {item.volatility}
-                                </div>
-                              )}
                             </div>
                           </div>
 
-                          {showDetails && expandedKeyword === item.keyword && (
+                          {showDetails && currentExpandedKeyword === item.keyword && (
                             <div className="mt-4 grid gap-4 lg:grid-cols-2">
                               <div className="rounded-md border bg-muted/30 p-3">
                                 {item.series ? (
@@ -318,6 +333,16 @@ export function ComparisonResultsCard({
                                   ) : (
                                     <div>暂无趋势原因说明（旧记录未落库）</div>
                                   )}
+
+                                  {item.freshness ? (
+                                    <div className="rounded-md border bg-background/60 p-2">
+                                      <div className="font-medium text-foreground">
+                                        新鲜度：{item.freshness.label}
+                                        {item.freshness.window !== "none" ? `（${item.freshness.window}）` : ""}
+                                      </div>
+                                      <div>{item.freshness.reason}</div>
+                                    </div>
+                                  ) : null}
                                 </div>
                               </div>
                             </div>

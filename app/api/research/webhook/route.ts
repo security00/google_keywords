@@ -2,7 +2,8 @@
  * Webhook endpoint for DataForSEO postback notifications.
  * 
  * DataForSEO sends gzip-compressed JSON with task results when tasks complete.
- * The `$tag` variable in postback_url carries our cache_key.
+ * For SERP tasks, the `$tag` variable in postback_url carries our cache_key.
+ * For Trends tasks, cache_key is embedded directly in the postback URL query.
  * The `$id` variable carries the DataForSEO task_id.
  * 
  * We store raw results in postback_results table so status route can
@@ -37,6 +38,12 @@ function getClientIp(request: NextRequest): string {
   );
 }
 
+function toRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 export async function POST(request: NextRequest) {
   const clientIp = getClientIp(request);
 
@@ -50,42 +57,61 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Extract params from query string OR POST body (DataForSEO may send either way)
-  let cacheKey = request.nextUrl.searchParams.get("tag");
-  let apiType = request.nextUrl.searchParams.get("type") || "unknown";
-  let dfsTaskId = request.nextUrl.searchParams.get("task_id") || "";
-
   try {
-    // Try to read POST body first (might have params there)
-    const contentType = request.headers.get("content-type") || "";
-    const body = contentType.includes("application/json")
-      ? await request.json().catch(() => ({}))
-      : {};
+    const arrayBuffer = await request.arrayBuffer();
+    const rawBuffer = Buffer.from(arrayBuffer);
+    const { gunzipSync } = await import("zlib");
 
-    // Override with body params if present
-    if (body && typeof body === "object") {
-      if (body.tag) cacheKey = cacheKey || body.tag;
-      if (body.type) apiType = apiType || body.type;
-      if (body.task_id) dfsTaskId = dfsTaskId || body.task_id;
+    let payloadBuffer = rawBuffer;
+    try {
+      payloadBuffer = gunzipSync(rawBuffer);
+    } catch {
+      payloadBuffer = rawBuffer;
     }
 
-    console.log("[webhook] params", { cacheKey, apiType, dfsTaskId });
-  } catch (err) {
-    // Ignore JSON parse errors (body might be gzipped data)
-  }
+    const resultJson = payloadBuffer.toString("utf-8");
+    const parsed =
+      resultJson.trim().length > 0
+        ? JSON.parse(resultJson)
+        : {};
+    const parsedRecord = toRecord(parsed);
 
-  try {
-    // Decompress gzip body
-    const arrayBuffer = await request.arrayBuffer();
-    const { gunzipSync } = await import("zlib");
-    const decompressed = gunzipSync(Buffer.from(arrayBuffer));
-    const resultJson = decompressed.toString("utf-8");
+    // Extract params from query string first, then fall back to JSON payload.
+    let cacheKey =
+      request.nextUrl.searchParams.get("cache_key") ||
+      request.nextUrl.searchParams.get("tag");
+    let apiType = request.nextUrl.searchParams.get("type") || "unknown";
+    let dfsTaskId = request.nextUrl.searchParams.get("task_id") || "";
+
+    if (parsedRecord) {
+      const body = parsedRecord;
+      if (typeof body.tag === "string" && !cacheKey) cacheKey = body.tag;
+      if (typeof body.type === "string" && apiType === "unknown") apiType = body.type;
+      if (typeof body.task_id === "string" && !dfsTaskId) dfsTaskId = body.task_id;
+    }
+
+    const firstTask =
+      Array.isArray(parsedRecord?.tasks) &&
+      parsedRecord.tasks.length > 0
+        ? toRecord(parsedRecord.tasks[0])
+        : undefined;
+
+    if (!dfsTaskId && typeof firstTask?.id === "string") {
+      dfsTaskId = firstTask.id;
+    }
+    if (!cacheKey) {
+      const taskData = toRecord(firstTask?.data);
+      const taskTag = taskData?.tag ?? firstTask?.tag;
+      if (typeof taskTag === "string") {
+        cacheKey = taskTag;
+      }
+    }
 
     console.log("[webhook] received", {
       apiType,
       dfsTaskId,
       cacheKey: cacheKey?.slice(0, 80),
-      size: decompressed.length,
+      size: payloadBuffer.length,
       ip: clientIp,
     });
 
@@ -101,10 +127,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Also store in query_cache for serp/trends direct cache hits
-    if (cacheKey) {
-      const data = JSON.parse(resultJson);
-      await setCache(cacheKey, data);
+    // Only direct-result APIs should populate query_cache here.
+    // expand/compare cache slots store jobId and must not be overwritten.
+    if (cacheKey && (apiType === "serp" || apiType === "trends")) {
+      await setCache(cacheKey, parsed);
     }
 
     return NextResponse.json({ ok: true });

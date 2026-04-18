@@ -141,7 +141,11 @@ export async function checkApiQuota(userId: string): Promise<{ allowed: boolean;
 // -------------------------------------------
 export type AccessCheckResult =
   | { allowed: true; user: UserWithMeta; quota: { used: number; limit: number }; trial: { active: boolean; daysLeft: number; expiresAt: string | null } }
-  | { allowed: false; reason: string; code: "unauthorized" | "trial_expired" | "quota_exceeded" };
+  | {
+      allowed: false;
+      reason: string;
+      code: "unauthorized" | "trial_inactive" | "trial_expired" | "quota_exceeded";
+    };
 
 export async function checkStudentAccess(userId: string): Promise<AccessCheckResult> {
   const user = await getUserWithMeta(userId);
@@ -162,7 +166,18 @@ export async function checkStudentAccess(userId: string): Promise<AccessCheckRes
   // 试用期检查
   const trial = isTrialActive(user);
   if (!trial.active) {
-    return { allowed: false, reason: `试用期已过期${trial.expiresAt ? "（到期日：" + trial.expiresAt.slice(0, 10) + "）" : ""}，请联系管理员续费`, code: "trial_expired" };
+    if (!trial.expiresAt) {
+      return {
+        allowed: false,
+        reason: "账号已注册，等待管理员开通 90 天使用期",
+        code: "trial_inactive",
+      };
+    }
+    return {
+      allowed: false,
+      reason: `试用期已过期（到期日：${trial.expiresAt.slice(0, 10)}），请联系管理员续费`,
+      code: "trial_expired",
+    };
   }
 
   // 用量检查

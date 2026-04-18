@@ -387,10 +387,24 @@ def check_serp_competition(serp_data):
 
 # ─── Validation ───────────────────────────────────────────────────────
 
+SEO_JUNK_PATTERNS = re.compile(
+    r"(?:"
+    r"for\s+(?:your|my|google)\s+(?:website|site)"
+    r"|embed(?:dable)?\s+(?:online\s+)?games?"
+    r"|unblocked\s+games?"
+    r"|free\s+(?:download|online)"
+    r"|\bplay\s+(?:free|online|now)\b"
+    r"|\ball\s+games\b"
+    r"|games?\s+to\s+(?:embed|play|download)"
+    r"|primary\s+games"
+    r"|\b\d+\s*(?:player|players)\b"
+    r")"
+)
+
 def is_game_name_valid(name):
-    """Filter out obviously bad game names."""
+    """Filter out obviously bad game names and SEO junk."""
     name_lower = name.lower().strip()
-    if len(name_lower) < 3:
+    if len(name_lower) < 3 or len(name_lower) > 60:
         return False
     if re.match(r"^[0-9\s]+$", name_lower):
         return False
@@ -398,6 +412,12 @@ def is_game_name_valid(name):
         return False
     # Multi-word generic combos (category pages, not game names)
     if all(w in GENERIC_KEYWORDS for w in name_lower.split()):
+        return False
+    # SEO junk patterns (embed, website, unblocked, etc.)
+    if SEO_JUNK_PATTERNS.search(name_lower):
+        return False
+    # Too many words = likely a category page, not a game
+    if len(name_lower.split()) > 5:
         return False
     return True
 

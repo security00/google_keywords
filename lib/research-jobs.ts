@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { d1Query } from "@/lib/d1";
 
 export type JobStatus = "pending" | "processing" | "complete" | "failed";
-export type JobType = "expand" | "compare";
+export type JobType = "expand" | "compare" | "intent";
 
 export type ResearchJob = {
   id: string;
@@ -92,6 +92,19 @@ export const getJob = async (id: string, userId: string) => {
   const { rows } = await d1Query<JobRow>(
     "SELECT * FROM research_jobs WHERE id = ? AND user_id = ? LIMIT 1",
     [id, userId]
+  );
+  const row = rows[0];
+  return row ? toJob(row) : null;
+};
+
+export const getJobById = async (id: string, jobType?: JobType) => {
+  const params: string[] = [id];
+  const typeClause = jobType ? " AND job_type = ?" : "";
+  if (jobType) params.push(jobType);
+
+  const { rows } = await d1Query<JobRow>(
+    `SELECT * FROM research_jobs WHERE id = ?${typeClause} LIMIT 1`,
+    params
   );
   const row = rows[0];
   return row ? toJob(row) : null;

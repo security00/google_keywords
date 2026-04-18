@@ -64,6 +64,20 @@ export type ComparisonIntent = {
   confidence?: number;
 };
 
+export type ComparisonFreshnessStatus =
+  | "new"
+  | "old_hot"
+  | "stable_old"
+  | "unclear";
+
+export type ComparisonFreshness = {
+  status: ComparisonFreshnessStatus;
+  label: string;
+  window: "7d" | "30d" | "90d" | "none";
+  score: number;
+  reason: string;
+};
+
 export type ComparisonResult = {
   keyword: string;
   avgValue: number;
@@ -82,6 +96,7 @@ export type ComparisonResult = {
   series?: ComparisonSeries;
   explanation?: ComparisonExplanation;
   intent?: ComparisonIntent;
+  freshness?: ComparisonFreshness;
 };
 
 export type FilterSummary = {

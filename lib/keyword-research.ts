@@ -10,6 +10,7 @@ import type {
   ComparisonExplanation,
   ComparisonSeries,
   ComparisonIntent,
+  ComparisonFreshness,
   ComparisonSignalConfig,
 } from "@/lib/types";
 
@@ -301,8 +302,23 @@ const SERP_TASK_BATCH_SIZE = 100;
 const SERP_TOP_RESULTS = 5;
 const SERP_LLM_RESULTS = 3;
 const FILTER_CACHE_VERSION = "v4";
+const EXPANSION_TASK_POST_BATCH_SIZE = 10;
+const COMPARISON_TASK_POST_BATCH_SIZE = 25;
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const buildPostbackUrl = (
+  postbackUrl: string | undefined,
+  cacheKey: string | undefined,
+  apiType: "expand" | "compare" | "serp"
+) => {
+  if (!postbackUrl || !cacheKey) return undefined;
+
+  const separator = postbackUrl.includes("?") ? "&" : "?";
+  const cacheKeyParam = `cache_key=${encodeURIComponent(cacheKey)}`;
+  const tagParam = apiType === "serp" ? "&tag=$tag" : "";
+  return `${postbackUrl}${separator}task_id=$id&type=${encodeURIComponent(apiType)}&${cacheKeyParam}${tagParam}`;
+};
 
 const normalizeDate = (value: string) => value.trim();
 
@@ -322,6 +338,11 @@ const mean = (values: number[]) =>
   values.length === 0
     ? 0
     : values.reduce((sum, value) => sum + value, 0) / values.length;
+
+const positiveMean = (values: number[]) => {
+  const positiveValues = values.filter((value) => value > 0);
+  return mean(positiveValues);
+};
 
 const stdDev = (values: number[]) => {
   if (values.length === 0) return 0;
@@ -466,6 +487,151 @@ const normalizeTrendTimestamp = (point: Record<string, unknown>, index: number) 
 
   return `#${index + 1}`;
 };
+
+const buildFreshnessSignal = ({
+  candidateSeries,
+  recentSeries,
+  baselineSeries,
+  baselineLow,
+  surge,
+  ratioRecent,
+  ratioLastPoint,
+  slopeDiff,
+}: {
+  candidateSeries: number[];
+  recentSeries: number[];
+  baselineSeries: number[];
+  baselineLow: boolean;
+  surge: boolean;
+  ratioRecent: number;
+  ratioLastPoint: number;
+  slopeDiff: number;
+}): ComparisonFreshness => {
+  const lastValue = recentSeries[recentSeries.length - 1] ?? 0;
+  const previousFourMean = positiveMean(candidateSeries.slice(-5, -1));
+  const recentFourMean = positiveMean(candidateSeries.slice(-4));
+  const priorMean = positiveMean(candidateSeries.slice(0, -4));
+  const baselineMean = positiveMean(baselineSeries);
+  const recentMean = positiveMean(recentSeries);
+
+  const weekLift = safeDivide(lastValue, previousFourMean);
+  const monthLift = safeDivide(recentFourMean, priorMean);
+  const quarterLift = safeDivide(recentMean, baselineMean);
+
+  if (baselineLow && surge) {
+    return {
+      status: "new",
+      label: "新词",
+      window: "90d",
+      score: 100,
+      reason: "历史基线很低，最近窗口明显起量。",
+    };
+  }
+
+  if (
+    lastValue >= MIN_RECENT_MEAN &&
+    weekLift >= 1.8 &&
+    ratioLastPoint >= 0.9 &&
+    slopeDiff > 0
+  ) {
+    return {
+      status: "old_hot",
+      label: "老词新热",
+      window: "7d",
+      score: 90,
+      reason: `最近一周相对前序均值提升 ${formatRatio(weekLift)}，且末端接近或超过基准。`,
+    };
+  }
+
+  if (
+    recentFourMean >= MIN_RECENT_MEAN &&
+    monthLift >= 1.5 &&
+    ratioRecent >= 0.8 &&
+    slopeDiff > 0
+  ) {
+    return {
+      status: "old_hot",
+      label: "老词新热",
+      window: "30d",
+      score: 80,
+      reason: `最近一个月相对历史均值提升 ${formatRatio(monthLift)}，趋势仍在上行。`,
+    };
+  }
+
+  if (
+    recentMean >= MIN_RECENT_MEAN &&
+    quarterLift >= 1.5 &&
+    ratioRecent >= 0.7 &&
+    slopeDiff > 0
+  ) {
+    return {
+      status: "old_hot",
+      label: "老词新热",
+      window: "90d",
+      score: 70,
+      reason: `最近三个月相对历史基线提升 ${formatRatio(quarterLift)}。`,
+    };
+  }
+
+  if (baselineMean >= MIN_RECENT_MEAN && recentMean >= MIN_RECENT_MEAN) {
+    return {
+      status: "stable_old",
+      label: "稳定老词",
+      window: "none",
+      score: 30,
+      reason: "历史和近期都有稳定需求，但未检测到明显近期起势。",
+    };
+  }
+
+  return {
+    status: "unclear",
+    label: "待观察",
+    window: "none",
+    score: 40,
+    reason: "趋势信号不足，暂时无法判断是否近期起势。",
+  };
+};
+
+export const addFreshnessToComparisonResults = (
+  results: ComparisonResult[]
+): ComparisonResult[] =>
+  results.map((item) => {
+    if (item.freshness || !item.series?.values?.length) return item;
+
+    const candidateSeries = item.series.values;
+    const recentWindowSize = Math.min(RECENT_POINTS, candidateSeries.length);
+    const recentSeries = candidateSeries.slice(-recentWindowSize);
+    const baselineSeries = candidateSeries.slice(0, -recentWindowSize);
+    const baselineMean = mean(baselineSeries);
+    const baselinePeak = baselineSeries.length > 0 ? Math.max(...baselineSeries) : 0;
+    const recentMean = mean(recentSeries);
+    const baselineLow =
+      baselineMean <= NEWNESS_BASELINE_MEAN_MAX &&
+      baselinePeak <= NEWNESS_BASELINE_PEAK_MAX;
+    const surge =
+      baselineSeries.length === 0
+        ? recentMean >= MIN_RECENT_MEAN
+        : recentMean >=
+          Math.max(MIN_RECENT_MEAN, baselineMean * NEWNESS_SURGE_MULTIPLIER);
+
+    const freshness = buildFreshnessSignal({
+      candidateSeries,
+      recentSeries,
+      baselineSeries,
+      baselineLow,
+      surge,
+      ratioRecent: item.ratioRecent,
+      ratioLastPoint: item.ratioLastPoint ?? 0,
+      slopeDiff: item.slopeDiff,
+    });
+    const verdict =
+      freshness.status === "stable_old" &&
+      (item.verdict === "strong" || item.verdict === "pass" || item.verdict === "close")
+        ? "watch"
+        : item.verdict;
+
+    return { ...item, verdict, freshness };
+  });
 
 const buildVerdictExplanation = ({
   verdict,
@@ -618,12 +784,41 @@ const normalizeFilterTerms = (terms: string[]) => {
   return result;
 };
 
+const SHARED_CACHE_TIMEZONE = "Asia/Shanghai";
+
+const getTimezoneDateParts = (date: Date, timeZone: string) => {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: "year" | "month" | "day") =>
+    Number(parts.find((item) => item.type === type)?.value ?? 0);
+  return {
+    year: getPart("year"),
+    month: getPart("month"),
+    day: getPart("day"),
+  };
+};
+
+const formatUtcDate = (date: Date) => date.toISOString().slice(0, 10);
+
 export const getDateRange = (days = 7) => {
   const now = new Date();
-  const dateTo = now.toISOString().slice(0, 10);
-  const from = new Date(now);
-  from.setDate(from.getDate() - days);
-  const dateFrom = from.toISOString().slice(0, 10);
+  // DataForSEO trends rejects the current UTC day while it is still in progress.
+  // Use the most recent completed UTC day as the upper bound.
+  const utcToday = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+  const sharedUpperBoundUtc = new Date(
+    utcToday.getTime() - 24 * 60 * 60 * 1000
+  );
+  const dateTo = formatUtcDate(sharedUpperBoundUtc);
+  const dateFrom = formatUtcDate(
+    new Date(sharedUpperBoundUtc.getTime() - days * 24 * 60 * 60 * 1000)
+  );
   return { dateFrom, dateTo };
 };
 
@@ -932,7 +1127,7 @@ const buildIntentPayload = (summaries: SerpSummary[]) => ({
   ],
 });
 
-const inferIntentWithModel = async (
+export const inferIntentWithModel = async (
   summaries: SerpSummary[]
 ): Promise<Map<string, ComparisonIntent>> => {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -1128,14 +1323,12 @@ export const submitSerpTasks = async (
 ) => {
   const batches = createBatches(keywords, SERP_TASK_BATCH_SIZE);
   const taskIds: string[] = [];
+  const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "serp");
 
   for (const batch of batches) {
-    const postback = options?.postbackUrl && options?.cacheKey
-      ? options.postbackUrl // Just the base URL, no query params
-      : undefined;
-
     const payload = batch.map((keyword) => ({
       ...buildSerpTask(keyword),
+      ...(options?.cacheKey ? { tag: options.cacheKey } : {}),
       ...(postback ? { postback_url: postback } : {}),
     }));
     const result = await requestWithRetry("post", SERP_TASK_POST_URL, {
@@ -1180,6 +1373,29 @@ export const waitForSerpTasks = async (taskIds: string[]) => {
 
     if (pending.size > 0) {
       await sleep(POLL_INTERVAL_MS);
+    }
+  }
+
+  return completed;
+};
+
+export const getReadySerpTaskIds = async (taskIds: string[]) => {
+  const pending = new Set(taskIds);
+  const completed: string[] = [];
+
+  if (pending.size === 0) return completed;
+
+  const result = await requestWithRetry("get", SERP_TASKS_READY_URL, {
+    headers: buildAuthHeaders(),
+  });
+
+  if (result?.status_code === 20000) {
+    const readyTasks = result?.tasks?.[0]?.result ?? [];
+    for (const task of readyTasks) {
+      const id = task?.id;
+      if (id && pending.has(id)) {
+        completed.push(id);
+      }
     }
   }
 
@@ -1396,31 +1612,64 @@ export const submitExpansionTasks = async (
   dateTo: string,
   options?: { postbackUrl?: string; cacheKey?: string }
 ) => {
-  const postback = options?.postbackUrl && options?.cacheKey
-    ? options.postbackUrl // Just the base URL, no query params
-    : undefined;
+  const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "expand");
+  const batches = createBatches(keywords, EXPANSION_TASK_POST_BATCH_SIZE);
+  const taskIds: string[] = [];
 
-  const payload = keywords.map((keyword) => ({
-    keywords: [keyword],
-    date_from: normalizeDate(dateFrom),
-    date_to: normalizeDate(dateTo),
-    type: "web",
-    item_types: ["google_trends_queries_list"],
-    ...(postback ? { postback_url: postback } : {}),
-  }));
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+    const batch = batches[batchIndex];
+    const payload = batch.map((keyword) => ({
+      keywords: [keyword],
+      date_from: normalizeDate(dateFrom),
+      date_to: normalizeDate(dateTo),
+      type: "web",
+      item_types: ["google_trends_queries_list"],
+      ...(postback ? { postback_url: postback } : {}),
+    }));
 
-  const result = await requestWithRetry("post", TASK_POST_URL, {
-    headers: buildAuthHeaders(),
-    body: JSON.stringify(payload),
-  });
+    const result = await requestWithRetry("post", TASK_POST_URL, {
+      headers: buildAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
 
-  if (result?.status_code !== 20000) {
-    throw new Error(result?.status_message || "Failed to create expansion tasks");
+    if (result?.status_code !== 20000) {
+      console.error("[dataforseo/expand] task_post failed", {
+        batchIndex: batchIndex + 1,
+        totalBatches: batches.length,
+        keywords: batch,
+        statusCode: result?.status_code,
+        statusMessage: result?.status_message,
+        tasksCount: Array.isArray(result?.tasks) ? result.tasks.length : 0,
+      });
+      throw new Error(result?.status_message || "Failed to create expansion tasks");
+    }
+
+    const createdTaskIds = (result.tasks || [])
+      .filter((task: { status_code: number }) => task.status_code === 20100)
+      .map((task: { id: string }) => task.id);
+
+    if (createdTaskIds.length === 0) {
+      const taskDetails = (result.tasks || []).map((task: {
+        status_code?: number;
+        status_message?: string;
+      }) => `${task.status_code ?? "unknown"}:${task.status_message ?? "unknown"}`);
+      console.error("[dataforseo/expand] batch created 0 tasks", {
+        batchIndex: batchIndex + 1,
+        totalBatches: batches.length,
+        keywords: batch,
+        taskDetails,
+        rawStatusCode: result?.status_code,
+        rawStatusMessage: result?.status_message,
+      });
+      throw new Error(
+        `Expansion batch ${batchIndex + 1}/${batches.length} created 0 tasks (${taskDetails.join("; ") || "no task details"})`
+      );
+    }
+
+    taskIds.push(...createdTaskIds);
   }
 
-  return (result.tasks || [])
-    .filter((task: { status_code: number }) => task.status_code === 20100)
-    .map((task: { id: string }) => task.id);
+  return taskIds;
 };
 
 export const waitForTasks = async (taskIds: string[]) => {
@@ -1563,7 +1812,11 @@ export const organizeCandidates = (candidates: Candidate[]) => {
   }
 
   const uniqueCandidates = Array.from(seen.values());
-  const sortedCandidates = uniqueCandidates.sort((a, b) => b.value - a.value);
+  const sortedCandidates = uniqueCandidates.sort((a, b) => {
+    const scoreDiff = Number(b.score ?? 0) - Number(a.score ?? 0);
+    if (scoreDiff !== 0) return scoreDiff;
+    return b.value - a.value;
+  });
 
   const organized: OrganizedCandidates = {
     explosive: [],
@@ -1878,6 +2131,158 @@ export const filterCandidatesWithModel = async (
   return { filtered, blocked: blockedCandidates, summary };
 };
 
+export const filterCandidatesWithKeywordModel = async (
+  candidates: Candidate[],
+  config: FilterConfig,
+  options: {
+    debug?: boolean;
+    batchSize?: number;
+    maxCandidates?: number;
+  } = {}
+) => {
+  const log = (message: string, meta?: Record<string, unknown>) => {
+    if (!options.debug) return;
+    if (meta) {
+      console.log(message, meta);
+    } else {
+      console.log(message);
+    }
+  };
+
+  const summary: FilterSummary = {
+    enabled: config.enabled,
+    model: config.enabled ? config.model : undefined,
+    total: candidates.length,
+    removed: 0,
+    kept: candidates.length,
+  };
+
+  if (!config.enabled) {
+    summary.skippedReason = "disabled";
+    return { filtered: candidates, blocked: [] as Candidate[], summary };
+  }
+
+  if (!process.env.OPENROUTER_API_KEY) {
+    summary.skippedReason = "OPENROUTER_API_KEY is not configured";
+    return { filtered: candidates, blocked: [] as Candidate[], summary };
+  }
+
+  const uniqueCandidates = new Map<string, Candidate>();
+  for (const candidate of candidates) {
+    const key = candidate.keyword.toLowerCase().trim();
+    if (key && !uniqueCandidates.has(key)) uniqueCandidates.set(key, candidate);
+  }
+
+  const maxCandidates = Math.min(
+    Math.max(Number(options.maxCandidates ?? process.env.OPENROUTER_PRECOMPUTE_FILTER_MAX ?? 900), 50),
+    uniqueCandidates.size
+  );
+  const batchSize = Math.min(Math.max(Number(options.batchSize ?? 80), 10), 120);
+  const candidatesForModel = Array.from(uniqueCandidates.values()).slice(0, maxCandidates);
+  const batches = createBatches(candidatesForModel, batchSize);
+  const blocked = new Set<string>();
+  const { baseUrl, model } = getOpenRouterConfig();
+  const startedAt = Date.now();
+
+  const systemPrompt = [
+    "You are filtering keyword research candidates before they are shown to a human operator.",
+    "Keep durable, productizable, commercial keywords, especially AI tools, software, utilities, SaaS, templates, workflows, and automation.",
+    "Block short-lived noise, entertainment/news/sports/games/politics/celebrity/exam answers/coupons/gambling/adult/domain spam/local navigation queries.",
+    "Block exact brands or one-off entities unless the query clearly describes a reusable software/tool opportunity.",
+    "When uncertain, keep AI/tool/SaaS intent and block pure news/event curiosity.",
+    "Return strict JSON only.",
+  ].join("\n");
+
+  for (let index = 0; index < batches.length; index += 1) {
+    const batch = batches[index];
+    const payload = {
+      model,
+      temperature: 0,
+      messages: [
+        {
+          role: "system",
+          content: config.prompt
+            ? `${systemPrompt}\nAdditional filter instruction: ${config.prompt}`
+            : systemPrompt,
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            blacklist_topics: config.terms,
+            keywords: batch.map((candidate) => ({
+              keyword: candidate.keyword,
+              trend_value: candidate.value,
+              source_seed: candidate.source,
+              rule_score: candidate.score ?? 0,
+            })),
+            output: '{ "blocked": ["keyword"] }',
+            rules: [
+              "blocked may only include exact keywords from the provided input",
+              "preserve original spelling",
+              "do not include explanations",
+              "if all keywords should be kept, return {\"blocked\":[]}",
+            ],
+          }),
+        },
+      ],
+      max_tokens: 1400,
+    };
+
+    try {
+      const response = await requestWithRetry(
+        "post",
+        `${baseUrl}/chat/completions`,
+        {
+          headers: buildOpenRouterHeaders(),
+          body: JSON.stringify(payload),
+        },
+        2,
+        OPENROUTER_REQUEST_TIMEOUT_MS
+      );
+      const content = extractResponseText(response);
+      const parsed = extractJsonBlock(content);
+      const blockedList = Array.isArray(parsed?.blocked) ? parsed.blocked : [];
+      for (const item of blockedList) {
+        if (typeof item === "string") blocked.add(item.toLowerCase().trim());
+      }
+      log("[precompute-llm-filter] batch done", {
+        batch: index + 1,
+        totalBatches: batches.length,
+        size: batch.length,
+        blocked: blockedList.length,
+      });
+    } catch (error) {
+      log("[precompute-llm-filter] batch failed", {
+        batch: index + 1,
+        totalBatches: batches.length,
+        message: error instanceof Error ? error.message : "Unexpected error",
+      });
+    }
+  }
+
+  if (blocked.size === 0) {
+    summary.skippedReason = "model returned no blocked keywords";
+    return { filtered: candidates, blocked: [] as Candidate[], summary };
+  }
+
+  const filtered = candidates.filter(
+    (candidate) => !blocked.has(candidate.keyword.toLowerCase().trim())
+  );
+  const blockedCandidates = candidates.filter((candidate) =>
+    blocked.has(candidate.keyword.toLowerCase().trim())
+  );
+
+  summary.removed = blockedCandidates.length;
+  summary.kept = filtered.length;
+  log("[precompute-llm-filter] done", {
+    removed: summary.removed,
+    kept: summary.kept,
+    tookMs: Date.now() - startedAt,
+  });
+
+  return { filtered, blocked: blockedCandidates, summary };
+};
+
 export const submitComparisonTasks = async (
   keywords: string[],
   dateFrom: string,
@@ -1886,51 +2291,72 @@ export const submitComparisonTasks = async (
   options?: { postbackUrl?: string; cacheKey?: string }
 ) => {
   const batches = createBatches(keywords, 4);
-  const postback = options?.postbackUrl && options?.cacheKey
-    ? options.postbackUrl // Just the base URL, no query params
-    : undefined;
+  const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "compare");
+  const requestBatches = createBatches(batches, COMPARISON_TASK_POST_BATCH_SIZE);
+  const taskIds: string[] = [];
 
-  const payload = batches.map((batch) => ({
-    keywords: [...batch, benchmark],
-    date_from: normalizeDate(dateFrom),
-    date_to: normalizeDate(dateTo),
-    type: "web",
-    ...(postback ? { postback_url: postback } : {}),
-  }));
+  for (const requestBatch of requestBatches) {
+    const payload = requestBatch.map((batch) => ({
+      keywords: [...batch, benchmark],
+      date_from: normalizeDate(dateFrom),
+      date_to: normalizeDate(dateTo),
+      type: "web",
+      ...(postback ? { postback_url: postback } : {}),
+    }));
 
-  const result = await requestWithRetry("post", TASK_POST_URL, {
-    headers: buildAuthHeaders(),
-    body: JSON.stringify(payload),
-  });
+    const result = await requestWithRetry("post", TASK_POST_URL, {
+      headers: buildAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
 
-  if (result?.status_code !== 20000) {
-    throw new Error(result?.status_message || "Failed to create comparison tasks");
+    if (result?.status_code !== 20000) {
+      throw new Error(result?.status_message || "Failed to create comparison tasks");
+    }
+
+    taskIds.push(
+      ...(result.tasks || [])
+        .filter((task: { status_code: number }) => task.status_code === 20100)
+        .map((task: { id: string }) => task.id)
+    );
   }
 
-  return (result.tasks || [])
-    .filter((task: { status_code: number }) => task.status_code === 20100)
-    .map((task: { id: string }) => task.id);
+  return taskIds;
 };
 
-const enrichResultsWithIntent = async (
-  results: ComparisonResult[]
+export const enrichComparisonResultsWithIntent = async (
+  results: ComparisonResult[],
+  options: { enableIntentLlm?: boolean } = {}
 ): Promise<ComparisonResult[]> => {
   if (results.length === 0) return results;
+  const fallbackResults = results.map((item) => ({
+    ...item,
+    intent: resolveFallbackIntent(item.keyword),
+  }));
+  const enableIntentLlm =
+    options.enableIntentLlm === true || process.env.COMPARE_INTENT_LLM_ENABLED === "true";
+  if (!enableIntentLlm) {
+    return fallbackResults;
+  }
+
+  const intentMaxKeywords = Math.min(
+    Math.max(Number(process.env.COMPARE_INTENT_MAX_KEYWORDS ?? 20), 1),
+    50
+  );
   const keywordMap = new Map<string, string>();
   for (const item of results) {
+    if (item.verdict === "fail") continue;
     const key = item.keyword.toLowerCase();
     if (!keywordMap.has(key)) {
       keywordMap.set(key, item.keyword);
     }
+    if (keywordMap.size >= intentMaxKeywords) break;
   }
   const keywords = Array.from(keywordMap.values());
+  if (keywords.length === 0) return fallbackResults;
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    return results.map((item) => ({
-      ...item,
-      intent: resolveFallbackIntent(item.keyword),
-    }));
+    return fallbackResults;
   }
 
   try {
@@ -1952,230 +2378,281 @@ const enrichResultsWithIntent = async (
     });
   } catch (error) {
     console.warn("Intent classification failed", error);
-    return results.map((item) => ({
-      ...item,
-      intent: resolveFallbackIntent(item.keyword),
-    }));
+    return fallbackResults;
   }
+};
+
+export const getComparisonResultsFromTasks = async (
+  taskPayloads: Array<Record<string, unknown>>,
+  benchmark = DEFAULT_BENCHMARK,
+  signalConfig: Partial<ComparisonSignalConfig> = {},
+  options: { enableIntentLlm?: boolean } = {}
+) => {
+  const config = resolveComparisonSignalConfig(signalConfig);
+  const results: ComparisonResult[] = [];
+  const benchmarkLower = benchmark.toLowerCase();
+
+  for (const task of taskPayloads) {
+    if (Number(task?.status_code ?? 0) !== 20000) continue;
+
+    const taskResult = Array.isArray(task.result) ? task.result[0] : undefined;
+    const taskResultRecord =
+      taskResult && typeof taskResult === "object"
+        ? (taskResult as Record<string, unknown>)
+        : null;
+    const keywords = Array.isArray(taskResultRecord?.keywords)
+      ? taskResultRecord.keywords.filter(
+          (keyword): keyword is string => typeof keyword === "string"
+        )
+      : [];
+    const items = Array.isArray(taskResultRecord?.items)
+      ? taskResultRecord.items
+      : [];
+
+    for (const item of items) {
+      const itemRecord =
+        item && typeof item === "object"
+          ? (item as Record<string, unknown>)
+          : null;
+      if (itemRecord?.type !== "google_trends_graph") continue;
+
+      const dataPoints = Array.isArray(itemRecord.data)
+        ? itemRecord.data.filter(
+            (point): point is Record<string, unknown> =>
+              Boolean(point) && typeof point === "object"
+          )
+        : [];
+      if (!dataPoints.length || !keywords.length) continue;
+
+      const series: number[][] = keywords.map(() => []);
+      const timestamps = dataPoints.map((point, index) =>
+        normalizeTrendTimestamp(point, index)
+      );
+
+      for (const point of dataPoints) {
+        const values = Array.isArray(point.values) ? point.values : [];
+        for (let i = 0; i < series.length; i += 1) {
+          const value = Number(values[i] ?? 0);
+          series[i].push(value);
+        }
+      }
+
+      const benchmarkIndex = keywords.findIndex(
+        (kw) => kw.toLowerCase() === benchmarkLower
+      );
+      const benchmarkSeries = series[benchmarkIndex] ?? [];
+      const recentWindowSize = Math.min(RECENT_POINTS, benchmarkSeries.length);
+      const recentBenchmarkSeries = benchmarkSeries.slice(-recentWindowSize);
+      const benchmarkRecentMean = mean(recentBenchmarkSeries);
+      const benchmarkRecentPeak =
+        recentBenchmarkSeries.length > 0
+          ? Math.max(...recentBenchmarkSeries)
+          : benchmarkRecentMean;
+      const benchmarkRecentSlope = linearSlope(recentBenchmarkSeries);
+
+      for (let i = 0; i < keywords.length; i += 1) {
+        const kw = keywords[i];
+        if (kw.toLowerCase() === benchmarkLower) continue;
+
+        const candidateSeries = series[i] ?? [];
+        const candidateRecentSeries = candidateSeries.slice(-recentWindowSize);
+        const candidateBaselineSeries = candidateSeries.slice(
+          0,
+          -recentWindowSize
+        );
+        const baselineMean = mean(candidateBaselineSeries);
+        const baselinePeak =
+          candidateBaselineSeries.length > 0
+            ? Math.max(...candidateBaselineSeries)
+            : 0;
+        const recentMean = mean(candidateRecentSeries);
+        const recentPeak =
+          candidateRecentSeries.length > 0
+            ? Math.max(...candidateRecentSeries)
+            : recentMean;
+        const baselineLow =
+          baselineMean <= NEWNESS_BASELINE_MEAN_MAX &&
+          baselinePeak <= NEWNESS_BASELINE_PEAK_MAX;
+        const surge =
+          candidateBaselineSeries.length === 0
+            ? recentMean >= MIN_RECENT_MEAN
+            : recentMean >=
+              Math.max(MIN_RECENT_MEAN, baselineMean * NEWNESS_SURGE_MULTIPLIER);
+
+        const tailWindowSize = Math.min(
+          RECENT_TAIL_POINTS,
+          candidateRecentSeries.length
+        );
+        const candidateTail = candidateRecentSeries.slice(-tailWindowSize);
+        const benchmarkTail = recentBenchmarkSeries.slice(-tailWindowSize);
+
+        const ratioMean = safeDivide(recentMean, benchmarkRecentMean);
+        const candidateLastValue =
+          candidateRecentSeries[candidateRecentSeries.length - 1] ?? 0;
+        const benchmarkLastValue =
+          recentBenchmarkSeries[recentBenchmarkSeries.length - 1] ?? 0;
+        const ratioRecent = safeDivide(mean(candidateTail), mean(benchmarkTail));
+        const ratioLastPoint = safeDivide(candidateLastValue, benchmarkLastValue);
+        const ratioCoverage =
+          candidateRecentSeries.length === 0
+            ? 0
+            : candidateRecentSeries.reduce(
+                (count, value, idx) =>
+                  count + (value >= (recentBenchmarkSeries[idx] ?? 0) ? 1 : 0),
+                0
+              ) / candidateRecentSeries.length;
+        const ratioPeak = safeDivide(recentPeak, benchmarkRecentPeak);
+        const candidateRecentSlope = linearSlope(candidateRecentSeries);
+        const slopeDiff = candidateRecentSlope - benchmarkRecentSlope;
+        const slopeRatio = Math.abs(benchmarkRecentSlope) > 1e-6
+          ? candidateRecentSlope / benchmarkRecentSlope
+          : candidateRecentSlope > 0
+            ? 99
+            : candidateRecentSlope < 0
+              ? -99
+              : 0;
+        const nearOneLastPoint = nearOne(ratioLastPoint, config.nearOneTolerance);
+        const isRisingStrong =
+          slopeRatio >= config.risingStrongMinSlopeRatio &&
+          ratioRecent >= config.risingStrongMinTailRatio &&
+          slopeDiff > 0 &&
+          nearOneLastPoint;
+        const poolQualified =
+          ratioMean > config.avgRatioMin ||
+          ratioLastPoint > config.lastPointRatioMin ||
+          ratioPeak > config.peakRatioMin ||
+          isRisingStrong;
+        const volatility =
+          recentMean > 0 ? stdDev(candidateRecentSeries) / recentMean : 0;
+        const crossings = countCrossings(
+          candidateRecentSeries,
+          recentBenchmarkSeries
+        );
+        let endStreak = 0;
+        for (let j = candidateRecentSeries.length - 1; j >= 0; j -= 1) {
+          if (candidateRecentSeries[j] >= (recentBenchmarkSeries[j] ?? 0)) {
+            endStreak += 1;
+          } else {
+            break;
+          }
+        }
+        const endValue =
+          candidateRecentSeries[candidateRecentSeries.length - 1] ?? 0;
+        const endVsPeak = recentPeak > 0 ? endValue / recentPeak : 0;
+
+        const verdict = classifyVerdict({
+          config,
+          poolQualified,
+          meanRatio: ratioMean,
+          peakRatio: ratioPeak,
+          slopeRatio,
+          coverage: ratioCoverage,
+          tailRatio: ratioRecent,
+          endStreak,
+          endVsPeak,
+          volatility,
+          slopeDiff,
+        });
+        const freshness = buildFreshnessSignal({
+          candidateSeries,
+          recentSeries: candidateRecentSeries,
+          baselineSeries: candidateBaselineSeries,
+          baselineLow,
+          surge,
+          ratioRecent,
+          ratioLastPoint,
+          slopeDiff,
+        });
+        const freshnessAdjustedVerdict =
+          freshness.status === "stable_old" &&
+          (verdict === "strong" || verdict === "pass" || verdict === "close")
+            ? "watch"
+            : verdict;
+        const alignedLength = Math.min(
+          timestamps.length,
+          candidateSeries.length,
+          benchmarkSeries.length
+        );
+        const seriesPayload: ComparisonSeries = {
+          timestamps: timestamps.slice(-alignedLength),
+          values: candidateSeries.slice(-alignedLength),
+          benchmarkValues: benchmarkSeries.slice(-alignedLength),
+        };
+        const explanation = buildVerdictExplanation({
+          verdict: freshnessAdjustedVerdict,
+          poolQualified,
+          config,
+          baselineMean,
+          baselinePeak,
+          recentMean,
+          recentPeak,
+          ratioMean,
+          ratioRecent,
+          ratioCoverage,
+          ratioPeak,
+          ratioLastPoint,
+          endStreak,
+          endVsPeak,
+          volatility,
+          slopeRatio,
+          slopeDiff,
+        });
+
+        if (!baselineLow && !surge && verdict === "fail") {
+          // no-op: preserve current scoring behavior while making
+          // baseline/surge locals explicit for future tuning
+        }
+
+        results.push({
+          keyword: kw,
+          avgValue: roundTo(recentMean, 2),
+          benchmarkValue: roundTo(benchmarkRecentMean, 2),
+          ratio: roundTo(ratioMean, 2),
+          ratioMean: roundTo(ratioMean, 2),
+          ratioRecent: roundTo(ratioRecent, 2),
+          ratioCoverage: roundTo(ratioCoverage, 2),
+          ratioPeak: roundTo(ratioPeak, 2),
+          ratioLastPoint: roundTo(ratioLastPoint, 2),
+          slopeDiff: roundTo(slopeDiff, 2),
+          slopeRatio: roundTo(slopeRatio, 2),
+          volatility: roundTo(volatility, 2),
+          crossings,
+          verdict: freshnessAdjustedVerdict,
+          series: seriesPayload,
+          explanation,
+          freshness,
+        });
+      }
+    }
+  }
+
+  const sorted = results.sort((a, b) => b.ratio - a.ratio);
+  return enrichComparisonResultsWithIntent(sorted, options);
 };
 
 export const getComparisonResults = async (
   taskIds: string[],
   benchmark = DEFAULT_BENCHMARK,
-  signalConfig: Partial<ComparisonSignalConfig> = {}
+  signalConfig: Partial<ComparisonSignalConfig> = {},
+  options: { enableIntentLlm?: boolean } = {}
 ) => {
-  const config = resolveComparisonSignalConfig(signalConfig);
-  const results: ComparisonResult[] = [];
-  const benchmarkLower = benchmark.toLowerCase();
+  const taskPayloads: Record<string, unknown>[] = [];
 
   for (const taskId of taskIds) {
     const result = await requestWithRetry("get", `${TASK_GET_URL}/${taskId}`, {
       headers: buildAuthHeaders(),
     });
 
-    if (result?.status_code !== 20000) continue;
+    if (result?.status_code !== 20000 || !Array.isArray(result?.tasks)) continue;
 
-    for (const task of result?.tasks ?? []) {
-      if (task?.status_code !== 20000) continue;
-
-      const taskResult = task?.result?.[0];
-      const keywords = taskResult?.keywords ?? [];
-      const items = taskResult?.items ?? [];
-
-      for (const item of items) {
-        if (item?.type !== "google_trends_graph") continue;
-
-        const dataPoints = item?.data ?? [];
-        if (!dataPoints.length || !keywords.length) continue;
-
-        const series: number[][] = keywords.map(() => []);
-        const timestamps = dataPoints.map((point: Record<string, unknown>, index: number) =>
-          normalizeTrendTimestamp(point, index)
-        );
-
-        for (const point of dataPoints) {
-          const values = point?.values ?? [];
-          for (let i = 0; i < series.length; i += 1) {
-            const value = Number(values[i] ?? 0);
-            series[i].push(value);
-          }
-        }
-
-        const benchmarkIndex = keywords.findIndex(
-          (kw: string) => kw.toLowerCase() === benchmarkLower
-        );
-        const benchmarkSeries = series[benchmarkIndex] ?? [];
-        const recentWindowSize = Math.min(RECENT_POINTS, benchmarkSeries.length);
-        const recentBenchmarkSeries = benchmarkSeries.slice(-recentWindowSize);
-        const benchmarkRecentMean = mean(recentBenchmarkSeries);
-        const benchmarkRecentPeak =
-          recentBenchmarkSeries.length > 0
-            ? Math.max(...recentBenchmarkSeries)
-            : benchmarkRecentMean;
-        const benchmarkRecentSlope = linearSlope(recentBenchmarkSeries);
-
-        for (let i = 0; i < keywords.length; i += 1) {
-          const kw = keywords[i];
-          if (kw.toLowerCase() === benchmarkLower) continue;
-
-          const candidateSeries = series[i] ?? [];
-          const candidateRecentSeries = candidateSeries.slice(-recentWindowSize);
-          const candidateBaselineSeries = candidateSeries.slice(
-            0,
-            -recentWindowSize
-          );
-          const baselineMean = mean(candidateBaselineSeries);
-          const baselinePeak =
-            candidateBaselineSeries.length > 0
-              ? Math.max(...candidateBaselineSeries)
-              : 0;
-          const recentMean = mean(candidateRecentSeries);
-          const recentPeak =
-            candidateRecentSeries.length > 0
-              ? Math.max(...candidateRecentSeries)
-              : recentMean;
-          const baselineLow =
-            baselineMean <= NEWNESS_BASELINE_MEAN_MAX &&
-            baselinePeak <= NEWNESS_BASELINE_PEAK_MAX;
-          const surge =
-            candidateBaselineSeries.length === 0
-              ? recentMean >= MIN_RECENT_MEAN
-              : recentMean >=
-                Math.max(MIN_RECENT_MEAN, baselineMean * NEWNESS_SURGE_MULTIPLIER);
-
-          const tailWindowSize = Math.min(
-            RECENT_TAIL_POINTS,
-            candidateRecentSeries.length
-          );
-          const candidateTail = candidateRecentSeries.slice(-tailWindowSize);
-          const benchmarkTail = recentBenchmarkSeries.slice(-tailWindowSize);
-
-          const ratioMean = safeDivide(recentMean, benchmarkRecentMean);
-          const candidateLastValue =
-            candidateRecentSeries[candidateRecentSeries.length - 1] ?? 0;
-          const benchmarkLastValue =
-            recentBenchmarkSeries[recentBenchmarkSeries.length - 1] ?? 0;
-          const ratioRecent = safeDivide(mean(candidateTail), mean(benchmarkTail));
-          const ratioLastPoint = safeDivide(candidateLastValue, benchmarkLastValue);
-          const ratioCoverage =
-            candidateRecentSeries.length === 0
-              ? 0
-              : candidateRecentSeries.reduce(
-                  (count, value, idx) =>
-                    count +
-                    (value >= (recentBenchmarkSeries[idx] ?? 0) ? 1 : 0),
-                  0
-                ) / candidateRecentSeries.length;
-          const ratioPeak = safeDivide(recentPeak, benchmarkRecentPeak);
-          const candidateRecentSlope = linearSlope(candidateRecentSeries);
-          const slopeDiff = candidateRecentSlope - benchmarkRecentSlope;
-          const slopeRatio = Math.abs(benchmarkRecentSlope) > 1e-6
-            ? candidateRecentSlope / benchmarkRecentSlope
-            : candidateRecentSlope > 0
-              ? 99
-              : candidateRecentSlope < 0
-                ? -99
-                : 0;
-          const nearOneLastPoint = nearOne(ratioLastPoint, config.nearOneTolerance);
-          const isRisingStrong =
-            slopeRatio >= config.risingStrongMinSlopeRatio &&
-            ratioRecent >= config.risingStrongMinTailRatio &&
-            slopeDiff > 0 &&
-            nearOneLastPoint;
-          const poolQualified =
-            ratioMean > config.avgRatioMin ||
-            ratioLastPoint > config.lastPointRatioMin ||
-            ratioPeak > config.peakRatioMin ||
-            isRisingStrong;
-          const volatility =
-            recentMean > 0 ? stdDev(candidateRecentSeries) / recentMean : 0;
-          const crossings = countCrossings(
-            candidateRecentSeries,
-            recentBenchmarkSeries
-          );
-          let endStreak = 0;
-          for (let j = candidateRecentSeries.length - 1; j >= 0; j -= 1) {
-            if (
-              candidateRecentSeries[j] >=
-              (recentBenchmarkSeries[j] ?? 0)
-            ) {
-              endStreak += 1;
-            } else {
-              break;
-            }
-          }
-          const endValue =
-            candidateRecentSeries[candidateRecentSeries.length - 1] ?? 0;
-          const endVsPeak = recentPeak > 0 ? endValue / recentPeak : 0;
-
-          const verdict = classifyVerdict({
-            config,
-            poolQualified,
-            meanRatio: ratioMean,
-            peakRatio: ratioPeak,
-            slopeRatio,
-            coverage: ratioCoverage,
-            tailRatio: ratioRecent,
-            endStreak,
-            endVsPeak,
-            volatility,
-            slopeDiff,
-          });
-          const alignedLength = Math.min(
-            timestamps.length,
-            candidateSeries.length,
-            benchmarkSeries.length
-          );
-          const seriesPayload: ComparisonSeries = {
-            timestamps: timestamps.slice(-alignedLength),
-            values: candidateSeries.slice(-alignedLength),
-            benchmarkValues: benchmarkSeries.slice(-alignedLength),
-          };
-          const explanation = buildVerdictExplanation({
-            verdict,
-            poolQualified,
-            config,
-            baselineMean,
-            baselinePeak,
-            recentMean,
-            recentPeak,
-            ratioMean,
-            ratioRecent,
-            ratioCoverage,
-            ratioPeak,
-            ratioLastPoint,
-            endStreak,
-            endVsPeak,
-            volatility,
-            slopeRatio,
-            slopeDiff,
-          });
-
-          results.push({
-            keyword: kw,
-            avgValue: roundTo(recentMean, 2),
-            benchmarkValue: roundTo(benchmarkRecentMean, 2),
-            ratio: roundTo(ratioMean, 2),
-            ratioMean: roundTo(ratioMean, 2),
-            ratioRecent: roundTo(ratioRecent, 2),
-            ratioCoverage: roundTo(ratioCoverage, 2),
-            ratioPeak: roundTo(ratioPeak, 2),
-            ratioLastPoint: roundTo(ratioLastPoint, 2),
-            slopeDiff: roundTo(slopeDiff, 2),
-            slopeRatio: roundTo(slopeRatio, 2),
-            volatility: roundTo(volatility, 2),
-            crossings,
-            verdict,
-            series: seriesPayload,
-            explanation,
-          });
-        }
+    for (const task of result.tasks) {
+      if (task && typeof task === "object") {
+        taskPayloads.push(task as Record<string, unknown>);
       }
     }
   }
 
-  const sorted = results.sort((a, b) => b.ratio - a.ratio);
-  return enrichResultsWithIntent(sorted);
+  return getComparisonResultsFromTasks(taskPayloads, benchmark, signalConfig, options);
 };
 
 export const resolveBenchmark = (override?: string) => {

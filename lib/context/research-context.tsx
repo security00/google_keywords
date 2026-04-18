@@ -8,11 +8,13 @@ import {
     CompareResponse,
     AuthUser,
     ComparisonExplanation,
+    ComparisonFreshness,
     ComparisonIntent,
     ComparisonResult,
     ComparisonSeries,
     FilterSummary,
 } from "@/lib/types";
+import sharedKeywordDefaults from "@/config/shared-keyword-defaults.json";
 
 // --- Local Types from original component ---
 export type LogLevel = "info" | "success" | "error";
@@ -36,8 +38,7 @@ type SessionSummary = {
 
 // --- Constants ---
 export const DEFAULT_KEYWORDS = [
-    "calculator", "generator", "converter", "maker", "creator",
-    "editor", "builder", "designer", "simulator", "translator"
+    ...sharedKeywordDefaults.defaultKeywords,
 ];
 export const DEFAULT_BENCHMARK = process.env.NEXT_PUBLIC_BENCHMARK_KEYWORD ?? "gpts";
 export const DEFAULT_FILTER_TERMS = process.env.NEXT_PUBLIC_FILTER_TERMS ??
@@ -45,6 +46,14 @@ export const DEFAULT_FILTER_TERMS = process.env.NEXT_PUBLIC_FILTER_TERMS ??
 export const TASK_COST_USD = 0.05;
 const CLIENT_MAX_WAIT_MS = Number(process.env.NEXT_PUBLIC_TASK_MAX_WAIT_MS) || 600000;
 const CLIENT_POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_TASK_POLL_INTERVAL_MS) || 5000;
+export const RECOMMENDED_COMPARE_LIMIT = 50;
+const RECOMMENDED_MIN_SCORE = 20;
+const RECOMMENDED_HIGH_CONFIDENCE_SCORE = 60;
+const RECOMMENDED_SECTION_QUOTAS = {
+    explosive: 22,
+    fastRising: 16,
+    steadyRising: 12,
+};
 
 // --- Helper Functions ---
 export const formatUsd = (value: number) => `$${value.toFixed(2)}`;
@@ -80,7 +89,11 @@ export const organizeCandidates = (candidates: ExpandResponse["candidates"]) => 
     }
 
     const uniqueCandidates = Array.from(seen.values());
-    const sortedCandidates = uniqueCandidates.sort((a, b) => b.value - a.value);
+    const sortedCandidates = uniqueCandidates.sort((a, b) => {
+        const scoreDiff = Number(b.score ?? 0) - Number(a.score ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return b.value - a.value;
+    });
 
     const organized = {
         explosive: [] as typeof candidates,
@@ -101,6 +114,62 @@ export const organizeCandidates = (candidates: ExpandResponse["candidates"]) => 
         }
     }
     return organized;
+};
+
+export const buildRecommendedSelection = (
+    expandData: Pick<ExpandResponse, "organized" | "flatList"> | null,
+    limit = RECOMMENDED_COMPARE_LIMIT
+) => {
+    if (!expandData) return [];
+
+    const picked = new Set<string>();
+    const addCandidates = (items: ExpandResponse["candidates"], maxCount: number) => {
+        let added = 0;
+        for (const item of items) {
+            if (picked.size >= limit || added >= maxCount) break;
+            if (Number(item.score ?? 0) >= RECOMMENDED_MIN_SCORE) {
+                const before = picked.size;
+                picked.add(item.keyword);
+                if (picked.size > before) added += 1;
+            }
+        }
+    };
+
+    const strongCandidates = expandData.flatList.filter(
+        (item) => Number(item.score ?? 0) >= RECOMMENDED_HIGH_CONFIDENCE_SCORE
+    );
+    for (const item of strongCandidates) {
+        if (picked.size >= limit) break;
+        picked.add(item.keyword);
+    }
+
+    const sectionTargets = [
+        {
+            items: expandData.organized.explosive,
+            maxCount: RECOMMENDED_SECTION_QUOTAS.explosive,
+        },
+        {
+            items: expandData.organized.fastRising,
+            maxCount: RECOMMENDED_SECTION_QUOTAS.fastRising,
+        },
+        {
+            items: expandData.organized.steadyRising,
+            maxCount: RECOMMENDED_SECTION_QUOTAS.steadyRising,
+        },
+    ];
+
+    for (const section of sectionTargets) {
+        addCandidates(section.items, section.maxCount);
+    }
+
+    if (picked.size < limit) {
+        addCandidates(
+            expandData.flatList.filter((item) => !expandData.organized.slowRising.includes(item)),
+            limit
+        );
+    }
+
+    return Array.from(picked);
 };
 
 const DEFAULT_SUMMARY: CompareResponse["summary"] = {
@@ -206,6 +275,7 @@ interface ResearchContextType {
     toggleCandidate: (keyword: string) => void;
     selectAll: () => void;
     selectTop: (count: number) => void;
+    selectRecommended: () => void;
     clearSelection: () => void;
     loadLatestSession: () => Promise<void>;
     handleSignOut: () => Promise<void>;
@@ -299,6 +369,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                         value: parseNumber(item.value),
                         type: item.type === "top" ? "top" : "rising",
                         source: typeof item.source === "string" ? item.source : "",
+                        score: parseNumber(item.score),
                         filtered: item.filtered === true,
                     };
                 })
@@ -307,6 +378,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                     value: number;
                     type: "top" | "rising";
                     source: string;
+                    score: number;
                     filtered: boolean;
                 } => Boolean(item))
             : [];
@@ -318,6 +390,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 value: item.value,
                 type: item.type,
                 source: item.source,
+                score: item.score,
             }));
 
         const filteredOut = parsedCandidates
@@ -327,6 +400,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 value: item.value,
                 type: item.type,
                 source: item.source,
+                score: item.score,
             }));
 
         const organized = organizeCandidates(unfiltered);
@@ -349,7 +423,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         };
 
         setExpandData(sessionData);
-        setSelected(new Set());
+        setSelected(new Set(buildRecommendedSelection(sessionData)));
         setSessionId(restoredSessionId);
 
         const comparison = isRecord(payload.comparison) ? payload.comparison : null;
@@ -370,6 +444,9 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                             : undefined;
                         const intent = isRecord(item.intent)
                             ? (item.intent as ComparisonIntent)
+                            : undefined;
+                        const freshness = isRecord(item.freshness)
+                            ? (item.freshness as ComparisonFreshness)
                             : undefined;
                         const parsed: CompareResponse["results"][number] = {
                             keyword,
@@ -396,6 +473,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                         if (series) parsed.series = series;
                         if (explanation) parsed.explanation = explanation;
                         if (intent) parsed.intent = intent;
+                        if (freshness) parsed.freshness = freshness;
                         return parsed;
                     })
                     .filter((item): item is CompareResponse["results"][number] => item !== null)
@@ -518,11 +596,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 credentials: "include",
                 body: JSON.stringify({
                     keywords: effectiveKeywords,
-                    useCache,
-                    useFilter: useModelFilter,
-                    includeTop,
+                    useCache: true,
+                    useFilter: true,
+                    includeTop: false,
                     filterTerms: parsedFilterTerms,
                     filterPrompt,
+                    responseLimit: 250,
                 }),
             });
             const payload = await response.json();
@@ -561,7 +640,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 setExpandData(completedPayload);
-                setSelected(new Set());
+                setSelected(new Set(buildRecommendedSelection(completedPayload)));
                 setSessionId(completedPayload.sessionId ?? null);
 
                 pushLog("success", "扩展请求完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
@@ -570,7 +649,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
             }
 
             setExpandData(payload as ExpandResponse);
-            setSelected(new Set());
+            setSelected(new Set(buildRecommendedSelection(payload as ExpandResponse)));
             setSessionId((payload as ExpandResponse).sessionId ?? null);
 
             pushLog("success", "扩展请求完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
@@ -615,6 +694,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                     statusUrl: "/api/research/compare/status",
                     maxWaitMs: CLIENT_MAX_WAIT_MS,
                     pollIntervalMs: CLIENT_POLL_INTERVAL_MS,
+                    throwOnTimeout: false,
                     onPending: (pollPayload) => {
                         if (pollPayload?.ready !== undefined && pollPayload?.total !== undefined) {
                             setCompareProgress({
@@ -630,7 +710,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                     },
                 });
                 if (!completedPayload) {
-                    throw new Error("任务等待超时");
+                    throw new Error("趋势对比仍在后台处理，请稍后再次点击开始趋势对比查看结果");
                 }
 
                 if (completedPayload?.ready !== undefined && completedPayload?.total !== undefined) {
@@ -680,6 +760,11 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         setSelected(new Set(top));
     };
 
+    const selectRecommended = () => {
+        if (!expandData) return;
+        setSelected(new Set(buildRecommendedSelection(expandData)));
+    };
+
     const clearSelection = () => setSelected(new Set());
 
     return (
@@ -713,6 +798,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 toggleCandidate,
                 selectAll,
                 selectTop,
+                selectRecommended,
                 clearSelection,
                 loadLatestSession,
                 handleSignOut,

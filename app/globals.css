@@ -48,40 +48,33 @@
 }
 
 .dark {
-  --background: #020617;
-  /* Slate-950 */
-  --foreground: #f8fafc;
-  /* Slate-50 */
+  --background: #0b1120;
+  --foreground: #e5edf9;
 
-  --card: #0f172a;
-  /* Slate-900 */
-  --card-foreground: #f8fafc;
+  --card: #11192b;
+  --card-foreground: #e5edf9;
 
-  --popover: #0f172a;
-  --popover-foreground: #f8fafc;
+  --popover: #11192b;
+  --popover-foreground: #e5edf9;
 
-  --primary: #818cf8;
-  /* Indigo-400 */
-  --primary-foreground: #0f172a;
+  --primary: #95a2ff;
+  --primary-foreground: #0b1120;
 
-  --secondary: #1e293b;
-  /* Slate-800 */
-  --secondary-foreground: #f8fafc;
+  --secondary: #162033;
+  --secondary-foreground: #e5edf9;
 
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  /* Slate-400 */
+  --muted: #121b2d;
+  --muted-foreground: #93a4c3;
 
-  --accent: #1e1b4b;
-  /* Indigo-950 */
-  --accent-foreground: #818cf8;
+  --accent: #172442;
+  --accent-foreground: #b8c2ff;
 
-  --destructive: #991b1b;
-  --destructive-foreground: #f8fafc;
+  --destructive: #7f1d1d;
+  --destructive-foreground: #fee2e2;
 
-  --border: #1e293b;
-  --input: #1e293b;
-  --ring: #818cf8;
+  --border: #25324a;
+  --input: #2a3852;
+  --ring: #95a2ff;
 }
 
 @theme inline {
@@ -117,8 +110,21 @@ body {
   font-family: var(--font-sans), Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
   background-image:
     radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.05) 0px, transparent 50%);
   background-attachment: fixed;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease;
+}
+
+.dark body {
+  background-image:
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.18) 0px, transparent 42%),
+    radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 38%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.18) 0%, rgba(11, 17, 32, 0) 28%);
+  color-scheme: dark;
 }

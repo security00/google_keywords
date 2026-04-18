@@ -16,7 +16,13 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { countEstimate, formatUsd, useResearch } from "@/lib/context/research-context";
+import {
+  buildRecommendedSelection,
+  countEstimate,
+  formatUsd,
+  RECOMMENDED_COMPARE_LIMIT,
+  useResearch,
+} from "@/lib/context/research-context";
 import type { Candidate, OrganizedCandidates } from "@/lib/types";
 
 const candidateTypeLabel = (type: "top" | "rising") => (type === "rising" ? "RISING" : "TOP");
@@ -113,6 +119,7 @@ export default function CandidatesPage() {
     toggleCandidate,
     selectTop,
     selectAll,
+    selectRecommended,
     clearSelection,
     loadingCompare,
     handleCompare,
@@ -144,6 +151,7 @@ export default function CandidatesPage() {
   }
 
   const comparisonCost = formatUsd(countEstimate(selected.size));
+  const recommendedCount = buildRecommendedSelection(expandData).length;
   const comparePercent =
     compareProgress && compareProgress.total > 0
       ? Math.min(100, Math.round((compareProgress.ready / compareProgress.total) * 100))
@@ -157,10 +165,13 @@ export default function CandidatesPage() {
             <div>
               <CardTitle>第二步：人工筛选</CardTitle>
               <CardDescription>
-                共 {expandData.flatList.length} 个候选词，请勾选需要进入趋势对比的关键词。
+                共 {expandData.flatList.length} 个候选词，默认推荐 {recommendedCount} 个进入趋势对比，可手动增删。
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="default" size="sm" onClick={selectRecommended}>
+                推荐选择
+              </Button>
               <Button variant="outline" size="sm" onClick={() => selectTop(20)}>
                 Top 20
               </Button>
@@ -176,6 +187,10 @@ export default function CandidatesPage() {
 
         <CardContent className="space-y-6">
           <div className="flex flex-wrap gap-6 text-sm">
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-muted-foreground">
+              推荐池上限 {RECOMMENDED_COMPARE_LIMIT} 个：优先保留规则分高的爆发词、快速上升和稳定上升词，避免全选噪音词放大成本。
+            </div>
+
             <label className="flex cursor-pointer items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
               <input
                 type="checkbox"

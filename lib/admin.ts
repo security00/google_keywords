@@ -69,12 +69,106 @@ export async function deleteInviteCode(code: string): Promise<void> {
 
 // ── Users ──
 
-export async function listUsers(): Promise<AdminUser[]> {
+export async function listUsers(
+  page = 1,
+  pageSize = 20
+): Promise<{ users: AdminUser[]; total: number; page: number; pageSize: number; totalPages: number }> {
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(100, Math.max(1, pageSize));
+  const offset = (safePage - 1) * safePageSize;
+
+  const countResult = await d1Query<{ total: number }>(
+    `SELECT COUNT(*) as total FROM auth_users_v2`
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const { rows: users } = await d1Query<AdminUser>(
+    `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
+     FROM auth_users_v2 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [safePageSize, offset]
+  );
+
+  return {
+    users,
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+  };
+}
+
+export async function listPendingUsers(
+  page = 1,
+  pageSize = 20
+): Promise<{ users: AdminUser[]; total: number; page: number; pageSize: number; totalPages: number }> {
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(100, Math.max(1, pageSize));
+  const offset = (safePage - 1) * safePageSize;
+
+  const countResult = await d1Query<{ total: number }>(
+    `SELECT COUNT(*) as total FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NULL`
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const { rows: users } = await d1Query<AdminUser>(
+    `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
+     FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NULL
+     ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [safePageSize, offset]
+  );
+
+  return {
+    users,
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+  };
+}
+
+export async function listAllUsers(): Promise<AdminUser[]> {
   const { rows } = await d1Query<AdminUser>(
     `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
      FROM auth_users_v2 ORDER BY created_at DESC`
   );
   return rows;
+}
+
+export async function activateUserTrials(
+  userIds: string[],
+  trialDays = 90
+): Promise<{ updated: number }> {
+  const uniqueUserIds = Array.from(new Set(userIds.map((id) => id.trim()).filter(Boolean)));
+  if (uniqueUserIds.length === 0) {
+    return { updated: 0 };
+  }
+
+  const now = new Date();
+  const trialStartedAt = now.toISOString();
+  const trialExpiresAt = new Date(
+    now.getTime() + trialDays * 24 * 60 * 60 * 1000
+  ).toISOString();
+  let updated = 0;
+
+  for (let index = 0; index < uniqueUserIds.length; index += 100) {
+    const chunk = uniqueUserIds.slice(index, index + 100);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const params = [
+      trialStartedAt,
+      trialExpiresAt,
+      now.toISOString(),
+      ...chunk,
+    ];
+    const result = await d1Query(
+      `UPDATE auth_users_v2
+       SET trial_started_at = ?, trial_expires_at = ?, updated_at = ?
+       WHERE role = 'student' AND id IN (${placeholders})`,
+      params
+    );
+    updated += result.meta?.changes ?? 0;
+  }
+
+  return { updated };
 }
 
 export async function getUserDetail(id: string): Promise<AdminUserDetail | null> {

@@ -2,7 +2,6 @@
 
 import { Loader2 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,12 +25,6 @@ export default function ExpandPage() {
   const {
     keywordsText,
     setKeywordsText,
-    useCache,
-    setUseCache,
-    includeTop,
-    setIncludeTop,
-    useModelFilter,
-    setUseModelFilter,
     filterTermsText,
     setFilterTermsText,
     filterPrompt,
@@ -41,6 +34,8 @@ export default function ExpandPage() {
     expandProgress,
     effectiveKeywords,
     expandData,
+    error,
+    debugLogs,
   } = useResearch();
 
   const expansionCost = formatUsd(effectiveKeywords.length * TASK_COST_USD);
@@ -53,42 +48,11 @@ export default function ExpandPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <CardTitle>第一步：词根扩展</CardTitle>
-              <CardDescription>
-                设置种子词和过滤条件，系统会基于趋势相关词生成候选关键词。
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <label className="flex cursor-pointer items-center gap-2 transition-colors hover:text-foreground">
-                <input
-                  type="checkbox"
-                  className="rounded border-zinc-300 text-primary focus:ring-ring"
-                  checked={useCache}
-                  onChange={(event) => setUseCache(event.target.checked)}
-                />
-                使用缓存
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 transition-colors hover:text-foreground">
-                <input
-                  type="checkbox"
-                  className="rounded border-zinc-300 text-primary focus:ring-ring"
-                  checked={includeTop}
-                  onChange={(event) => setIncludeTop(event.target.checked)}
-                />
-                保留 Top 词
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 transition-colors hover:text-foreground">
-                <input
-                  type="checkbox"
-                  className="rounded border-zinc-300 text-primary focus:ring-ring"
-                  checked={useModelFilter}
-                  onChange={(event) => setUseModelFilter(event.target.checked)}
-                />
-                启用语义过滤
-              </label>
-            </div>
+          <div>
+            <CardTitle>第一步：词根扩展</CardTitle>
+            <CardDescription>
+              设置种子词和过滤条件，系统会基于趋势相关词生成候选关键词。
+            </CardDescription>
           </div>
         </CardHeader>
 
@@ -101,28 +65,26 @@ export default function ExpandPage() {
             </span>
           </div>
 
-          {useModelFilter && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>黑名单主题</Label>
-                <Textarea
-                  className="min-h-[80px]"
-                  placeholder="输入要排除的主题，例如：博彩、影视、新闻、登录页"
-                  value={filterTermsText}
-                  onChange={(event) => setFilterTermsText(event.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>补充过滤提示</Label>
-                <Textarea
-                  className="min-h-[80px]"
-                  placeholder="可选。用于补充模型过滤规则，例如：排除所有资讯聚合页和品牌词"
-                  value={filterPrompt}
-                  onChange={(event) => setFilterPrompt(event.target.value)}
-                />
-              </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>黑名单主题</Label>
+              <Textarea
+                className="min-h-[80px]"
+                placeholder="输入要排除的主题，例如：博彩、影视、新闻、登录页"
+                value={filterTermsText}
+                onChange={(event) => setFilterTermsText(event.target.value)}
+              />
             </div>
-          )}
+            <div className="space-y-2">
+              <Label>补充过滤提示</Label>
+              <Textarea
+                className="min-h-[80px]"
+                placeholder="可选。用于补充模型过滤规则，例如：排除所有资讯聚合页和品牌词"
+                value={filterPrompt}
+                onChange={(event) => setFilterPrompt(event.target.value)}
+              />
+            </div>
+          </div>
 
           <div className="space-y-2">
             <Label>核心词根</Label>
@@ -139,18 +101,14 @@ export default function ExpandPage() {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-6 py-4">
-          <div className="flex w-full items-center justify-between">
-            {expandData?.fromCache ? (
-              <Badge
-                variant="outline"
-                className="border-emerald-200 bg-emerald-50 text-emerald-700"
-              >
-                已加载缓存结果
-              </Badge>
-            ) : (
-              <div />
-            )}
+          {error && (
+            <div className="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
+          <div className="flex w-full items-center justify-between">
+            <div />
             <div className="flex items-center gap-4">
               {expandData?.filter && (
                 <span className="text-xs text-muted-foreground">
@@ -185,6 +143,28 @@ export default function ExpandPage() {
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
         点击“获取候选词”后，系统会完成扩词并自动进入下一步筛选。
       </div>
+
+      {debugLogs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">最近日志</CardTitle>
+            <CardDescription>用于定位扩词流程停在了哪一步。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {debugLogs.slice(0, 8).map((entry) => (
+              <div key={entry.id} className="rounded-md border px-3 py-2">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="font-medium">{entry.title}</span>
+                  <span className="text-xs text-muted-foreground">{entry.at}</span>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  [{entry.level}] {entry.details ?? ""}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
