@@ -258,6 +258,46 @@ def discover_new_from_sitemaps(max_sources=5):
 
 # ─── CrazyGames /new Page (special source) ───────────────────────────
 
+def fetch_steam_new_releases():
+    """Fetch new releases from Steam API (no auth needed)."""
+    print("\n🎮 Phase 2: Steam New Releases", flush=True)
+
+    url = "https://store.steampowered.com/api/featuredcategories"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+
+        nr = data.get("new_releases", [])
+        # new_releases is a dict: {id: str, items: [...]}
+        if isinstance(nr, dict) and "items" in nr:
+            nr = nr["items"]
+        elif isinstance(nr, list) and len(nr) >= 3 and isinstance(nr[2], list):
+            nr = nr[2]  # [cat_id, cat_name, items]
+
+        games = []
+        for item in nr:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name", "").strip()
+            # Filter: skip adult/NSFW games
+            if any(x in name.lower() for x in ["hentai", "🔞", "nsfw", "18+"]):
+                continue
+            # Only paid games with real prices (filter asset flips)
+            price = item.get("original_price")
+            if price is not None and price > 0 and is_game_name_valid(name):
+                games.append({"name": name, "source": "steam", "steam_id": item.get("id")})
+            elif price is None and is_game_name_valid(name):
+                # Free games are fine
+                games.append({"name": name, "source": "steam", "steam_id": item.get("id")})
+
+        print(f"  Found {len(games)} new Steam releases", flush=True)
+        return games
+    except Exception as e:
+        print(f"  ❌ Steam fetch failed: {e}", flush=True)
+        return []
+
+
 def fetch_crazygames_new():
     """Fetch latest games from CrazyGames /new page."""
     print("\n🎮 Phase 2: CrazyGames /new", flush=True)
@@ -573,10 +613,13 @@ def main():
     # ── Phase 2: CrazyGames /new (latest games by publish date) ──
     crazygames_new = fetch_crazygames_new()
 
+    # ── Phase 2b: Steam New Releases ──
+    steam_new = fetch_steam_new_releases()
+
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in sitemap_new + crazygames_new:
+    for g in sitemap_new + crazygames_new + steam_new:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
