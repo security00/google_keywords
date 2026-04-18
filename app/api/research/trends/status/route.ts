@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
-import { getComparisonResults } from "@/lib/keyword-research";
+import { getReadyTaskIds, getComparisonResults } from "@/lib/keyword-research";
 import { d1Query } from "@/lib/d1";
 import { getJob } from "@/lib/research-jobs";
 import { setCache } from "@/lib/cache";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // GET /api/research/trends/status?jobId=X
-// Polls for async trends results
+// Single non-blocking poll of DataForSEO tasks_ready
 export async function GET(request: Request) {
   try {
     const auth = await authenticate(request as any);
@@ -24,7 +24,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "jobId is required" }, { status: 400 });
     }
 
-    // Check if job exists
     const job = await getJob(jobId, auth.userId || "anonymous");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
@@ -34,127 +33,63 @@ export async function GET(request: Request) {
       return NextResponse.json({ status: "failed", error: job.error || "Job failed" });
     }
 
-    // Get job metadata (taskIds, cacheKey, etc.)
-    const metaResult = await d1Query<{ result_data: string }>(
-      `SELECT result_data FROM postback_results WHERE id = ?`,
-      [`trends_meta_${jobId}`]
-    );
-    const meta = metaResult.rows[0];
-    if (!meta) {
-      return NextResponse.json({ status: "processing", message: "Waiting for task metadata..." });
-    }
-
-    const { taskIds, keywords, benchmark, cacheKey, dateFrom, dateTo } = JSON.parse(meta.result_data);
-
-    // Check if all DataForSEO tasks have postback results
-    const placeholders = taskIds.map(() => "?").join(",");
-    const pbResult = await d1Query<{ id: string }>(
-      `SELECT id FROM postback_results WHERE id IN (${placeholders})`,
-      taskIds.map((id: string) => `pb_${id}`)
-    );
-
-    const receivedCount = pbResult.rows.length;
-    if (receivedCount < taskIds.length) {
+    // If already complete, return cached result
+    if (job.status === "complete" && job.payload?.results) {
       return NextResponse.json({
-        status: "processing",
-        progress: `${receivedCount}/${taskIds.length} tasks completed`,
+        status: "complete",
+        results: job.payload.results,
+        fromCache: true,
       });
     }
 
-    // All postbacks received — fetch and parse results
-    const allPbData = await d1Query<{ result_data: string }>(
-      `SELECT result_data FROM postback_results WHERE id IN (${placeholders})`,
-      taskIds.map((id: string) => `pb_${id}`)
-    );
-
-    // Parse DataForSEO comparison results from postbacks
-    const results: Array<{
-      keyword: string;
-      ratio: number;
-      ratioMean: number;
-      ratioRecent: number;
-      ratioPeak: number;
-      ratioCoverage: number;
-      slopeRatio: number;
-      volatility: number;
-      verdict: string;
-      avgValue: number;
-      benchmarkValue: number;
-    }> = [];
-
-    for (const row of allPbData.rows) {
-      try {
-        const taskData = JSON.parse(row.result_data);
-        const items = taskData?.result?.[0]?.items || taskData?.items || [];
-        for (const item of items) {
-          const data = item?.data || item;
-          if (!data?.keywords) continue;
-
-          // Parse trend data for each keyword
-          const kwData = data.keywords;
-          for (const [kw, points] of Object.entries(kwData)) {
-            if (kw.toLowerCase() === benchmark?.toLowerCase()) continue; // skip benchmark itself
-            if (!Array.isArray(points) || points.length === 0) continue;
-
-            const values = (points as number[]).filter((v) => v !== null && v !== undefined);
-            if (values.length === 0) continue;
-
-            const avg = values.reduce((a, b) => a + b, 0) / values.length;
-            const recentN = Math.min(7, values.length);
-            const recent = values.slice(-recentN);
-            const recentAvg = recent.reduce((a, b) => a + b, 0) / recent.length;
-            const tailN = Math.min(3, values.length);
-            const tailAvg = values.slice(-tailN).reduce((a, b) => a + b, 0) / tailN;
-            const peak = Math.max(...values);
-            const firstHalf = values.slice(0, Math.floor(values.length / 2));
-            const secondHalf = values.slice(Math.floor(values.length / 2));
-            const firstAvg = firstHalf.length > 0 ? firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length : 0;
-            const secondAvg = secondHalf.length > 0 ? secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length : 0;
-            const slope = firstAvg > 0 ? (secondAvg - firstAvg) / firstAvg : 0;
-
-            // Simple verdict
-            let verdict = "unknown";
-            if (avg > 0) {
-              if (slope > 0.1 && recentAvg > avg) verdict = "strong";
-              else if (slope > 0) verdict = "pass";
-              else if (tailAvg >= avg * 0.8) verdict = "close";
-              else verdict = "fail";
-            }
-
-            results.push({
-              keyword: kw,
-              ratio: avg,
-              ratioMean: avg,
-              ratioRecent: recentAvg,
-              ratioPeak: peak,
-              ratioCoverage: values.length / 90, // normalized
-              slopeRatio: slope,
-              volatility: values.length > 1 ? Math.sqrt(values.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / values.length) / (avg || 1) : 0,
-              verdict,
-              avgValue: avg,
-              benchmarkValue: 0, // will be filled below
-            });
-          }
-        }
-      } catch {
-        // skip malformed postback
-      }
+    const taskIds: string[] = Array.isArray(job.task_ids) ? job.task_ids : JSON.parse(job.task_ids || "[]");
+    if (taskIds.length === 0) {
+      return NextResponse.json({ status: "failed", error: "No task IDs found" });
     }
 
-    // Cache the results
-    if (cacheKey && results.length > 0) {
-      await setCache(cacheKey, { results });
+    // Single non-blocking poll
+    const readyIds = await getReadyTaskIds(taskIds);
+
+    if (readyIds.length < taskIds.length) {
+      return NextResponse.json({
+        status: "processing",
+        progress: `${readyIds.length}/${taskIds.length} tasks ready`,
+      });
     }
 
-    // Mark job complete
+    // All tasks ready — fetch results
+    const benchmark = (job.payload?.benchmark as string) || "gpts";
+    const results = await getComparisonResults(taskIds, benchmark);
+
+    const mappedResults = results.map((r) => ({
+      keyword: r.keyword,
+      ratio: r.ratio,
+      ratioMean: r.ratioMean,
+      ratioRecent: r.ratioRecent,
+      ratioPeak: r.ratioPeak,
+      ratioCoverage: r.ratioCoverage,
+      slopeRatio: r.slopeRatio,
+      volatility: r.volatility,
+      verdict: r.verdict,
+      avgValue: r.avgValue,
+      benchmarkValue: r.benchmarkValue,
+    }));
+
+    // Cache results
+    const cacheKey = job.payload?.cacheKey as string;
+    if (cacheKey && mappedResults.length > 0) {
+      await setCache(cacheKey, { results: mappedResults });
+    }
+
+    // Update job
     await d1Query(
-      `UPDATE research_jobs SET status = 'complete', completed_at = datetime('now') WHERE id = ?`,
-      [jobId]
+      `UPDATE research_jobs SET status = 'complete', payload = ?, updated_at = datetime('now') WHERE id = ?`,
+      [JSON.stringify({ ...job.payload, results: mappedResults }), jobId]
     );
 
     return NextResponse.json({
       status: "complete",
-      results,
+      results: mappedResults,
       fromCache: false,
     });
   } catch (error) {

@@ -7,8 +7,7 @@ import {
   resolveComparisonDateRange,
 } from "@/lib/keyword-research";
 import { buildCacheKey, getCached, setCache } from "@/lib/cache";
-import { d1Query } from "@/lib/d1";
-import { createJob, getJob } from "@/lib/research-jobs";
+import { createJob } from "@/lib/research-jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +15,7 @@ export const dynamic = "force-dynamic";
 // POST /api/research/trends — Check Google Trends for keywords
 // Body: { keywords: string[], months?: number, benchmark?: string }
 // Cache hit → return immediately (backward compatible)
-// Cache miss → submit async with postback → return { jobId, status: "processing" }
+// Cache miss → submit async → return { jobId, status: "processing" }
 export async function POST(request: Request) {
   try {
     const auth = await authenticate(request as any);
@@ -45,33 +44,27 @@ export async function POST(request: Request) {
 
     const { dateFrom, dateTo } = resolveComparisonDateRange();
 
-    // Check cache — if hit, return immediately (no change for existing callers)
+    // Check cache — if hit, return immediately (backward compatible!)
     const cacheKey = buildCacheKey("trends", keywords, { dateFrom, dateTo, benchmark: benchmark ?? "gpts" });
     const cached = await getCached<{ results: unknown[] }>(cacheKey);
     if (cached) {
       return NextResponse.json({ results: cached.results, fromCache: true });
     }
 
-    // Cache miss → submit async with postback
+    // Cache miss → submit to DataForSEO (no postback needed, status route polls directly)
     const taskIds = await submitComparisonTasks(keywords, dateFrom, dateTo, benchmark);
 
     if (!taskIds || taskIds.length === 0) {
       return NextResponse.json({ error: "Failed to submit trends tasks" }, { status: 500 });
     }
 
-    // Create a job for tracking (reuse research_jobs table)
+    // Create job for tracking
     const userId = auth.userId || "anonymous";
     const jobId = await createJob(
       userId,
       "trends",
       taskIds,
       { keywords, benchmark: benchmark || "gpts", dateFrom, dateTo, cacheKey }
-    );
-
-    // Store job metadata in postback_results (using job-specific key)
-    await d1Query(
-      `INSERT OR REPLACE INTO postback_results (id, task_id, api_type, cache_key, result_data, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-      [`trends_meta_${jobId}`, `trends_meta_${jobId}`, "trends", cacheKey, JSON.stringify({ taskIds, keywords, benchmark: benchmark || "gpts", dateFrom, dateTo })]
     );
 
     return NextResponse.json({

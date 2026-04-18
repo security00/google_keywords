@@ -314,10 +314,8 @@ const buildPostbackUrl = (
 ) => {
   if (!postbackUrl || !cacheKey) return undefined;
 
-  const separator = postbackUrl.includes("?") ? "&" : "?";
-  const cacheKeyParam = `cache_key=${encodeURIComponent(cacheKey)}`;
-  const tagParam = apiType === "serp" ? "&tag=$tag" : "";
-  return `${postbackUrl}${separator}task_id=$id&type=${encodeURIComponent(apiType)}&${cacheKeyParam}${tagParam}`;
+  // DataForSEO expects base URL only — parameters come via POST body
+  return postbackUrl;
 };
 
 const normalizeDate = (value: string) => value.trim();
