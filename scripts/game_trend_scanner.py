@@ -323,14 +323,19 @@ def call_trends_api(keywords):
         return None
 
 
-def save_result(keyword, source_site, ratio, slope, verdict, status="done"):
-    """Save trend result to D1."""
+def save_result(keyword, source_site, ratio, slope, verdict, status="done",
+               serp_organic=0, serp_auth=0, serp_featured=0,
+               recommendation=None, reason=None):
+    """Save trend result to D1 with SERP and recommendation data."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     return d1_execute(
         """INSERT OR REPLACE INTO game_keyword_pipeline 
-           (keyword, source_site, trend_ratio, trend_slope, trend_verdict, trend_checked_at, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        [keyword, source_site, ratio, slope, verdict, now, status]
+           (keyword, source_site, trend_ratio, trend_slope, trend_verdict,
+            trend_checked_at, status, serp_organic, serp_auth, serp_featured,
+            recommendation, reason)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [keyword, source_site, ratio, slope, verdict, now, status,
+         serp_organic, serp_auth, serp_featured, recommendation, reason]
     )
 
 
@@ -360,6 +365,68 @@ def call_serp_api(keywords):
     except Exception as e:
         print(f"    ⚠️ SERP API failed: {e}", file=sys.stderr)
         return None
+
+
+def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_featured=False):
+    """Classify a game keyword into a recommendation category with reason.
+    
+    Categories:
+    - 🔥 hot: High traffic (ratio >> 1), trending up, any competition
+    - 📈 rising: Moderate ratio, sustained growth, opportunity window
+    - 🎯 niche: Low competition, decent trend — easy to rank
+    - ⏭️ skip: Too low vs benchmark, no momentum
+    
+    Returns: (recommendation, reason)
+    """
+    parts = []
+    
+    # Traffic level
+    if ratio >= 2.0:
+        parts.append(f"high traffic (ratio={ratio:.1f}x)")
+    elif ratio >= 0.5:
+        parts.append(f"moderate traffic (ratio={ratio:.1f}x)")
+    elif ratio >= 0.3:
+        parts.append(f"low-moderate traffic (ratio={ratio:.1f}x)")
+    else:
+        parts.append(f"very low traffic (ratio={ratio:.1f}x)")
+    
+    # Trend direction
+    if slope > 5:
+        parts.append("strong upward trend")
+    elif slope > 0:
+        parts.append("rising")
+    elif slope > -2:
+        parts.append("flat")
+    else:
+        parts.append("declining")
+    
+    # SERP competition
+    if serp_auth == 0:
+        parts.append(f"low SERP competition ({serp_organic} results, no authority sites)")
+    elif serp_auth <= 1:
+        parts.append(f"moderate SERP competition ({serp_organic} results, {serp_auth} authority site)")
+    else:
+        parts.append(f"high SERP competition ({serp_organic} results, {serp_auth} authority sites)")
+    
+    reason = "; ".join(parts)
+    
+    # Decision logic
+    if ratio >= 2.0:
+        return "🔥 hot", reason
+    elif ratio >= 0.5 and slope > 0:
+        if serp_auth <= 1:
+            return "🎯 niche", reason
+        else:
+            return "📈 rising", reason
+    elif ratio >= 0.3 and slope > 0:
+        if serp_auth == 0:
+            return "🎯 niche", reason
+        else:
+            return "⏭️ skip", reason
+    elif ratio >= 0.3 and slope <= 0:
+        return "⏭️ skip", reason
+    else:
+        return "⏭️ skip", reason
 
 
 def check_serp_competition(serp_data):
@@ -482,7 +549,6 @@ def main():
 
     # ── Phase 3: Batch trends check ──
     results = []
-    worth_count = 0
 
     for i in range(0, len(to_check), BATCH_SIZE):
         batch = to_check[i:i + BATCH_SIZE]
@@ -512,85 +578,109 @@ def main():
                 "ratio": ratio, "slope": slope, "verdict": verdict,
             })
 
-            is_worth = ratio > MIN_RATIO and slope > MIN_SLOPE
-            status = "worth_doing" if is_worth else "done"
-            if is_worth:
-                worth_count += 1
+            print(f"  📊 {kw}: ratio={ratio:.3f}, slope={slope:.3f}, verdict={verdict}", flush=True)
 
-            print(f"  {'✅' if is_worth else '⬜'} {kw}: ratio={ratio:.3f}, slope={slope:.3f}, verdict={verdict}", flush=True)
-
+            # Save initial trends data (SERP pending)
             if not args.dry_run:
-                save_result(kw, source, ratio, slope, status)
+                rec, reason = classify_keyword(ratio, slope, verdict)
+                save_result(kw, source, ratio, slope, verdict,
+                           status="serp_pending", recommendation=rec, reason=reason)
 
         if i + BATCH_SIZE < len(to_check):
             time.sleep(1)
 
-    # ── Phase 4: SERP competition check for worth_doing keywords ──
-    worth_doing = [r for r in results if r["ratio"] > MIN_RATIO and r["slope"] > MIN_SLOPE]
+    # ── Phase 4: SERP competition check for ALL keywords with ratio >= 0.1 ──
+    serp_candidates = [r for r in results if r.get("ratio", 0) >= 0.1]
 
-    if worth_doing:
-        print(f"\n🔎 Phase 4: SERP competition check for {len(worth_doing)} trending keywords", flush=True)
-        serp_kws = [r["keyword"] for r in worth_doing]
+    if serp_candidates:
+        print(f"\n🔎 Phase 4: SERP competition check for {len(serp_candidates)} keywords", flush=True)
+        serp_kws = [r["keyword"] for r in serp_candidates]
         
-        # Batch SERP check (max 10 per batch to avoid timeout)
         SERP_BATCH = 10
         for i in range(0, len(serp_kws), SERP_BATCH):
             batch = serp_kws[i:i + SERP_BATCH]
             print(f"  SERP batch: {batch}", flush=True)
-            
+
             serp_resp = call_serp_api(batch)
             if not serp_resp:
                 print("  ❌ SERP API failed", flush=True)
                 continue
             
             serp_results = serp_resp.get("results", {})
-            for r in worth_doing:
+            for r in serp_candidates:
                 kw = r["keyword"].lower()
                 kw_data = serp_results.get(kw) or serp_results.get(r["keyword"])
                 if not kw_data:
-                    r["serp_status"] = "no_data"
+                    r["serp_organic"] = 0
+                    r["serp_auth"] = 0
+                    r["serp_featured"] = False
                     continue
                 
                 is_low, organic, auth, featured = check_serp_competition(kw_data)
-                r["serp_low_competition"] = is_low
                 r["serp_organic"] = organic
                 r["serp_auth"] = auth
                 r["serp_featured"] = featured
-                r["serp_status"] = "low" if is_low else "high"
                 
                 status_str = "🟢" if is_low else "🔴"
-                print(f"  {status_str} {r['keyword']}: organic={organic}, auth={auth}, featured={featured} → {'LOW comp' if is_low else 'HIGH comp'}", flush=True)
-                
-                # Update D1 status: only keep worth_doing if low competition
-                if not args.dry_run:
-                    new_status = "worth_doing" if is_low else "done"
-                    save_result(r["keyword"], r["source"], r["ratio"], r["slope"], r["verdict"], new_status)
+                print(f"  {status_str} {r['keyword']}: organic={organic}, auth={auth}, featured={featured}", flush=True)
             
             time.sleep(1)
+    
+    # ── Phase 5: Final classification with SERP data ──
+    print(f"\n🏷️ Phase 5: Final classification", flush=True)
+    categorized = {"🔥 hot": [], "📈 rising": [], "🎯 niche": [], "⏭️ skip": []}
+    
+    for r in results:
+        ratio = r.get("ratio", 0)
+        slope = r.get("slope", 0)
+        verdict = r.get("verdict", "unknown")
+        organic = r.get("serp_organic", 0)
+        auth = r.get("serp_auth", 0)
+        featured = r.get("serp_featured", False)
         
-        # Filter to only truly worth doing (low competition)
-        worth_doing = [r for r in worth_doing if r.get("serp_status") == "low"]
+        rec, reason = classify_keyword(ratio, slope, verdict, organic, auth, featured)
+        r["recommendation"] = rec
+        r["reason"] = reason
+        categorized[rec].append(r)
+        
+        print(f"  {rec} {r['keyword']}: {reason}", flush=True)
+        
+        # Update D1 with final classification
+        if not args.dry_run:
+            status = "done" if rec == "⏭️ skip" else "recommended"
+            save_result(
+                r["keyword"], r["source"], ratio, slope, verdict,
+                status=status, serp_organic=organic, serp_auth=auth,
+                serp_featured=1 if featured else 0,
+                recommendation=rec, reason=reason
+            )
 
+    recommended = [r for r in results if r.get("recommendation") != "⏭️ skip"]
+    
     print(f"\n{'='*60}")
     print(f"📊 SUMMARY — {ts}")
-    print(f"   Sitemap sources scanned: {args.max_sources}")
+    print(f"   Data source: CrazyGames /new")
     print(f"   Total new games found: {len(all_games)}")
     print(f"   Trend-checked: {len(results)}")
-    print(f"   Worth doing: {len(worth_doing)}")
+    print(f"   🔥 Hot:     {len(categorized['🔥 hot'])}")
+    print(f"   📈 Rising:  {len(categorized['📈 rising'])}")
+    print(f"   🎯 Niche:   {len(categorized['🎯 niche'])}")
+    print(f"   ⏭️ Skip:    {len(categorized['⏭️ skip'])}")
     print(f"{'='*60}")
 
-    if worth_doing:
-        print(f"\n🎮 WORTH DOING (low competition, trending game keywords):")
-        for r in sorted(worth_doing, key=lambda x: x["ratio"], reverse=True):
-            print(f"  {r['keyword']} | ratio={r['ratio']:.3f} | slope={r['slope']:.3f} | organic={r.get('serp_organic', '?')} | auth={r.get('serp_auth', '?')} | {r['verdict']} | src={r['source']}")
+    if recommended:
+        print(f"\n🎮 RECOMMENDED GAME KEYWORDS:")
+        for r in sorted(recommended, key=lambda x: x.get("ratio", 0), reverse=True):
+            print(f"  {r.get('recommendation', '?')} {r['keyword']} | ratio={r.get('ratio', 0):.3f} | slope={r.get('slope', 0):.3f} | organic={r.get('serp_organic', '?')} | auth={r.get('serp_auth', '?')} | src={r.get('source', '?')}")
+            print(f"     Reason: {r.get('reason', 'N/A')}")
 
     if args.dry_run:
         print(f"\n⚠️ Dry run — nothing saved to D1")
 
-    # Output worth_doing as JSON for cron to parse
-    if worth_doing:
-        print(f"\n__WORTH_DOING_JSON__")
-        print(json.dumps(worth_doing, ensure_ascii=False))
+    # Output recommended as JSON for cron to parse
+    if recommended:
+        print(f"\n__RECOMMENDED_JSON__")
+        print(json.dumps(recommended, ensure_ascii=False))
 
 
 if __name__ == "__main__":

@@ -80,10 +80,16 @@ const getGameKeywords = async () => {
       trend_slope: number;
       trend_verdict: string;
       trend_checked_at: string;
+      serp_organic: number | null;
+      serp_auth: number | null;
+      serp_featured: number | null;
+      recommendation: string | null;
+      reason: string | null;
     }>(
-      `SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict, trend_checked_at
+      `SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict, trend_checked_at,
+              serp_organic, serp_auth, serp_featured, recommendation, reason
        FROM game_keyword_pipeline
-       WHERE status = 'worth_doing'
+       WHERE status = 'recommended'
        ORDER BY trend_ratio DESC
        LIMIT 20`
     );
@@ -95,6 +101,11 @@ const getGameKeywords = async () => {
       slope: Number(r.trend_slope),
       verdict: r.trend_verdict,
       checkedAt: r.trend_checked_at,
+      serpOrganic: r.serp_organic ?? 0,
+      serpAuth: r.serp_auth ?? 0,
+      serpFeatured: !!r.serp_featured,
+      recommendation: r.recommendation || "",
+      reason: r.reason || "",
       isGame: true as const,
     }));
   } catch {
