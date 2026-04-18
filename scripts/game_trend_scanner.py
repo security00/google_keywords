@@ -291,8 +291,12 @@ def fetch_crazygames_new():
 
 # ─── Trends API ───────────────────────────────────────────────────────
 
-def call_trends_api(keywords):
-    """Call /api/research/trends with keywords, return results."""
+def call_trends_api(keywords, max_wait=180):
+    """Call /api/research/trends with keywords (async with polling).
+    
+    1. POST /api/research/trends → get jobId (or cached results)
+    2. Poll /api/research/trends/status?jobId=X until complete
+    """
     import subprocess
     url = f"{API_URL}/api/research/trends"
     payload = json.dumps({
@@ -300,27 +304,75 @@ def call_trends_api(keywords):
         "months": TREND_MONTHS,
         "benchmark": TREND_BENCHMARK,
     })
+    
+    # Step 1: Submit
     cmd = [
-        "curl", "-sL", "--max-time", "120", url,
+        "curl", "-sL", "--max-time", "15", url,
         "-H", "Content-Type: application/json",
         "-H", f"Authorization: Bearer {API_KEY}",
         "-d", payload,
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=130)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
         if result.returncode != 0:
-            print(f"    ⚠️ curl exit {result.returncode}: {result.stderr[:200]}", file=sys.stderr)
+            print(f"    ⚠️ trends submit failed: curl exit {result.returncode}", file=sys.stderr)
             return None
-        return json.loads(result.stdout)
-    except json.JSONDecodeError as e:
-        print(f"    ⚠️ JSON parse failed: {e}", file=sys.stderr)
-        return None
-    except subprocess.TimeoutExpired:
-        print(f"    ⚠️ curl timed out", file=sys.stderr)
-        return None
+        resp = json.loads(result.stdout)
+        
+        # Cache hit — return immediately
+        if resp.get("results") is not None:
+            print(f"    📦 trends cache hit", flush=True)
+            return resp
+        
+        # Async — need to poll
+        job_id = resp.get("jobId")
+        if not job_id:
+            print(f"    ⚠️ no jobId in response: {result.stdout[:200]}", file=sys.stderr)
+            return None
+        
+        print(f"    ⏳ trends async jobId={job_id[:8]}...", flush=True)
+        
     except Exception as e:
-        print(f"    ⚠️ Trends API failed: {e}", file=sys.stderr)
+        print(f"    ⚠️ trends submit failed: {e}", file=sys.stderr)
         return None
+    
+    # Step 2: Poll for results
+    poll_interval = 10  # start at 10s
+    max_intervals = max_wait // poll_interval
+    for attempt in range(max_intervals):
+        time.sleep(poll_interval)
+        
+        status_url = f"{API_URL}/api/research/trends/status?jobId={job_id}"
+        poll_cmd = [
+            "curl", "-sL", "--max-time", "15", status_url,
+            "-H", f"Authorization: Bearer {API_KEY}",
+        ]
+        try:
+            poll_result = subprocess.run(poll_cmd, capture_output=True, text=True, timeout=20)
+            if poll_result.returncode != 0:
+                continue
+            poll_resp = json.loads(poll_result.stdout)
+            
+            if poll_resp.get("status") == "complete":
+                return poll_resp
+            elif poll_resp.get("status") == "processing":
+                progress = poll_resp.get("progress", "")
+                if attempt % 3 == 0:  # print every ~30s
+                    print(f"    ⏳ trends polling... {progress}", flush=True)
+                continue
+            elif poll_resp.get("status") == "failed":
+                print(f"    ❌ trends job failed: {poll_resp.get('error', 'unknown')}", file=sys.stderr)
+                return None
+            else:
+                # Might be cached result returned directly
+                if poll_resp.get("results") is not None:
+                    return poll_resp
+                continue
+        except Exception:
+            continue
+    
+    print(f"    ⚠️ trends polling timed out after {max_wait}s", file=sys.stderr)
+    return None
 
 
 def save_result(keyword, source_site, ratio, slope, verdict, status="done",

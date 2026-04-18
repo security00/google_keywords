@@ -5,7 +5,7 @@ import { randomUUID } from "crypto";
 import { d1Query } from "@/lib/d1";
 
 export type JobStatus = "pending" | "processing" | "complete" | "failed";
-export type JobType = "expand" | "compare" | "intent";
+export type JobType = "expand" | "compare" | "intent" | "trends";
 
 export type ResearchJob = {
   id: string;
