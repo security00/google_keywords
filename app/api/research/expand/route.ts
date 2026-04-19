@@ -66,11 +66,25 @@ const getLatestSharedExpandResult = async (params: {
   const today = new Date().toISOString().slice(0, 10);
   const prefix = `${today}:expand_result:`;
   const suffix = `dateFrom=${params.dateFrom},dateTo=${params.dateTo}`;
-  const { rows } = await d1Query<{
-    response_data: string;
-    cache_key: string;
-    created_at: string;
-  }>(
+  // Try trimmed version first (lightweight, avoids CPU timeout)
+  const { rows: trimRows } = await d1Query<{ response_data: string; cache_key: string; created_at: string }>(
+    `SELECT response_data, cache_key, created_at
+     FROM query_cache
+     WHERE substr(cache_key, 1, ?) = ? AND cache_key LIKE '%:_trimmed'
+     ORDER BY created_at DESC
+     LIMIT 5`,
+    [prefix.length, prefix]
+  );
+  for (const row of trimRows) {
+    try {
+      const resp = JSON.parse(row.response_data) as ExpandResponse;
+      if (Array.isArray(resp.flatList) && resp.flatList.length > 0) {
+        return { response: resp, cacheKey: row.cache_key, createdAt: row.created_at };
+      }
+    } catch { /* skip */ }
+  }
+  // Fall back to full version
+  const { rows } = await d1Query<{ response_data: string; cache_key: string; created_at: string }>(
     `SELECT response_data, cache_key, created_at
      FROM query_cache
      WHERE substr(cache_key, 1, ?) = ?
@@ -92,6 +106,32 @@ const getLatestSharedExpandResult = async (params: {
 };
 
 const getLatestSuccessfulSharedExpandResult = async (keywords: string[]) => {
+  // Try trimmed versions first
+  const { rows: trimRows } = await d1Query<{
+    response_data: string;
+    cache_key: string;
+    created_at: string;
+  }>(
+    `SELECT response_data, cache_key, created_at
+     FROM query_cache
+     WHERE cache_key LIKE '%:expand_result:%:_trimmed'
+     ORDER BY created_at DESC
+     LIMIT 5`
+  );
+  const expected = toComparableKeywordList(keywords);
+  for (const row of trimRows) {
+    try {
+      const response = JSON.parse(row.response_data) as ExpandResponse;
+      const responseKeywords = Array.isArray(response.keywords) ? normalizeKeywords(response.keywords) : [];
+      const matchesKeywords =
+        responseKeywords.length === expected.length &&
+        toComparableKeywordList(responseKeywords).every((item, index) => item === expected[index]);
+      if (matchesKeywords && Array.isArray(response.flatList) && response.flatList.length > 0) {
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
+      }
+    } catch { continue; }
+  }
+  // Fall back to full versions
   const { rows } = await d1Query<{
     response_data: string;
     cache_key: string;
@@ -103,39 +143,43 @@ const getLatestSuccessfulSharedExpandResult = async (keywords: string[]) => {
      ORDER BY created_at DESC
      LIMIT 50`
   );
-  const expected = toComparableKeywordList(keywords);
-
   for (const row of rows) {
     try {
       const response = JSON.parse(row.response_data) as ExpandResponse;
-      const responseKeywords = Array.isArray(response.keywords)
-        ? normalizeKeywords(response.keywords)
-        : [];
+      const responseKeywords = Array.isArray(response.keywords) ? normalizeKeywords(response.keywords) : [];
       const matchesKeywords =
         responseKeywords.length === expected.length &&
-        toComparableKeywordList(responseKeywords).every(
-          (item, index) => item === expected[index]
-        );
-      if (
-        matchesKeywords &&
-        Array.isArray(response.flatList) &&
-        response.flatList.length > 0
-      ) {
-        return {
-          response,
-          cacheKey: row.cache_key,
-          createdAt: row.created_at,
-        };
+        toComparableKeywordList(responseKeywords).every((item, index) => item === expected[index]);
+      if (matchesKeywords && Array.isArray(response.flatList) && response.flatList.length > 0) {
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
       }
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
-
   return null;
 };
 
 const getLatestSuccessfulSharedExpandResultAny = async () => {
+  // Try trimmed versions first (much lighter, avoids Worker CPU timeout)
+  const { rows: trimRows } = await d1Query<{
+    response_data: string;
+    cache_key: string;
+    created_at: string;
+  }>(
+    `SELECT response_data, cache_key, created_at
+     FROM query_cache
+     WHERE cache_key LIKE '%:expand_result:%:_trimmed'
+     ORDER BY created_at DESC
+     LIMIT 5`
+  );
+  for (const row of trimRows) {
+    try {
+      const response = JSON.parse(row.response_data) as ExpandResponse;
+      if (Array.isArray(response.flatList) && response.flatList.length > 0) {
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
+      }
+    } catch { continue; }
+  }
+  // Fall back to full versions if no trimmed exists
   const { rows } = await d1Query<{
     response_data: string;
     cache_key: string;
@@ -147,22 +191,14 @@ const getLatestSuccessfulSharedExpandResultAny = async () => {
      ORDER BY created_at DESC
      LIMIT 50`
   );
-
   for (const row of rows) {
     try {
       const response = JSON.parse(row.response_data) as ExpandResponse;
       if (Array.isArray(response.flatList) && response.flatList.length > 0) {
-        return {
-          response,
-          cacheKey: row.cache_key,
-          createdAt: row.created_at,
-        };
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
       }
-    } catch {
-      continue;
-    }
+    } catch { continue; }
   }
-
   return null;
 };
 
