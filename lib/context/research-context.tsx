@@ -294,6 +294,31 @@ type TaskProgress = {
 export function ResearchProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
+    // Global 401 interceptor: redirect to login when session expires
+    useEffect(() => {
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            const response = await originalFetch(...args);
+            if (
+                (response.status === 401 || response.status === 403) &&
+                window.location.pathname.startsWith("/dashboard")
+            ) {
+                // Check if it's a session expiry (not just admin-only endpoint)
+                try {
+                    const cloned = response.clone();
+                    const body = await cloned.json();
+                    if (body.error === "Unauthorized" || body.error === "No session") {
+                        router.replace("/login");
+                    }
+                } catch {
+                    if (response.status === 401) router.replace("/login");
+                }
+            }
+            return response;
+        };
+        return () => { window.fetch = originalFetch; };
+    }, [router]);
+
     // --- State Variables ---
     const [keywordsText, setKeywordsText] = useState("");
     const [useCache, setUseCache] = useState(true);
