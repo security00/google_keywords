@@ -611,6 +611,24 @@ def main():
     # ── Phase 1: Sitemap discovery (find new games from all sources) ──
     sitemap_new = discover_new_from_sitemaps(args.max_sources)
 
+    # ── Phase 1b: Recent discoveries from D1 (sitemap crawl results not yet trend-checked) ──
+    recent_discoveries = []
+    if not args.dry_run:
+        rows = d1_query(
+            "SELECT d.keyword, d.source_id, COALESCE(s.name, 'unknown') as source_name "
+            "FROM discovered_keywords d "
+            "LEFT JOIN sitemap_sources s ON d.source_id = s.id "
+            "WHERE d.extracted_at >= datetime('now', '-7 days') "
+            "AND d.keyword NOT IN (SELECT keyword FROM game_keyword_pipeline) "
+            "ORDER BY d.extracted_at DESC LIMIT ?",
+            [args.max_keywords]
+        )
+        for r in rows:
+            name = r.get("keyword", "").strip()
+            if name and is_game_name_valid(name):
+                recent_discoveries.append({"name": name, "source": r.get("source_name", "sitemap")})
+        print(f"\n📋 Phase 1b: {len(recent_discoveries)} recent sitemap discoveries not yet checked", flush=True)
+
     # ── Phase 2: CrazyGames /new (latest games by publish date) ──
     crazygames_new = fetch_crazygames_new()
 
@@ -620,7 +638,7 @@ def main():
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in sitemap_new + crazygames_new + steam_new:
+    for g in sitemap_new + recent_discoveries + crazygames_new + steam_new:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
