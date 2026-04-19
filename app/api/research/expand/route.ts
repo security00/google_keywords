@@ -18,6 +18,26 @@ import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 import { createJob, getJob } from "@/lib/research-jobs";
 import { d1Query } from "@/lib/d1";
 
+const getGameKeywords = async () => {
+  try {
+    const result = await d1Query(
+      "SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict, recommendation, reason, trend_series FROM game_keyword_pipeline WHERE recommendation IS NOT NULL AND recommendation != '⏭️ skip' ORDER BY trend_ratio DESC LIMIT 20"
+    );
+    return (result?.rows || []).map((row: Record<string, unknown>) => ({
+      keyword: row.keyword,
+      sourceSite: row.source_site,
+      trendRatio: row.trend_ratio,
+      trendSlope: row.trend_slope,
+      trendVerdict: row.trend_verdict,
+      recommendation: row.recommendation,
+      reason: row.reason,
+      trendSeries: row.trend_series ? JSON.parse(row.trend_series as string) : null,
+    }));
+  } catch {
+    return [];
+  }
+};
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -329,10 +349,12 @@ export async function POST(request: Request) {
     if (useCache) {
       const sharedCachedResult = await getCached<ExpandResponse>(sharedResultCacheKey);
       if (sharedCachedResult && Array.isArray(sharedCachedResult.flatList)) {
+        const gameKws = await getGameKeywords();
         return NextResponse.json({
           status: "complete",
           ...trimExpandResponse(sharedCachedResult, responseLimit),
           fromCache: true,
+          ...(gameKws.length > 0 ? { gameKeywords: gameKws } : {}),
         });
       }
       if (isDefaultSharedKeywordRequest(keywords) || isStudent) {
@@ -344,10 +366,12 @@ export async function POST(request: Request) {
               createdAt: latestShared.createdAt,
             });
           }
+          const gameKws = await getGameKeywords();
           return NextResponse.json({
             status: "complete",
             ...trimExpandResponse(latestShared.response, responseLimit),
             fromCache: true,
+            ...(gameKws.length > 0 ? { gameKeywords: gameKws } : {}),
           });
         }
 
@@ -364,11 +388,13 @@ export async function POST(request: Request) {
                 : "student_any",
             });
           }
+          const gameKws2 = await getGameKeywords();
           return NextResponse.json({
             status: "complete",
             ...trimExpandResponse(latestSuccessfulShared.response, responseLimit),
             fromCache: true,
             cacheFallback: "latest_successful_shared_expand_result",
+            ...(gameKws2.length > 0 ? { gameKeywords: gameKws2 } : {}),
           });
         }
       }
