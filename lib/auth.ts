@@ -175,6 +175,12 @@ export const createSession = async (userId: string) => {
   const expiresAt = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   const sessionId = randomUUID();
 
+  // Single-session enforcement: delete all previous sessions for this user
+  await d1Query(
+    "DELETE FROM auth_sessions WHERE user_id = ?",
+    [userId]
+  );
+
   await d1Query(
     "INSERT INTO auth_sessions (id, user_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
     [sessionId, userId, tokenHash, now.toISOString(), expiresAt.toISOString()]
