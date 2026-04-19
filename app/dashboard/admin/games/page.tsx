@@ -101,6 +101,16 @@ export default function GameKeywordsPage() {
         </div>
       </div>
 
+      {/* Legend */}
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <span className="flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500" /> <strong>🔥 Hot</strong> — ratio ≥ 2.0，流量远超基准</span>
+          <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" /> <strong>📈 Rising</strong> — ratio ≥ 0.5 且 slope{'>'} 0，有权威站竞争</span>
+          <span className="flex items-center gap-1.5"><Target className="h-4 w-4 text-green-500" /> <strong>🎯 Niche</strong> — 低竞争机会（无/少权威站）</span>
+          <span className="flex items-center gap-1.5"><SkipForward className="h-4 w-4 text-gray-400" /> <strong>⏭️ Skip</strong> — 趋势太低或下滑，不推荐</span>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard label="总扫描" value={total} />
