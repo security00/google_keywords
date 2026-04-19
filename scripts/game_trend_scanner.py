@@ -41,7 +41,8 @@ API_KEY = os.environ.get("GK_API_KEY", "")
 CRAZYGAMES_NEW = "https://www.crazygames.com/new"
 
 TREND_BENCHMARK = "gpts"
-TREND_MONTHS = 3
+TREND_MONTHS = 0  # Use TREND_DAYS instead
+TREND_DAYS = 14  # 14-day window for NEW game discovery
 MIN_RATIO = 0.3
 MIN_SLOPE = 0.0
 BATCH_SIZE = 5  # trends API: small batches to avoid Worker CPU timeout
@@ -341,7 +342,7 @@ def call_trends_api(keywords, max_wait=180):
     url = f"{API_URL}/api/research/trends"
     payload = json.dumps({
         "keywords": keywords,
-        "months": TREND_MONTHS,
+        "days": TREND_DAYS,
         "benchmark": TREND_BENCHMARK,
     })
     
@@ -461,47 +462,42 @@ def call_serp_api(keywords):
 
 
 def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_featured=False):
-    """Classify a game keyword into a recommendation category with reason.
+    """Classify a game keyword into a recommendation category with clear reason.
     
-    Categories:
-    - 🔥 hot: High traffic (ratio >> 1), trending up, any competition
-    - 📈 rising: Moderate ratio, sustained growth, opportunity window
-    - 🎯 niche: Low competition, decent trend — easy to rank
-    - ⏭️ skip: Too low vs benchmark, no momentum
+    Uses 14-day trend data. Ratio = game search volume / GPTs benchmark.
     
     Returns: (recommendation, reason)
     """
-    parts = []
     
-    # Traffic level
+    # Build human-readable reason
     if ratio >= 2.0:
-        parts.append(f"high traffic (ratio={ratio:.1f}x)")
+        traffic_desc = f"搜索热度是GPTs的{ratio:.1f}倍，属于高流量词"
     elif ratio >= 0.5:
-        parts.append(f"moderate traffic (ratio={ratio:.1f}x)")
+        traffic_desc = f"搜索热度达到GPTs的{ratio:.0%}，有相当流量"
     elif ratio >= 0.3:
-        parts.append(f"low-moderate traffic (ratio={ratio:.1f}x)")
+        traffic_desc = f"搜索热度是GPTs的{ratio:.0%}，流量中等"
     else:
-        parts.append(f"very low traffic (ratio={ratio:.1f}x)")
+        traffic_desc = f"搜索热度仅为GPTs的{ratio:.0%}，流量偏低"
     
-    # Trend direction
     if slope > 5:
-        parts.append("strong upward trend")
+        trend_desc = "近14天搜索量急速上升"
+    elif slope > 2:
+        trend_desc = "近14天搜索量持续上升"
     elif slope > 0:
-        parts.append("rising")
+        trend_desc = "近14天搜索量小幅上升"
     elif slope > -2:
-        parts.append("flat")
+        trend_desc = "近14天搜索量平稳"
     else:
-        parts.append("declining")
+        trend_desc = "近14天搜索量在下降"
     
-    # SERP competition
     if serp_auth == 0:
-        parts.append(f"low SERP competition ({serp_organic} results, no authority sites)")
+        serp_desc = f"谷歌前10页没有权威站(如Wikipedia/IGN)，竞争低"
     elif serp_auth <= 1:
-        parts.append(f"moderate SERP competition ({serp_organic} results, {serp_auth} authority site)")
+        serp_desc = f"谷歌前10页有{serp_auth}个权威站，竞争中等"
     else:
-        parts.append(f"high SERP competition ({serp_organic} results, {serp_auth} authority sites)")
+        serp_desc = f"谷歌前10页有{serp_auth}个权威站，竞争较大"
     
-    reason = "; ".join(parts)
+    reason = f"{traffic_desc}；{trend_desc}；{serp_desc}"
     
     # Decision logic
     if ratio >= 2.0:

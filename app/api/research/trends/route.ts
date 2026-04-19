@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const keywords = Array.isArray(body?.keywords) ? body.keywords : [];
     const benchmark = typeof body?.benchmark === "string" ? body.benchmark : undefined;
+    const days = typeof body?.days === "number" && body.days >= 7 && body.days <= 90 ? body.days : undefined;
 
     if (keywords.length === 0 || keywords.length > 20) {
       return NextResponse.json(
@@ -42,7 +43,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const { dateFrom, dateTo } = resolveComparisonDateRange();
+    const today = new Date();
+    const dateTo = today.toISOString().slice(0, 10);
+    const fromDate = new Date(today);
+    fromDate.setDate(fromDate.getDate() - (days || 90));
+    const dateFrom = fromDate.toISOString().slice(0, 10);
 
     // Check cache — if hit, return immediately (backward compatible!)
     const cacheKey = buildCacheKey("trends", keywords, { dateFrom, dateTo, benchmark: benchmark ?? "gpts" });
