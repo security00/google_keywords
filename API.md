@@ -493,7 +493,7 @@ POST /api/admin/invite-codes
 {
   "codes": [
     {
-      "code": "SK-C3A6-279C",
+      "code": "SK-XXXX-XXXX",
       "maxUses": 1,
       "currentUses": 0,
       "expiresAt": "2026-07-09T00:00:00.000Z"
@@ -522,7 +522,7 @@ DELETE /api/admin/invite-codes
 
 ```json
 {
-  "code": "SK-C3A6-279C"
+  "code": "SK-XXXX-XXXX"
 }
 ```
 
