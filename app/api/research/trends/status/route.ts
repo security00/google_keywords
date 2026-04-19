@@ -73,6 +73,7 @@ export async function GET(request: Request) {
       verdict: r.verdict,
       avgValue: r.avgValue,
       benchmarkValue: r.benchmarkValue,
+      series: r.series,
     }));
 
     // Cache results

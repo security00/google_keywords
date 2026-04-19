@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Loader2, Key, Users, Activity } from "lucide-react";
+import { Loader2, Key, Users, Activity, Gamepad2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,7 @@ function Navigation() {
     { href: "/dashboard/admin/health", label: "系统健康", icon: Activity, active: pathname.includes("/admin/health") },
     { href: "/dashboard/admin/codes", label: "邀请码管理", icon: Key, active: pathname.includes("/admin/codes") },
     { href: "/dashboard/admin/users", label: "用户管理", icon: Users, active: pathname.includes("/admin/users") },
+    { href: "/dashboard/admin/games", label: "新游发现", icon: Gamepad2, active: pathname.includes("/admin/games") },
   ];
 
   const isAdmin = (user as { role?: string } | null)?.role === "admin";

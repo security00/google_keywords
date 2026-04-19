@@ -22,6 +22,7 @@
     "pg": "^8.17.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "recharts": "^3.8.1",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

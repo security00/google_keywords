@@ -417,17 +417,18 @@ def call_trends_api(keywords, max_wait=180):
 
 def save_result(keyword, source_site, ratio, slope, verdict, status="done",
                serp_organic=0, serp_auth=0, serp_featured=0,
-               recommendation=None, reason=None):
+               recommendation=None, reason=None, trend_series=None):
     """Save trend result to D1 with SERP and recommendation data."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    series_json = json.dumps(trend_series) if trend_series else None
     return d1_execute(
         """INSERT OR REPLACE INTO game_keyword_pipeline 
            (keyword, source_site, trend_ratio, trend_slope, trend_verdict,
             trend_checked_at, status, serp_organic, serp_auth, serp_featured,
-            recommendation, reason)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            recommendation, reason, trend_series)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [keyword, source_site, ratio, slope, verdict, now, status,
-         serp_organic, serp_auth, serp_featured, recommendation, reason]
+         serp_organic, serp_auth, serp_featured, recommendation, reason, series_json]
     )
 
 
@@ -671,15 +672,20 @@ def main():
             results.append({
                 "keyword": kw, "source": source,
                 "ratio": ratio, "slope": slope, "verdict": verdict,
+                "series": r.get("series"),
             })
 
             print(f"  📊 {kw}: ratio={ratio:.3f}, slope={slope:.3f}, verdict={verdict}", flush=True)
+
+            # Extract trend series for charting
+            series = r.get("series")  # {timestamps, values, benchmarkValues}
 
             # Save initial trends data (SERP pending)
             if not args.dry_run:
                 rec, reason = classify_keyword(ratio, slope, verdict)
                 save_result(kw, source, ratio, slope, verdict,
-                           status="serp_pending", recommendation=rec, reason=reason)
+                           status="serp_pending", recommendation=rec, reason=reason,
+                           trend_series=series)
 
         if i + BATCH_SIZE < len(to_check):
             time.sleep(1)
@@ -747,7 +753,8 @@ def main():
                 r["keyword"], r["source"], ratio, slope, verdict,
                 status=status, serp_organic=organic, serp_auth=auth,
                 serp_featured=1 if featured else 0,
-                recommendation=rec, reason=reason
+                recommendation=rec, reason=reason,
+                trend_series=r.get("series")
             )
 
     recommended = [r for r in results if r.get("recommendation") != "⏭️ skip"]
