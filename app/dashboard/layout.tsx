@@ -43,7 +43,11 @@ function Navigation() {
 
           <nav className="flex items-center gap-1">
             {/* 研究菜单 - 所有人都能看到 */}
-            {studentSteps.map((step) => (
+            {studentSteps.filter(step => {
+              // 管理员有自己的新游发现页(/admin/games)，不重复显示学员版
+              if (isAdmin && step.href === "/dashboard/games") return false;
+              return true;
+            }).map((step) => (
               <Link
                 key={step.href}
                 href={step.href}
