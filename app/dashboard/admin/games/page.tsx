@@ -65,7 +65,8 @@ export default function GameKeywordsPage() {
       setTotal(d.total || 0);
       setTotalPages(d.totalPages || 1);
       // Default: expand all rows
-      setExpandedKeys(new Set((d.items || []).map((i: GameKeyword) => i.keyword)));
+      const items = d.items || [];
+      setExpandedKeys(new Set(items.length > 0 ? [items[0].keyword] : []));
     } catch {
       console.error("load failed");
     } finally {
