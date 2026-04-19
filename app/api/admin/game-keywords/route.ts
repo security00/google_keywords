@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
 import { requireAdmin } from "@/lib/admin";
+import { getAuthUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
+    // Accept: admin session, API key auth, or any logged-in user
     const admin = await requireAdmin();
     if (admin.error) {
-      // Fallback: accept API key via Authorization header (for skill integration)
+      // Fallback 1: API key via Authorization header
       const authHeader = request.headers.get("authorization") || "";
       const token = authHeader.replace(/^Bearer\s+/i, "");
       if (!token || !/gk_live_[0-9a-f]{32,64}/.test(token)) {
-        return NextResponse.json({ error: admin.error }, { status: 403 });
+        // Fallback 2: any logged-in user (student)
+        const user = await getAuthUser();
+        if (!user) {
+          return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
       }
     }
 

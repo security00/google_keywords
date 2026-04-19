@@ -14,9 +14,10 @@ function Navigation() {
 
   // 学员菜单
   const studentSteps = [
-    { href: "/dashboard/expand", label: "1. 词根扩展", active: pathname.includes("/expand") },
+    { href: "/dashboard/expand", label: "1. 词根扩展", active: pathname.includes("/expand") && !pathname.includes("/expand/") },
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
+    { href: "/dashboard/games", label: "🎮 新游发现", icon: Gamepad2, active: pathname === "/dashboard/games" },
     { href: "/dashboard/settings", label: "设置", active: pathname.includes("/settings") },
   ];
 
@@ -47,10 +48,11 @@ function Navigation() {
                 key={step.href}
                 href={step.href}
                 className={cn(
-                  "relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
+                  "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
                   step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
                 )}
               >
+                {step.icon && <step.icon className="h-4 w-4" />}
                 {step.label}
               </Link>
             ))}
