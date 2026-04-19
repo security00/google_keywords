@@ -44,11 +44,11 @@ export default function GameKeywordsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [filter, setFilter] = useState<"all" | "recommended">("recommended");
   const [loading, setLoading] = useState(true);
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setPage(1);
-    setExpandedKey(null);
+    setExpandedKeys(new Set());
   }, [filter]);
 
   useEffect(() => {
@@ -64,6 +64,8 @@ export default function GameKeywordsPage() {
       setItems(d.items || []);
       setTotal(d.total || 0);
       setTotalPages(d.totalPages || 1);
+      // Default: expand all rows
+      setExpandedKeys(new Set((d.items || []).map((i: GameKeyword) => i.keyword)));
     } catch {
       console.error("load failed");
     } finally {
@@ -146,8 +148,8 @@ export default function GameKeywordsPage() {
                 <GameRow
                   key={item.keyword + item.source_site}
                   item={item}
-                  expanded={expandedKey === item.keyword}
-                  onToggle={() => setExpandedKey(expandedKey === item.keyword ? null : item.keyword)}
+                  expanded={expandedKeys.has(item.keyword)}
+                  onToggle={() => setExpandedKeys(prev => { const next = new Set(prev); next.has(item.keyword) ? next.delete(item.keyword) : next.add(item.keyword); return next })}
                 />
               ))}
               {filter === "all" && skipped.length > 0 && (
@@ -162,8 +164,8 @@ export default function GameKeywordsPage() {
                       key={item.keyword + item.source_site}
                       item={item}
                       dimmed
-                      expanded={expandedKey === item.keyword}
-                      onToggle={() => setExpandedKey(expandedKey === item.keyword ? null : item.keyword)}
+                      expanded={expandedKeys.has(item.keyword)}
+                      onToggle={() => setExpandedKeys(prev => { const next = new Set(prev); next.has(item.keyword) ? next.delete(item.keyword) : next.add(item.keyword); return next })}
                     />
                   ))}
                 </>
