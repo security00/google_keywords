@@ -79,107 +79,16 @@ const isDefaultSharedKeywordRequest = (keywords: string[]) => {
   return left.every((item, index) => item === right[index]);
 };
 
-const getLatestSharedExpandResult = async (params: {
-  dateFrom: string;
-  dateTo: string;
-}) => {
-  const today = new Date().toISOString().slice(0, 10);
-  const prefix = `${today}:expand_result:`;
-  const suffix = `dateFrom=${params.dateFrom},dateTo=${params.dateTo}`;
-  // Try trimmed version first (lightweight, avoids CPU timeout)
-  const { rows: trimRows } = await d1Query<{ response_data: string; cache_key: string; created_at: string }>(
-    `SELECT response_data, cache_key, created_at
-     FROM query_cache
-     WHERE substr(cache_key, 1, ?) = ? AND cache_key LIKE '%:_trimmed'
-     ORDER BY created_at DESC
-     LIMIT 5`,
-    [prefix.length, prefix]
-  );
-  for (const row of trimRows) {
-    try {
-      const resp = JSON.parse(row.response_data) as ExpandResponse;
-      if (Array.isArray(resp.flatList) && resp.flatList.length > 0) {
-        return { response: resp, cacheKey: row.cache_key, createdAt: row.created_at };
-      }
-    } catch { /* skip */ }
-  }
-  // Fall back to full version
-  const { rows } = await d1Query<{ response_data: string; cache_key: string; created_at: string }>(
-    `SELECT response_data, cache_key, created_at
-     FROM query_cache
-     WHERE substr(cache_key, 1, ?) = ?
-     ORDER BY created_at DESC
-     LIMIT 20`,
-    [prefix.length, prefix]
-  );
-  const row = rows.find((candidate) => candidate.cache_key.endsWith(suffix));
-  if (!row) return null;
-  try {
-    return {
-      response: JSON.parse(row.response_data) as ExpandResponse,
-      cacheKey: row.cache_key,
-      createdAt: row.created_at,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const getLatestSuccessfulSharedExpandResult = async (keywords: string[]) => {
-  // Try trimmed versions first
-  const { rows: trimRows } = await d1Query<{
-    response_data: string;
-    cache_key: string;
-    created_at: string;
-  }>(
-    `SELECT response_data, cache_key, created_at
-     FROM query_cache
-     WHERE cache_key LIKE '%:expand_result:%:_trimmed'
-     ORDER BY created_at DESC
-     LIMIT 5`
-  );
+/**
+ * Unified fallback: find a recent successful expand_result from cache.
+ * Strategy: trimmed (lightweight) first, then full. Covers last 7 days.
+ * 1. Keyword-exact match (for default seed keyword requests)
+ * 2. Any available result (for custom keyword requests)
+ */
+const findCachedExpandFallback = async (keywords: string[]) => {
   const expected = toComparableKeywordList(keywords);
-  for (const row of trimRows) {
-    try {
-      const response = JSON.parse(row.response_data) as ExpandResponse;
-      const responseKeywords = Array.isArray(response.keywords) ? normalizeKeywords(response.keywords) : [];
-      const matchesKeywords =
-        responseKeywords.length === expected.length &&
-        toComparableKeywordList(responseKeywords).every((item, index) => item === expected[index]);
-      if (matchesKeywords && Array.isArray(response.flatList) && response.flatList.length > 0) {
-        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
-      }
-    } catch { continue; }
-  }
-  // Fall back to full versions
-  const { rows } = await d1Query<{
-    response_data: string;
-    cache_key: string;
-    created_at: string;
-  }>(
-    `SELECT response_data, cache_key, created_at
-     FROM query_cache
-     WHERE instr(cache_key, ':expand_result:') > 0
-     ORDER BY created_at DESC
-     LIMIT 50`
-  );
-  for (const row of rows) {
-    try {
-      const response = JSON.parse(row.response_data) as ExpandResponse;
-      const responseKeywords = Array.isArray(response.keywords) ? normalizeKeywords(response.keywords) : [];
-      const matchesKeywords =
-        responseKeywords.length === expected.length &&
-        toComparableKeywordList(responseKeywords).every((item, index) => item === expected[index]);
-      if (matchesKeywords && Array.isArray(response.flatList) && response.flatList.length > 0) {
-        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
-      }
-    } catch { continue; }
-  }
-  return null;
-};
 
-const getLatestSuccessfulSharedExpandResultAny = async () => {
-  // Try trimmed versions first (much lighter, avoids Worker CPU timeout)
+  // Phase 1: search trimmed versions (lightweight, ~150KB each)
   const { rows: trimRows } = await d1Query<{
     response_data: string;
     cache_key: string;
@@ -189,36 +98,69 @@ const getLatestSuccessfulSharedExpandResultAny = async () => {
      FROM query_cache
      WHERE cache_key LIKE '%:expand_result:%:_trimmed'
      ORDER BY created_at DESC
-     LIMIT 5`
+     LIMIT 10`
   );
+
+  // Try keyword-exact match first
+  for (const row of trimRows) {
+    try {
+      const response = JSON.parse(row.response_data) as ExpandResponse;
+      if (!Array.isArray(response.flatList) || response.flatList.length === 0) continue;
+      const responseKeywords = Array.isArray(response.keywords) ? normalizeKeywords(response.keywords) : [];
+      const comparable = toComparableKeywordList(responseKeywords);
+      if (comparable.length === expected.length && comparable.every((item, i) => item === expected[i])) {
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at, mode: "keyword_exact" as const };
+      }
+    } catch { continue; }
+  }
+
+  // Any trimmed result
   for (const row of trimRows) {
     try {
       const response = JSON.parse(row.response_data) as ExpandResponse;
       if (Array.isArray(response.flatList) && response.flatList.length > 0) {
-        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at, mode: "any_trimmed" as const };
       }
     } catch { continue; }
   }
-  // Fall back to full versions if no trimmed exists
-  const { rows } = await d1Query<{
+
+  // Phase 2: fall back to full versions (heavier, but better than nothing)
+  // Use a small limit to avoid Worker CPU timeout
+  const { rows: fullRows } = await d1Query<{
     response_data: string;
     cache_key: string;
     created_at: string;
   }>(
     `SELECT response_data, cache_key, created_at
      FROM query_cache
-     WHERE instr(cache_key, ':expand_result:') > 0
+     WHERE cache_key LIKE '%:expand_result:%' AND cache_key NOT LIKE '%:_trimmed'
      ORDER BY created_at DESC
-     LIMIT 50`
+     LIMIT 5`
   );
-  for (const row of rows) {
+
+  for (const row of fullRows) {
     try {
       const response = JSON.parse(row.response_data) as ExpandResponse;
-      if (Array.isArray(response.flatList) && response.flatList.length > 0) {
-        return { response, cacheKey: row.cache_key, createdAt: row.created_at };
+      if (!Array.isArray(response.flatList) || response.flatList.length === 0) continue;
+      // For full rows, only return if small enough (avoid CPU timeout)
+      if (row.response_data.length > 200_000) continue;
+      const responseKeywords = Array.isArray(response.keywords) ? normalizeKeywords(response.keywords) : [];
+      const comparable = toComparableKeywordList(responseKeywords);
+      if (comparable.length === expected.length && comparable.every((item, i) => item === expected[i])) {
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at, mode: "keyword_exact_full" as const };
       }
     } catch { continue; }
   }
+
+  for (const row of fullRows) {
+    try {
+      const response = JSON.parse(row.response_data) as ExpandResponse;
+      if (Array.isArray(response.flatList) && response.flatList.length > 0 && row.response_data.length <= 200_000) {
+        return { response, cacheKey: row.cache_key, createdAt: row.created_at, mode: "any_full" as const };
+      }
+    } catch { continue; }
+  }
+
   return null;
 };
 
@@ -357,44 +299,24 @@ export async function POST(request: Request) {
           ...(gameKws.length > 0 ? { gameKeywords: gameKws } : {}),
         });
       }
+      // Unified fallback: find any recent successful expand result
       if (isDefaultSharedKeywordRequest(keywords) || isStudent) {
-        const latestShared = await getLatestSharedExpandResult({ dateFrom, dateTo });
-        if (latestShared?.response && Array.isArray(latestShared.response.flatList)) {
+        const fallback = await findCachedExpandFallback(keywords);
+        if (fallback) {
           if (debug) {
-            console.log("[api/expand] latest shared result fallback hit", {
-              cacheKey: latestShared.cacheKey,
-              createdAt: latestShared.createdAt,
+            console.log("[api/expand] fallback hit", {
+              mode: fallback.mode,
+              cacheKey: fallback.cacheKey,
+              createdAt: fallback.createdAt,
             });
           }
           const gameKws = await getGameKeywords();
           return NextResponse.json({
             status: "complete",
-            ...trimExpandResponse(latestShared.response, responseLimit),
+            ...trimExpandResponse(fallback.response, responseLimit),
             fromCache: true,
+            cacheFallback: `fallback_${fallback.mode}`,
             ...(gameKws.length > 0 ? { gameKeywords: gameKws } : {}),
-          });
-        }
-
-        const latestSuccessfulShared = isDefaultSharedKeywordRequest(keywords)
-          ? await getLatestSuccessfulSharedExpandResult(keywords)
-          : await getLatestSuccessfulSharedExpandResultAny();
-        if (latestSuccessfulShared?.response && Array.isArray(latestSuccessfulShared.response.flatList)) {
-          if (debug) {
-            console.log("[api/expand] latest successful shared result fallback hit", {
-              cacheKey: latestSuccessfulShared.cacheKey,
-              createdAt: latestSuccessfulShared.createdAt,
-              fallbackMode: isDefaultSharedKeywordRequest(keywords)
-                ? "keyword_match"
-                : "student_any",
-            });
-          }
-          const gameKws2 = await getGameKeywords();
-          return NextResponse.json({
-            status: "complete",
-            ...trimExpandResponse(latestSuccessfulShared.response, responseLimit),
-            fromCache: true,
-            cacheFallback: "latest_successful_shared_expand_result",
-            ...(gameKws2.length > 0 ? { gameKeywords: gameKws2 } : {}),
           });
         }
       }

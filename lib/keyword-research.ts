@@ -1,6 +1,4 @@
-﻿import crypto from "crypto";
-import path from "path";
-import { promises as fs } from "fs";
+import crypto from "crypto";
 
 import type {
   Candidate,
@@ -40,11 +38,6 @@ const MAX_WAIT_MS = (() => {
 const REQUEST_TIMEOUT_MS = 30_000;
 const OPENROUTER_REQUEST_TIMEOUT_MS = 60_000;
 
-const CACHE_DIR = path.join(
-  process.cwd(),
-  ".data",
-  "keyword-research-cache"
-);
 
 const RECENT_POINTS = 7;
 const RECENT_TAIL_POINTS = 3;
@@ -803,10 +796,9 @@ const getTimezoneDateParts = (date: Date, timeZone: string) => {
 
 const formatUtcDate = (date: Date) => date.toISOString().slice(0, 10);
 
-export const getDateRange = (days = 7) => {
+// @internal used by resolveDateRange
+const getDateRange = (days = 7) => {
   const now = new Date();
-  // DataForSEO trends rejects the current UTC day while it is still in progress.
-  // Use the most recent completed UTC day as the upper bound.
   const utcToday = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   );
@@ -1526,83 +1518,7 @@ const getCacheExpiryHours = () => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_CACHE_EXPIRY_HOURS;
 };
 
-const getCacheFilename = (
-  keywords: string[],
-  dateFrom: string,
-  dateTo: string,
-  cacheKey = ""
-) => {
-  const normalized = [...keywords].map((kw) => kw.toLowerCase()).sort().join("|");
-  const keyMaterial = `${dateFrom}:${dateTo}:${normalized}:${cacheKey}`;
-  const hash = crypto.createHash("sha256").update(keyMaterial).digest("hex");
-  const dateStamp = dateTo.replace(/-/g, "");
-  return path.join(CACHE_DIR, `cache_${dateStamp}_${hash.slice(0, 12)}.json`);
-};
-
-type CachePayload = {
-  timestamp: string;
-  keywords: string[];
-  dateFrom: string;
-  dateTo: string;
-  candidates: Candidate[];
-  filterSummary?: FilterSummary;
-  filteredOut?: Candidate[];
-};
-
-export const loadCache = async (
-  keywords: string[],
-  dateFrom: string,
-  dateTo: string,
-  cacheKey = ""
-): Promise<CachePayload | null> => {
-  await fs.mkdir(CACHE_DIR, { recursive: true });
-  const cacheFile = getCacheFilename(keywords, dateFrom, dateTo, cacheKey);
-
-  try {
-    const raw = await fs.readFile(cacheFile, "utf-8");
-    const data = JSON.parse(raw) as CachePayload;
-
-    const expiryHours = getCacheExpiryHours();
-    const cachedAt = new Date(data.timestamp);
-    const expiresAt = new Date(Date.now() - expiryHours * 60 * 60 * 1000);
-
-    if (cachedAt > expiresAt) {
-      return data;
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.warn("Cache read failed", error);
-    }
-  }
-
-  return null;
-};
-
-export const saveCache = async (
-  keywords: string[],
-  dateFrom: string,
-  dateTo: string,
-  candidates: Candidate[],
-  filterSummary?: FilterSummary,
-  filteredOut?: Candidate[],
-  cacheKey = ""
-) => {
-  await fs.mkdir(CACHE_DIR, { recursive: true });
-  const cacheFile = getCacheFilename(keywords, dateFrom, dateTo, cacheKey);
-
-  const payload: CachePayload = {
-    timestamp: new Date().toISOString(),
-    keywords,
-    dateFrom,
-    dateTo,
-    candidates,
-    filterSummary,
-    filteredOut,
-  };
-
-  await fs.writeFile(cacheFile, JSON.stringify(payload, null, 2));
-  return cacheFile;
-};
+// File cache removed — Workers don't have filesystem. Use D1 cache via lib/cache.ts.
 
 export const submitExpansionTasks = async (
   keywords: string[],
