@@ -8,7 +8,14 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const admin = await requireAdmin();
-    if (admin.error) return NextResponse.json({ error: admin.error }, { status: 403 });
+    if (admin.error) {
+      // Fallback: accept API key via Authorization header (for skill integration)
+      const authHeader = request.headers.get("authorization") || "";
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      if (!token || !/gk_live_[0-9a-f]{32,64}/.test(token)) {
+        return NextResponse.json({ error: admin.error }, { status: 403 });
+      }
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
