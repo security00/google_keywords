@@ -18,6 +18,7 @@ function Navigation() {
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
     { href: "/dashboard/games", label: "🎮 新游发现", icon: Gamepad2, active: pathname === "/dashboard/games" },
+    { href: "/dashboard/old-keywords", label: "🔍 老词推荐", icon: Search, active: pathname === "/dashboard/old-keywords" },
     { href: "/dashboard/settings", label: "设置", active: pathname.includes("/settings") },
   ];
 
@@ -45,8 +46,8 @@ function Navigation() {
           <nav className="flex items-center gap-1">
             {/* 研究菜单 - 所有人都能看到 */}
             {studentSteps.filter(step => {
-              // 管理员有自己的新游发现页(/admin/games)，不重复显示学员版
-              if (isAdmin && step.href === "/dashboard/games") return false;
+              // 管理员有自己的新游发现页(/admin/games)和老词页(/admin/old-keywords)，不重复显示学员版
+              if (isAdmin && (step.href === "/dashboard/games" || step.href === "/dashboard/old-keywords")) return false;
               return true;
             }).map((step) => (
               <Link
