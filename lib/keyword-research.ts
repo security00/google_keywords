@@ -4,6 +4,7 @@ import type {
   Candidate,
   OrganizedCandidates,
   ComparisonResult,
+  DecayRisk,
   FilterSummary,
   ComparisonExplanation,
   ComparisonSeries,
@@ -583,6 +584,26 @@ const buildFreshnessSignal = ({
   };
 };
 
+/**
+ * Compute decay risk from a time series.
+ * Compares the tail (last 3 points) against the head (everything before).
+ * - tail < 50% of head → high
+ * - tail < 80% of head → medium
+ * - otherwise → low
+ */
+const computeDecayRisk = (values: number[]): DecayRisk => {
+  if (values.length < 4) return "low"; // not enough data
+  const tail = values.slice(-3);
+  const head = values.slice(0, -3);
+  const tailAvg = positiveMean(tail);
+  const headAvg = positiveMean(head);
+  if (headAvg <= 0) return "low";
+  const ratio = tailAvg / headAvg;
+  if (ratio < 0.5) return "high";
+  if (ratio < 0.8) return "medium";
+  return "low";
+};
+
 export const addFreshnessToComparisonResults = (
   results: ComparisonResult[]
 ): ComparisonResult[] =>
@@ -621,7 +642,17 @@ export const addFreshnessToComparisonResults = (
         ? "watch"
         : item.verdict;
 
-    return { ...item, verdict, freshness };
+    // Pre-compute decayRisk for downstream use
+    const decayRisk = item.series?.values?.length
+      ? computeDecayRisk(item.series.values)
+      : undefined;
+
+    // Downgrade verdict if high decay risk
+    const finalVerdict = decayRisk === "high" && verdict !== "watch" && verdict !== "fail"
+      ? "close" as const
+      : verdict;
+
+    return { ...item, verdict: finalVerdict, freshness, decayRisk };
   });
 
 const buildVerdictExplanation = ({

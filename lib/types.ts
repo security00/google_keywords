@@ -5,6 +5,29 @@ export type AuthUser = {
   email: string;
 };
 
+export type ComparisonVerdict =
+  | "strong"
+  | "pass"
+  | "close"
+  | "watch"
+  | "fail";
+
+export type ComparisonFreshnessStatus =
+  | "new"
+  | "old_hot"
+  | "stable_old"
+  | "unclear";
+
+export type ComparisonFreshness = {
+  status: ComparisonFreshnessStatus;
+  label: string;
+  window: "7d" | "30d" | "90d" | "none";
+  score: number;
+  reason: string;
+};
+
+export type DecayRisk = "low" | "medium" | "high";
+
 export type Candidate = {
   keyword: string;
   value: number;
@@ -13,6 +36,8 @@ export type Candidate = {
   isNew?: boolean;
   score?: number;
   confidence?: number;
+  freshness?: ComparisonFreshness;
+  decayRisk?: DecayRisk;
 };
 
 export type OrganizedCandidates = {
@@ -21,13 +46,6 @@ export type OrganizedCandidates = {
   steadyRising: Candidate[];
   slowRising: Candidate[];
 };
-
-export type ComparisonVerdict =
-  | "strong"
-  | "pass"
-  | "close"
-  | "watch"
-  | "fail";
 
 export type ComparisonSeries = {
   timestamps: string[];
@@ -64,20 +82,6 @@ export type ComparisonIntent = {
   confidence?: number;
 };
 
-export type ComparisonFreshnessStatus =
-  | "new"
-  | "old_hot"
-  | "stable_old"
-  | "unclear";
-
-export type ComparisonFreshness = {
-  status: ComparisonFreshnessStatus;
-  label: string;
-  window: "7d" | "30d" | "90d" | "none";
-  score: number;
-  reason: string;
-};
-
 export type ComparisonResult = {
   keyword: string;
   avgValue: number;
@@ -97,6 +101,7 @@ export type ComparisonResult = {
   explanation?: ComparisonExplanation;
   intent?: ComparisonIntent;
   freshness?: ComparisonFreshness;
+  decayRisk?: DecayRisk;
 };
 
 export type FilterSummary = {

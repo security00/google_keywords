@@ -78,7 +78,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <button onClick={() => router.push("/admin/users")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <button onClick={() => router.push("/dashboard/admin/users")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> 返回用户列表
       </button>
 
