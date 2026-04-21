@@ -309,7 +309,8 @@ const buildPostbackUrl = (
   if (!postbackUrl || !cacheKey) return undefined;
 
   const separator = postbackUrl.includes("?") ? "&" : "?";
-  return `${postbackUrl}${separator}type=${apiType}&cache_key=${encodeURIComponent(cacheKey)}`;
+  // Use $tag variable: DataForSEO replaces $tag with the task's tag value
+  return `${postbackUrl}${separator}type=${apiType}&cache_key=$tag`;
 };
 
 const normalizeDate = (value: string) => value.trim();
@@ -1569,6 +1570,7 @@ export const submitExpansionTasks = async (
       date_to: normalizeDate(dateTo),
       type: "web",
       item_types: ["google_trends_queries_list"],
+      ...(options?.cacheKey ? { tag: options.cacheKey } : {}),
       ...(postback ? { postback_url: postback } : {}),
     }));
 
@@ -2246,6 +2248,7 @@ export const submitComparisonTasks = async (
       date_from: normalizeDate(dateFrom),
       date_to: normalizeDate(dateTo),
       type: "web",
+      ...(options?.cacheKey ? { tag: options.cacheKey } : {}),
       ...(postback ? { postback_url: postback } : {}),
     }));
 
