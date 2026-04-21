@@ -195,7 +195,7 @@ def main():
     print(f"\n📊 Total: {len(all_keywords)} | Filtered: {len(filtered)} | Errors: {errors}", file=sys.stderr)
 
     # Fetch 12-month trend series for top 20 keywords
-    TRENDS_TOP_N = int(os.environ.get("GK_OLD_WORD_TRENDS_TOP", "20"))
+    TRENDS_TOP_N = int(os.environ.get("GK_OLD_WORD_TRENDS_TOP", "50"))
     if filtered and TRENDS_TOP_N > 0:
         print(f"\n📈 Fetching 12m trends for top {TRENDS_TOP_N}...", file=sys.stderr)
         for idx, item in enumerate(filtered[:TRENDS_TOP_N], start=1):

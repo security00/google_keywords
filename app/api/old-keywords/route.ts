@@ -19,27 +19,25 @@ export async function GET(req: NextRequest) {
 
   const userId = auth.userId!;
 
-  // Read all scored keywords from D1
-  const { rows } = await d1Query<Record<string, unknown>>(
+  // Read keywords that have trend data first, then fill from rest
+  const { rows: withTrend } = await d1Query<Record<string, unknown>>(
     `SELECT keyword, volume, cpc, kd, competition, intent, score, trend_series
      FROM old_keyword_opportunities
+     WHERE trend_series IS NOT NULL AND cpc > 0
      ORDER BY score DESC
      LIMIT 200`
   );
 
-  if (rows.length === 0) {
+  const hash = simpleHash(userId);
+  const count = Math.min(3, withTrend.length);
+  if (count === 0) {
     return NextResponse.json({ keywords: [], message: "暂无老词数据，等待后台管线运行" });
   }
 
-  // Deterministic pick: use userId hash to select a rotating subset of 3
-  const hash = simpleHash(userId);
-  const count = Math.min(3, rows.length);
-  const picked: typeof rows = [];
-
-  // Use hash to skip through rows and pick non-adjacent ones
+  const picked: typeof withTrend = [];
   for (let i = 0; i < count; i++) {
-    const idx = (hash + i * 7) % rows.length; // spread picks
-    picked.push(rows[idx]);
+    const idx = (hash + i * 7) % withTrend.length;
+    picked.push(withTrend[idx]);
   }
 
   // Format for student: hide internal fields
