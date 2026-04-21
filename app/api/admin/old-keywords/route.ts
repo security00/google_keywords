@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
+import { requireAdmin } from "@/lib/admin";
 
-function checkAuth(request: Request): boolean {
+async function checkAuth(request: Request): Promise<boolean> {
+  // Cron secret
   const cronSecret = request.headers.get("x-cron-secret");
   if (cronSecret && cronSecret === process.env.CRON_SECRET) return true;
 
+  // API key
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const apiKey = authHeader.slice(7).trim();
     if (apiKey.startsWith("gk_live_")) return true;
   }
 
-  return false;
+  // Cookie session (browser admin)
+  const { error } = await requireAdmin();
+  return !error;
 }
 
 export async function POST(request: Request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -33,8 +38,8 @@ export async function POST(request: Request) {
     try {
       await d1Query(
         `INSERT OR REPLACE INTO old_keyword_opportunities
-         (keyword, source_seed, volume, cpc, kd, competition, intent, toolable, score, scan_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (keyword, source_seed, volume, cpc, kd, competition, intent, toolable, score, scan_date, trend_series)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           String(kw.keyword || ""),
           String(kw.source_seed || ""),
@@ -46,6 +51,7 @@ export async function POST(request: Request) {
           Boolean(kw.toolable) ? 1 : 0,
           Number(kw.score || 0),
           today,
+          kw.trend_series || null,
         ]
       );
       saved++;
@@ -58,7 +64,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (!checkAuth(request)) {
+  if (!(await checkAuth(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -67,7 +73,7 @@ export async function GET(request: Request) {
   const minScore = parseInt(url.searchParams.get("minScore") || "0");
 
   const { rows } = await d1Query<Record<string, unknown>>(
-    `SELECT keyword, source_seed, volume, cpc, kd, competition, intent, toolable, score, scan_date
+    `SELECT keyword, source_seed, volume, cpc, kd, competition, intent, toolable, score, scan_date, trend_series
      FROM old_keyword_opportunities
      WHERE score >= ?
      ORDER BY score DESC

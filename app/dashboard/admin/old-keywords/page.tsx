@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 
 type OldKeyword = {
   keyword: string;
@@ -13,22 +16,58 @@ type OldKeyword = {
   toolable: number;
   score: number;
   scan_date: string;
+  trend_series: string | null;
 };
+
+const PAGE_SIZE = 20;
+
+function parseSeries(raw: string | null): Array<{ date: string; value: number }> {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.map((p: { date?: string; value?: number }) => ({
+      date: (p.date || "").slice(5, 10), // "MM-DD"
+      value: Number(p.value || 0),
+    }));
+  } catch { return []; }
+}
+
+function TrendChart({ series }: { series: Array<{ date: string; value: number }> }) {
+  if (series.length === 0) return <span className="text-xs text-muted-foreground">无趋势数据</span>;
+  return (
+    <div className="w-full h-[180px] mt-2">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={series} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+          <YAxis tick={{ fontSize: 11 }} width={30} />
+          <Tooltip />
+          <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 export default function OldKeywordsPage() {
   const [keywords, setKeywords] = useState<OldKeyword[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [minScore, setMinScore] = useState(0);
+  const [page, setPage] = useState(1);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
 
   const fetchKeywords = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/admin/old-keywords?limit=200&minScore=${minScore}`);
+      const res = await fetch(`/api/admin/old-keywords?limit=500&minScore=${minScore}`);
       if (!res.ok) throw new Error("加载失败");
       const data = await res.json();
       setKeywords(data.keywords || []);
+      setPage(1);
+      setExpandedIdx(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "未知错误");
     } finally {
@@ -37,6 +76,9 @@ export default function OldKeywordsPage() {
   }, [minScore]);
 
   useEffect(() => { fetchKeywords(); }, [fetchKeywords]);
+
+  const totalPages = Math.ceil(keywords.length / PAGE_SIZE);
+  const pageKeywords = keywords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const kdColor = (kd: number) => {
     if (kd <= 15) return "text-green-600 dark:text-green-400";
@@ -56,7 +98,7 @@ export default function OldKeywordsPage() {
         <div>
           <h1 className="text-2xl font-bold">🔍 老词挖掘</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            从已有搜索量中找低竞争机会词（keyword_suggestions API）
+            从已有搜索量中找低竞争机会词 · 按机会评分降序 · 点击行展开趋势图
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -91,38 +133,91 @@ export default function OldKeywordsPage() {
             {keywords[0]?.scan_date && <span>扫描日期: {keywords[0].scan_date}</span>}
           </div>
 
-          <div className="overflow-x-auto border rounded-lg">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">#</th>
-                  <th className="px-3 py-2 text-left font-medium">关键词</th>
-                  <th className="px-3 py-2 text-right font-medium">月搜索量</th>
-                  <th className="px-3 py-2 text-right font-medium">CPC</th>
-                  <th className="px-3 py-2 text-right font-medium">KD</th>
-                  <th className="px-3 py-2 text-center font-medium">竞争</th>
-                  <th className="px-3 py-2 text-center font-medium">意图</th>
-                  <th className="px-3 py-2 text-right font-medium">评分</th>
-                  <th className="px-3 py-2 text-left font-medium">来源种子</th>
-                </tr>
-              </thead>
-              <tbody>
-                {keywords.map((kw, idx) => (
-                  <tr key={kw.keyword} className="border-t hover:bg-muted/30">
-                    <td className="px-3 py-2 text-muted-foreground">{idx + 1}</td>
-                    <td className="px-3 py-2 font-medium">{kw.keyword}</td>
-                    <td className="px-3 py-2 text-right">{kw.volume.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right">${kw.cpc.toFixed(2)}</td>
-                    <td className={`px-3 py-2 text-right font-medium ${kdColor(kw.kd)}`}>{kw.kd}</td>
-                    <td className="px-3 py-2 text-center">{compBadge(kw.competition)}</td>
-                    <td className="px-3 py-2 text-center text-xs text-muted-foreground">{kw.intent}</td>
-                    <td className="px-3 py-2 text-right font-bold text-indigo-600 dark:text-indigo-400">{kw.score.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-muted-foreground text-xs">{kw.source_seed}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {pageKeywords.map((kw, idx) => {
+              const globalIdx = (page - 1) * PAGE_SIZE + idx;
+              const isExpanded = expandedIdx === globalIdx;
+              const series = useMemo(() => parseSeries(kw.trend_series), [kw.trend_series]);
+              return (
+                <div key={kw.keyword} className="border rounded-lg overflow-hidden">
+                  <div
+                    className="grid grid-cols-[40px_1fr_90px_70px_50px_70px_70px_80px] items-center px-3 py-2.5 cursor-pointer hover:bg-muted/30 text-sm"
+                    onClick={() => setExpandedIdx(isExpanded ? null : globalIdx)}
+                  >
+                    <span className="text-muted-foreground">{globalIdx + 1}</span>
+                    <span className="font-medium truncate">{kw.keyword}</span>
+                    <span className="text-right">{kw.volume.toLocaleString()}</span>
+                    <span className="text-right">${kw.cpc.toFixed(2)}</span>
+                    <span className={`text-right font-medium ${kdColor(kw.kd)}`}>{kw.kd}</span>
+                    <span className="text-center">{compBadge(kw.competition)}</span>
+                    <span className="text-center text-xs text-muted-foreground">{kw.intent}</span>
+                    <span className="text-right font-bold text-indigo-600 dark:text-indigo-400">{kw.score.toLocaleString()}</span>
+                  </div>
+                  {isExpanded && (
+                    <div className="px-4 pb-3 pt-1 border-t bg-muted/10">
+                      <div className="flex gap-4 text-xs text-muted-foreground mb-1">
+                        <span>来源: {kw.source_seed}</span>
+                        <span>月搜索量: {kw.volume.toLocaleString()}</span>
+                        <span>CPC: ${kw.cpc.toFixed(2)}</span>
+                        <span>KD: {kw.kd}</span>
+                      </div>
+                      <TrendChart series={series} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
+
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-center gap-1">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="px-2.5 py-1.5 text-sm rounded-md border border-border disabled:opacity-30 hover:bg-muted transition-colors"
+              >
+                首页
+              </button>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-2.5 py-1.5 text-sm rounded-md border border-border disabled:opacity-30 hover:bg-muted transition-colors"
+              >
+                ‹
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .map((p, i, arr) => (
+                  <span key={p} className="contents">
+                    {i > 0 && arr[i - 1] !== p - 1 && <span className="px-1 text-muted-foreground">...</span>}
+                    <button
+                      onClick={() => setPage(p)}
+                      className={`w-8 h-8 text-sm rounded-md transition-colors ${
+                        p === page
+                          ? "bg-indigo-600 text-white"
+                          : "border border-border hover:bg-muted"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                ))}
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-2.5 py-1.5 text-sm rounded-md border border-border disabled:opacity-30 hover:bg-muted transition-colors"
+              >
+                ›
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="px-2.5 py-1.5 text-sm rounded-md border border-border disabled:opacity-30 hover:bg-muted transition-colors"
+              >
+                末页
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

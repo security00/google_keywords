@@ -193,6 +193,24 @@ def main():
 
     print(f"\n📊 Total: {len(all_keywords)} | Filtered: {len(filtered)} | Errors: {errors}", file=sys.stderr)
 
+    # Fetch 12-month trend series for top 20 keywords
+    TRENDS_TOP_N = int(os.environ.get("GK_OLD_WORD_TRENDS_TOP", "20"))
+    if filtered and TRENDS_TOP_N > 0:
+        print(f"\n📈 Fetching 12m trends for top {TRENDS_TOP_N}...", file=sys.stderr)
+        for idx, item in enumerate(filtered[:TRENDS_TOP_N], start=1):
+            kw = item['keyword']
+            print(f"  [{idx}/{min(TRENDS_TOP_N, len(filtered))}] {kw}", end=" ", file=sys.stderr)
+            try:
+                resp = curl_json("POST", "/api/research/trends-quick",
+                               {"keyword": kw, "months": 12}, timeout=30)
+                series = resp.get("series", [])
+                item["trend_series"] = json.dumps(series) if series else None
+                print(f"→ {len(series)} points", file=sys.stderr)
+            except Exception as e:
+                item["trend_series"] = None
+                print(f"✗ {e}", file=sys.stderr)
+            time.sleep(0.5)
+
     # Save to D1
     if filtered:
         try:
