@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 
 type OldKeyword = {
@@ -21,31 +21,112 @@ type OldKeyword = {
 
 const PAGE_SIZE = 20;
 
-function parseSeries(raw: string | null): Array<{ date: string; value: number }> {
-  if (!raw) return [];
+function parseSeries(raw: string | null): {
+  keyword: Array<{ date: string; value: number }>;
+  benchmark: Array<{ date: string; value: number }>;
+} {
+  if (!raw) return { keyword: [], benchmark: [] };
   try {
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr.map((p: { date?: string; value?: number }) => ({
-      date: (p.date || "").slice(5, 10), // "MM-DD"
-      value: Number(p.value || 0),
-    }));
-  } catch { return []; }
+    const parsed = JSON.parse(raw);
+    // New format: { keyword: [...], benchmark: [...] }
+    if (parsed.keyword && Array.isArray(parsed.keyword)) {
+      return {
+        keyword: parsed.keyword.map((p: { date?: string; value?: number }) => ({
+          date: (p.date || "").slice(5, 10),
+          value: Number(p.value || 0),
+        })),
+        benchmark: (parsed.benchmark || []).map((p: { date?: string; value?: number }) => ({
+          date: (p.date || "").slice(5, 10),
+          value: Number(p.value || 0),
+        })),
+      };
+    }
+    // Legacy format: plain array
+    if (Array.isArray(parsed)) {
+      return {
+        keyword: parsed.map((p: { date?: string; value?: number }) => ({
+          date: (p.date || "").slice(5, 10),
+          value: Number(p.value || 0),
+        })),
+        benchmark: [],
+      };
+    }
+    return { keyword: [], benchmark: [] };
+  } catch { return { keyword: [], benchmark: [] }; }
 }
 
-function TrendChart({ series }: { series: Array<{ date: string; value: number }> }) {
-  if (series.length === 0) return <span className="text-xs text-muted-foreground">无趋势数据</span>;
+function TrendChart({ data }: { data: ReturnType<typeof parseSeries> }) {
+  const { keyword, benchmark } = data;
+  if (keyword.length === 0) return <span className="text-xs text-muted-foreground">无趋势数据</span>;
+  // Merge by date for dual-line chart
+  const dateMap = new Map<string, { date: string; kw: number; bm: number }>();
+  for (const p of keyword) dateMap.set(p.date, { date: p.date, kw: p.value, bm: 0 });
+  for (const p of benchmark) {
+    const entry = dateMap.get(p.date);
+    if (entry) entry.bm = p.value;
+  }
+  const chartData = Array.from(dateMap.values());
   return (
     <div className="w-full h-[180px] mt-2">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={series} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+        <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
           <XAxis dataKey="date" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} width={30} />
           <Tooltip />
-          <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} dot={false} />
+          <Legend />
+          <Line type="monotone" dataKey="kw" name="关键词" stroke="#6366f1" strokeWidth={2} dot={false} />
+          {benchmark.length > 0 && (
+            <Line type="monotone" dataKey="bm" name="Benchmark (gpts)" stroke="#f59e0b" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
+          )}
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+function kdColor(kd: number) {
+  if (kd <= 15) return "text-green-600 dark:text-green-400";
+  if (kd <= 35) return "text-yellow-600 dark:text-yellow-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function compBadge(comp: string) {
+  if (comp === "LOW") return <span className="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">LOW</span>;
+  if (comp === "MEDIUM") return <span className="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">MEDIUM</span>;
+  return <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">{comp || "-"}</span>;
+}
+
+function KeywordRow({ kw, globalIdx, isExpanded, onToggle }: {
+  kw: OldKeyword; globalIdx: number; isExpanded: boolean; onToggle: () => void;
+}) {
+  const data = useMemo(() => parseSeries(kw.trend_series), [kw.trend_series]);
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div
+        className="grid grid-cols-[40px_1fr_90px_70px_50px_70px_70px_80px] items-center px-3 py-2.5 cursor-pointer hover:bg-muted/30 text-sm gap-1"
+        onClick={onToggle}
+      >
+        <span className="text-muted-foreground">{globalIdx + 1}</span>
+        <span className="font-medium truncate">{kw.keyword}</span>
+        <span className="text-right">{kw.volume.toLocaleString()}</span>
+        <span className="text-right">${kw.cpc.toFixed(2)}</span>
+        <span className={`text-right font-medium ${kdColor(kw.kd)}`}>{kw.kd}</span>
+        <span className="text-center">{compBadge(kw.competition)}</span>
+        <span className="text-center text-xs text-muted-foreground">{kw.intent}</span>
+        <span className="text-right font-bold text-indigo-600 dark:text-indigo-400">{kw.score.toLocaleString()}</span>
+      </div>
+      {isExpanded && (
+        <div className="px-4 pb-3 pt-1 border-t bg-muted/10">
+          <div className="flex gap-4 text-xs text-muted-foreground mb-1">
+            <span>来源: {kw.source_seed}</span>
+            <span>月搜索量: {kw.volume.toLocaleString()}</span>
+            <span>CPC: ${kw.cpc.toFixed(2)}</span>
+            <span>KD: {kw.kd}</span>
+          </div>
+          <TrendChart data={data} />
+        </div>
+      )}
     </div>
   );
 }
@@ -79,18 +160,6 @@ export default function OldKeywordsPage() {
 
   const totalPages = Math.ceil(keywords.length / PAGE_SIZE);
   const pageKeywords = keywords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const kdColor = (kd: number) => {
-    if (kd <= 15) return "text-green-600 dark:text-green-400";
-    if (kd <= 35) return "text-yellow-600 dark:text-yellow-400";
-    return "text-red-600 dark:text-red-400";
-  };
-
-  const compBadge = (comp: string) => {
-    if (comp === "LOW") return <span className="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">LOW</span>;
-    if (comp === "MEDIUM") return <span className="px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">MEDIUM</span>;
-    return <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">{comp || "-"}</span>;
-  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -136,35 +205,14 @@ export default function OldKeywordsPage() {
           <div className="space-y-2">
             {pageKeywords.map((kw, idx) => {
               const globalIdx = (page - 1) * PAGE_SIZE + idx;
-              const isExpanded = expandedIdx === globalIdx;
-              const series = useMemo(() => parseSeries(kw.trend_series), [kw.trend_series]);
               return (
-                <div key={kw.keyword} className="border rounded-lg overflow-hidden">
-                  <div
-                    className="grid grid-cols-[40px_1fr_90px_70px_50px_70px_70px_80px] items-center px-3 py-2.5 cursor-pointer hover:bg-muted/30 text-sm"
-                    onClick={() => setExpandedIdx(isExpanded ? null : globalIdx)}
-                  >
-                    <span className="text-muted-foreground">{globalIdx + 1}</span>
-                    <span className="font-medium truncate">{kw.keyword}</span>
-                    <span className="text-right">{kw.volume.toLocaleString()}</span>
-                    <span className="text-right">${kw.cpc.toFixed(2)}</span>
-                    <span className={`text-right font-medium ${kdColor(kw.kd)}`}>{kw.kd}</span>
-                    <span className="text-center">{compBadge(kw.competition)}</span>
-                    <span className="text-center text-xs text-muted-foreground">{kw.intent}</span>
-                    <span className="text-right font-bold text-indigo-600 dark:text-indigo-400">{kw.score.toLocaleString()}</span>
-                  </div>
-                  {isExpanded && (
-                    <div className="px-4 pb-3 pt-1 border-t bg-muted/10">
-                      <div className="flex gap-4 text-xs text-muted-foreground mb-1">
-                        <span>来源: {kw.source_seed}</span>
-                        <span>月搜索量: {kw.volume.toLocaleString()}</span>
-                        <span>CPC: ${kw.cpc.toFixed(2)}</span>
-                        <span>KD: {kw.kd}</span>
-                      </div>
-                      <TrendChart series={series} />
-                    </div>
-                  )}
-                </div>
+                <KeywordRow
+                  key={kw.keyword}
+                  kw={kw}
+                  globalIdx={globalIdx}
+                  isExpanded={expandedIdx === globalIdx}
+                  onToggle={() => setExpandedIdx(expandedIdx === globalIdx ? null : globalIdx)}
+                />
               );
             })}
           </div>

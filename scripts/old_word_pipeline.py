@@ -204,8 +204,14 @@ def main():
                 resp = curl_json("POST", "/api/research/trends-quick",
                                {"keyword": kw, "months": 12}, timeout=30)
                 series = resp.get("series", [])
-                item["trend_series"] = json.dumps(series) if series else None
-                print(f"→ {len(series)} points", file=sys.stderr)
+                bm_series = resp.get("benchmarkSeries", [])
+                # Merge into single structure for frontend
+                if series:
+                    merged = {"keyword": series, "benchmark": bm_series}
+                    item["trend_series"] = json.dumps(merged)
+                else:
+                    item["trend_series"] = None
+                print(f"→ {len(series)} pts (bm: {len(bm_series)})", file=sys.stderr)
             except Exception as e:
                 item["trend_series"] = None
                 print(f"✗ {e}", file=sys.stderr)

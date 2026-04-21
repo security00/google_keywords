@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { keyword, months = 12 } = body;
+  const { keyword, months = 12, benchmark = "gpts" } = body;
 
   if (!keyword || typeof keyword !== "string") {
     return NextResponse.json({ error: "keyword required" }, { status: 400 });
@@ -44,11 +44,12 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify([{
-        keywords: [keyword],
+        keywords: [keyword, benchmark],
         location_code: 2840,
         language_code: "en",
-        time_range: `past_${months}_months`,
-        item_types: ["google_trends_graph"],
+        date_from: new Date(Date.now() - months * 30 * 86400000).toISOString().slice(0, 10),
+        date_to: new Date().toISOString().slice(0, 10),
+        type: "web",
       }]),
     });
 
@@ -59,24 +60,46 @@ export async function POST(request: Request) {
 
     const data = await response.json();
 
-    // Extract trend series
-    const series: Array<{ date: string; value: number }> = [];
+    // DEBUG: capture raw structure for first item
+    let debugRaw: string | null = null;
+
+    // Build keyword-indexed data
+    // DataForSEO returns one item per keyword position
+    const keywordSeries: Array<{ date: string; value: number }> = [];
+    const benchmarkSeries: Array<{ date: string; value: number }> = [];
     for (const task of data.tasks || []) {
       for (const result of task.result || []) {
         for (const item of result.items || []) {
           if (item.type !== "google_trends_graph") continue;
+          const kwIdx = (item.keywords as string[])?.indexOf(keyword) ?? -1;
+          const bmIdx = (item.keywords as string[])?.indexOf(benchmark) ?? -1;
           const points = item.data || [];
+          if (!debugRaw && points.length > 0) {
+            debugRaw = JSON.stringify(points[0]);
+          }
           for (const point of points) {
             const date = point.date_from || point.date || "";
-            const value = typeof point.value === "number" ? point.value :
-                          (point.value?.value ?? 0);
-            if (date) series.push({ date: date.slice(0, 10), value: Number(value) });
+            if (!date) continue;
+            const ds = date.slice(0, 10);
+            const vals = point.values as number[];
+            if (kwIdx >= 0 && vals && vals.length > kwIdx) {
+              keywordSeries.push({ date: ds, value: vals[kwIdx] });
+            }
+            if (bmIdx >= 0 && vals && vals.length > bmIdx) {
+              benchmarkSeries.push({ date: ds, value: vals[bmIdx] });
+            }
           }
         }
       }
     }
 
-    return NextResponse.json({ keyword, months, points: series.length, series });
+    return NextResponse.json({
+      keyword, benchmark, months,
+      points: keywordSeries.length,
+      series: keywordSeries,
+      benchmarkSeries,
+      _debug: debugRaw,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `Trends fetch failed: ${msg}` }, { status: 502 });
