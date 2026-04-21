@@ -758,4 +758,26 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
+        msg = f"⚔️ 预计算失败告警\n\n时间: {time.strftime('%Y-%m-%d %H:%M UTC')}\n错误: {exc}\n\n```\n{tb[-500:]}```"
+        print(f"❌ FATAL: {exc}\n{tb}", file=sys.stderr)
+        # Send Telegram alert
+        tg_token = os.environ.get("TG_ALERT_TOKEN", "")
+        tg_chat = os.environ.get("TG_ALERT_CHAT", "")
+        if tg_token and tg_chat:
+            try:
+                urllib.request.urlopen(
+                    urllib.request.Request(
+                        f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                        data=json.dumps({"chat_id": tg_chat, "text": msg, "parse_mode": "Markdown"}).encode(),
+                        headers={"Content-Type": "application/json"},
+                    ),
+                    timeout=10,
+                )
+            except Exception:
+                pass
+        sys.exit(1)
