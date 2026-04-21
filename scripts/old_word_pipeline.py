@@ -185,6 +185,7 @@ def main():
         item for item in all_keywords.values()
         if item["intent"] in ("transactional", "commercial")
         and item.get("volume", 0) >= MIN_VOLUME
+        and item.get("cpc", 0) > 0
         and item.get("kd", 0) <= MAX_KD
         and item.get("competition", "") in ("LOW", "MEDIUM", "")
         and item["toolable"]

@@ -156,10 +156,6 @@ export default function OldKeywordsPage() {
           </div>
         ))}
       </div>
-
-      <p className="text-xs text-muted-foreground text-center mt-6">
-        每位学员看到的机会词不同 · 数据每周更新 · 点击卡片可查看趋势图
-      </p>
     </div>
   );
 }
