@@ -173,15 +173,14 @@ export const buildRecommendedSelection = (
     const allPicked = Array.from(picked);
 
     // Per-user personalization: pick a deterministic subset based on userId
-    if (userId && allPicked.length > 20) {
+    if (userId && allPicked.length > 2) {
         let h = 0;
         for (let i = 0; i < userId.length; i++) {
             h = ((h << 5) - h + userId.charCodeAt(i)) | 0;
         }
         h = Math.abs(h);
-        const perUserLimit = 20;
         const result: string[] = [];
-        for (let i = 0; i < perUserLimit && i < allPicked.length; i++) {
+        for (let i = 0; i < 2 && i < allPicked.length; i++) {
             result.push(allPicked[(h + i * 7) % allPicked.length]);
         }
         return result;
