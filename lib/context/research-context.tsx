@@ -118,7 +118,8 @@ export const organizeCandidates = (candidates: ExpandResponse["candidates"]) => 
 
 export const buildRecommendedSelection = (
     expandData: Pick<ExpandResponse, "organized" | "flatList"> | null,
-    limit = RECOMMENDED_COMPARE_LIMIT
+    limit = RECOMMENDED_COMPARE_LIMIT,
+    userId?: string | null
 ) => {
     if (!expandData) return [];
 
@@ -169,7 +170,24 @@ export const buildRecommendedSelection = (
         );
     }
 
-    return Array.from(picked);
+    const allPicked = Array.from(picked);
+
+    // Per-user personalization: pick a deterministic subset based on userId
+    if (userId && allPicked.length > 20) {
+        let h = 0;
+        for (let i = 0; i < userId.length; i++) {
+            h = ((h << 5) - h + userId.charCodeAt(i)) | 0;
+        }
+        h = Math.abs(h);
+        const perUserLimit = 20;
+        const result: string[] = [];
+        for (let i = 0; i < perUserLimit && i < allPicked.length; i++) {
+            result.push(allPicked[(h + i * 7) % allPicked.length]);
+        }
+        return result;
+    }
+
+    return allPicked;
 };
 
 const DEFAULT_SUMMARY: CompareResponse["summary"] = {
@@ -330,6 +348,17 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     const [expandData, setExpandData] = useState<ExpandResponse | null>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [compareData, setCompareData] = useState<CompareResponse | null>(null);
+    const [userId, setUserId] = useState<string | null>(null);
+
+    // Fetch userId for personalization
+    useEffect(() => {
+        fetch("/api/auth/session")
+            .then((r) => r.json())
+            .then((d) => {
+                if (d.user?.id) setUserId(d.user.id);
+            })
+            .catch(() => {});
+    }, []);
 
     const [loadingExpand, setLoadingExpand] = useState(false);
     const [loadingCompare, setLoadingCompare] = useState(false);
@@ -448,7 +477,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         };
 
         setExpandData(sessionData);
-        setSelected(new Set(buildRecommendedSelection(sessionData)));
+        setSelected(new Set(buildRecommendedSelection(sessionData, undefined, userId)));
         setSessionId(restoredSessionId);
 
         const comparison = isRecord(payload.comparison) ? payload.comparison : null;
@@ -665,7 +694,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 }
 
                 setExpandData(completedPayload);
-                setSelected(new Set(buildRecommendedSelection(completedPayload)));
+                setSelected(new Set(buildRecommendedSelection(completedPayload, undefined, userId)));
                 setSessionId(completedPayload.sessionId ?? null);
 
                 pushLog("success", "扩展请求完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
@@ -674,7 +703,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
             }
 
             setExpandData(payload as ExpandResponse);
-            setSelected(new Set(buildRecommendedSelection(payload as ExpandResponse)));
+            setSelected(new Set(buildRecommendedSelection(payload as ExpandResponse, undefined, userId)));
             setSessionId((payload as ExpandResponse).sessionId ?? null);
 
             pushLog("success", "扩展请求完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
@@ -787,7 +816,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
 
     const selectRecommended = () => {
         if (!expandData) return;
-        setSelected(new Set(buildRecommendedSelection(expandData)));
+        setSelected(new Set(buildRecommendedSelection(expandData, undefined, userId)));
     };
 
     const clearSelection = () => setSelected(new Set());
