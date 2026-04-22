@@ -526,6 +526,10 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
         elif hist_vs_bench >= 2.0 and surge < 1.2:
             is_established = True
             reason += f"；⚠️ 前期vs_bench={hist_vs_bench:.1f}x且近期未明显起势(surge={surge:.1f}x)"
+        # Criterion 4: declining or flat — even moderate keywords declining are not new opportunities
+        elif surge < 1.0:
+            is_established = True
+            reason += f"；⚠️ 近15天搜索量低于前75天(surge={surge:.1f}x)，非起势词"
         
         if is_established:
             # Exception: if surge is very strong (>2x), it's a re-surge of an old game
@@ -773,7 +777,6 @@ def main():
             if not hist_job_id and hist_data.get("status") == "complete":
                 hist_results = hist_data.get("results", [])
             elif hist_job_id:
-                import time
                 for attempt in range(60):
                     time.sleep(3)
                     poll_cmd = ["curl", "-sL", "--max-time", "15",
