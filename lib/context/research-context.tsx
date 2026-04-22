@@ -354,7 +354,13 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         fetch("/api/auth/session")
             .then((r) => r.json())
             .then((d) => {
-                if (d.user?.id) setUserId(d.user.id);
+                if (d.user?.id) {
+                    setUserId(d.user.id);
+                    // Re-apply personalization if data already loaded
+                    if (expandData) {
+                        setSelected(new Set(buildRecommendedSelection(expandData, undefined, d.user.id)));
+                    }
+                }
             })
             .catch(() => {});
     }, []);
