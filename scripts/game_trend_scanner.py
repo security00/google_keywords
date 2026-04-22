@@ -2,9 +2,10 @@
 """
 Game Trend Scanner — 从所有 sitemap 源发现新游戏，对比 GPTS 趋势，存入 D1。
 
-两种发现模式并行：
+三种发现模式并行：
 1. CrazyGames /new 页面 — 通过 __NEXT_DATA__ JSON 获取最新上架游戏（~70个/页）
-2. Steam API new_releases — 获取最新免费游戏
+2. Poki /new 页面 — 获取最新上架游戏
+3. Addicting Games /new-games — 获取最新上架游戏
 
 流程：
 1. 从 CrazyGames /new + Steam new_releases 收集新游戏名
@@ -260,44 +261,95 @@ def discover_new_from_sitemaps(max_sources=5):
     return all_new_keywords
 
 
-# ─── CrazyGames /new Page (special source) ───────────────────────────
+# ─── Poki /new Page ─────────────────────────────────────────────
 
-def fetch_steam_new_releases():
-    """Fetch new releases from Steam API (no auth needed)."""
-    print("\n🎮 Phase 2: Steam New Releases", flush=True)
-
-    url = "https://store.steampowered.com/api/featuredcategories"
+def fetch_poki_new():
+    """Fetch new games from Poki /new page."""
+    print("\n🎮 Phase 1b: Poki /new", flush=True)
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(
+            "https://poki.com/en/new",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
         with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read())
+            html = resp.read().decode("utf-8", errors="ignore")
 
-        nr = data.get("new_releases", [])
-        # new_releases is a dict: {id: str, items: [...]}
-        if isinstance(nr, dict) and "items" in nr:
-            nr = nr["items"]
-        elif isinstance(nr, list) and len(nr) >= 3 and isinstance(nr[2], list):
-            nr = nr[2]  # [cat_id, cat_name, items]
+        # Extract game titles from the new games section (skip popular section)
+        # The new games are in <ul class="Wz4fsOmhQR4bEYpqHqhc"> after the popular section
+        # We use JSON-LD which has the first 20 new games
+        import re as _re
+        ld_match = _re.search(r'"mainEntity".*?"itemListElement":\[(.*?)\]', html)
+        if not ld_match:
+            # Fallback: extract from summaryTile__title after the first <ul>
+            titles = _re.findall(r'class="summaryTile__title[^"]*">([^<]+)</span>', html)
+            # Skip first ~12 which are "Popular this week"
+            titles = titles[12:] if len(titles) > 12 else titles
+            games = [{"name": t.strip(), "source": "poki"} for t in titles if is_game_name_valid(t.strip())]
+        else:
+            import json as _json
+            items_str = "[" + ld_match.group(1) + "]"
+            items = _json.loads(items_str)
+            games = [{"name": item["name"], "source": "poki"} for item in items if is_game_name_valid(item["name"])]
+
+        # Deduplicate
+        seen = set()
+        unique = []
+        for g in games:
+            key = g["name"].lower()
+            if key not in seen:
+                seen.add(key)
+                unique.append(g)
+
+        print(f"  Found {len(unique)} new Poki games", flush=True)
+        return unique
+    except Exception as e:
+        print(f"  ❌ Poki fetch failed: {e}", flush=True)
+        return []
+
+
+# ─── Addicting Games /new-games ──────────────────────────────────────
+
+def fetch_addicting_games_new():
+    """Fetch new games from Addicting Games /new-games page."""
+    print("\n🎮 Phase 1c: Addicting Games /new-games", flush=True)
+    try:
+        req = urllib.request.Request(
+            "https://www.addictinggames.com/new-games",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        import re as _re
+        match = _re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html)
+        if not match:
+            print("  ❌ No __NEXT_DATA__ found on Addicting Games", flush=True)
+            return []
+
+        data = json.loads(match.group(1))
+        raw_games = data["props"]["pageProps"]["games"]
 
         games = []
-        for item in nr:
-            if not isinstance(item, dict):
-                continue
-            name = item.get("name", "").strip()
-            # Filter: skip adult/NSFW games
-            if any(x in name.lower() for x in ["hentai", "🔞", "nsfw", "18+"]):
-                continue
-            # Only free games (paid games are not suitable for quick site building)
-            price = item.get("original_price")
-            if price is not None and price > 0:
-                continue  # Skip paid games
-            if is_game_name_valid(name):
-                games.append({"name": name, "source": "steam", "steam_id": item.get("id")})
+        for g in raw_games:
+            title = g.get("title", "").strip()
+            published = g.get("published", "")
+            # Only include games from the last 14 days
+            if published:
+                try:
+                    from datetime import datetime, timezone
+                    pub_date = datetime.fromisoformat(published.replace("+00:00", "+00:00"))
+                    days_ago = (datetime.now(timezone.utc) - pub_date).days
+                    if days_ago > 14:
+                        continue
+                except:
+                    pass
+            if is_game_name_valid(title):
+                games.append({"name": title, "source": "addictinggames"})
 
-        print(f"  Found {len(games)} new Steam releases (free only)", flush=True)
+        print(f"  Found {len(games)} new Addicting Games (last 14 days)", flush=True)
         return games
     except Exception as e:
-        print(f"  ❌ Steam fetch failed: {e}", flush=True)
+        print(f"  ❌ Addicting Games fetch failed: {e}", flush=True)
         return []
 
 
@@ -693,19 +745,22 @@ def main():
     # ── Phase 1: CrazyGames /new (latest games by publish date) ──
     crazygames_new = fetch_crazygames_new()
 
-    # ── Phase 1b: Steam New Releases (free only) ──
-    steam_new = fetch_steam_new_releases()
+    # ── Phase 1b: Poki new games ──
+    poki_new = fetch_poki_new()
+
+    # ── Phase 1c: Addicting Games new releases ──
+    ag_new = fetch_addicting_games_new()
 
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in crazygames_new + steam_new:
+    for g in crazygames_new + poki_new + ag_new:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
             all_games.append(g)
 
-    print(f"\n📋 Combined: {len(all_games)} unique new games (CrazyGames + Steam free)", flush=True)
+    print(f"\n📋 Combined: {len(all_games)} unique new games (CrazyGames + Poki + Addicting Games)", flush=True)
 
     # ── Filter out already trend-checked ──
     pipeline_names = {r["keyword"].lower() for r in d1_query(
@@ -927,7 +982,7 @@ def main():
     
     print(f"\n{'='*60}")
     print(f"📊 SUMMARY — {ts}")
-    print(f"   Data source: CrazyGames /new + Steam free")
+    print(f"   Data source: CrazyGames /new + Poki /new + Addicting Games")
     print(f"   Total new games found: {len(all_games)}")
     print(f"   Trend-checked: {len(results)}")
     print(f"   🔥 Hot:     {len(categorized['🔥 hot'])}")
