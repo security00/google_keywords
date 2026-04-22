@@ -77,7 +77,6 @@ export const submitSerpTasks = async (
   for (const batch of batches) {
     const payload = batch.map((keyword) => ({
       ...buildSerpTask(keyword),
-      ...(options?.cacheKey ? { tag: options.cacheKey } : {}),
       ...(postback ? { postback_url: postback } : {}),
     }));
     const result = await requestWithRetry("post", SERP_TASK_POST_URL, {

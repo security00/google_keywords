@@ -266,7 +266,6 @@ export const submitExpansionTasks = async (
       date_to: normalizeDate(dateTo),
       type: "web",
       item_types: ["google_trends_queries_list"],
-      ...(options?.cacheKey ? { tag: options.cacheKey } : {}),
       ...(postback ? { postback_url: postback } : {}),
     }));
 

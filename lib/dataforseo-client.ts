@@ -379,7 +379,8 @@ export const buildPostbackUrl = (
   if (!postbackUrl || !cacheKey) return undefined;
 
   const separator = postbackUrl.includes("?") ? "&" : "?";
-  return `${postbackUrl}${separator}type=${apiType}&cache_key=$tag`;
+  const encoded = encodeURIComponent(cacheKey);
+  return `${postbackUrl}${separator}type=${apiType}&cache_key=${encoded}`;
 };
 
 export const normalizeDate = (value: string) => value.trim();

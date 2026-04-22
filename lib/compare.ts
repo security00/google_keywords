@@ -601,7 +601,6 @@ export const submitComparisonTasks = async (
       date_from: normalizeDate(dateFrom),
       date_to: normalizeDate(dateTo),
       type: "web",
-      ...(options?.cacheKey ? { tag: options.cacheKey } : {}),
       ...(postback ? { postback_url: postback } : {}),
     }));
 
