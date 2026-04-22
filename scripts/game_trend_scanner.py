@@ -755,8 +755,8 @@ def main():
             time.sleep(1)
 
     # ── Phase 3.5: Historical baseline check (90-day) ──
-    # For keywords with ratio >= 0.5, check if they were already established before the 14-day window
-    hist_candidates = [r for r in results if r.get("ratio", 0) >= 0.5]
+    # For keywords with ratio >= 0.3, check if they were already established before the 14-day window
+    hist_candidates = [r for r in results if r.get("ratio", 0) >= 0.3]
     hist_baseline = {}
     
     if hist_candidates:
@@ -775,10 +775,11 @@ def main():
             hist_job_id = hist_data.get("jobId")
             
             hist_results = None
+            timed_out = False
             if not hist_job_id and hist_data.get("status") == "complete":
                 hist_results = hist_data.get("results", [])
             elif hist_job_id:
-                for attempt in range(60):
+                for attempt in range(80):
                     time.sleep(3)
                     poll_cmd = ["curl", "-sL", "--max-time", "15",
                                 f"{API_URL}/api/research/trends/status?jobId={hist_job_id}",
@@ -792,8 +793,8 @@ def main():
                         break
                     elif poll_d.get("status") == "failed":
                         break
-            
-            if hist_results:
+                else:
+                    timed_out = True
                 for item in hist_results:
                     kw = item.get("keyword", "").lower()
                     series = item.get("series", {})
@@ -823,7 +824,8 @@ def main():
                     else:
                         print(f"  ⚠️ {kw}: only {len(vals)} data points (need 75)", flush=True)
             else:
-                print("  ❌ Historical baseline check failed or timed out", file=sys.stderr, flush=True)
+                reason = "timed out after 240s" if timed_out else "API returned no data"
+                print(f"  ❌ Historical baseline {reason} (jobId={hist_job_id})", file=sys.stderr, flush=True)
         except Exception as e:
             print(f"  ❌ Historical baseline error: {e}", file=sys.stderr, flush=True)
     
