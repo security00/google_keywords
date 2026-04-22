@@ -464,7 +464,7 @@ def call_serp_api(keywords):
 
 
 def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_featured=False,
-                        hist_vs_bench=None, surge=None, hist_avg=None):
+                        hist_vs_bench=None, surge=None, hist_avg=None, series_14d=None):
     """Classify a game keyword into a recommendation category.
     
     Uses 14-day trend data + 90-day historical baseline check.
@@ -511,8 +511,8 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
     
     # ── Historical baseline check (90-day data) ──
     # If we have 90-day data, check if the game was already established
+    is_established = False
     if hist_vs_bench is not None and surge is not None:
-        is_established = False
         
         # Criterion 1: historical value vs benchmark was already high
         # hist_vs_bench >= 5.0 means keyword was already 5x+ benchmark for 75 days
@@ -531,8 +531,46 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
         elif surge < 1.0:
             is_established = True
             reason += f"；⚠️ 近15天搜索量低于前75天(surge={surge:.1f}x)，非起势词"
-        
-        if is_established:
+    
+    # ── Fallback: 14-day series pattern check (when no 90-day data available) ──
+    # If 14-day values are consistently high and flat, it's likely an old game
+    if not is_established and series_14d:
+        vals = series_14d.get("values", [])
+        bench = series_14d.get("benchmarkValues", [])
+        if len(vals) >= 10:
+            avg_val = sum(vals) / len(vals)
+            avg_bench = sum(bench) / len(bench) if bench else 0.01
+            # Std dev of values — if very low, the keyword is stable (old)
+            mean_val = avg_val
+            if avg_val > 0:
+                std_val = (sum((x - mean_val) ** 2 for x in vals) / len(vals)) ** 0.5
+                cv = std_val / mean_val  # coefficient of variation
+            else:
+                cv = 0
+            
+            # Check 1: consistently high absolute value (>= 50/100) → established
+            if avg_val >= 50:
+                is_established = True
+                reason += f"；⚠️ 14天均值{avg_val:.0f}/100，搜索量一直很高"
+            # Check 1b: high value (>= 40) + declining within 14 days
+            elif avg_val >= 40:
+                first_half = vals[:len(vals)//2]
+                second_half = vals[len(vals)//2:]
+                avg_first = sum(first_half) / len(first_half) if first_half else 0
+                avg_second = sum(second_half) / len(second_half) if second_half else 0
+                if avg_second < avg_first and slope <= 0:
+                    is_established = True
+                    reason += f"；⚠️ 14天均值{avg_val:.0f}/100且在下降，非新起势"
+            # Check 2: high ratio to benchmark + low variation → old stable keyword
+            elif avg_val / avg_bench >= 5.0 and cv < 0.15:
+                is_established = True
+                reason += f"；⚠️ 14天vs_bench={avg_val/avg_bench:.1f}x且波动极小(cv={cv:.2f})，非新起势"
+            # Check 3: high ratio + declining trend (slope <= 0) → old game fading
+            elif avg_val / avg_bench >= 5.0 and slope <= 0:
+                is_established = True
+                reason += f"；⚠️ 14天vs_bench={avg_val/avg_bench:.1f}x且在下降，非新起势"
+    
+    if is_established:
             # Exception: if surge is very strong (>2x), it's a re-surge of an old game
             # We might still want to flag it, but with lower priority
             if surge >= 2.0:
@@ -868,7 +906,8 @@ def main():
         rec, reason = classify_keyword(ratio, slope, verdict, organic, auth, featured,
                                        hist_vs_bench=r.get("hist_vs_bench"),
                                        surge=r.get("surge"),
-                                       hist_avg=r.get("hist_avg"))
+                                       hist_avg=r.get("hist_avg"),
+                                       series_14d=r.get("series"))
         r["recommendation"] = rec
         r["reason"] = reason
         categorized[rec].append(r)
