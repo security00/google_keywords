@@ -630,8 +630,9 @@ git add -A && git commit -m "xxx" && git push origin main
 
 | # | 问题 | 优先级 | 说明 |
 |---|---|---|---|
-| 1 | SERP confidence cache 未接入管线 | 低 | 表和函数已写好，未从 keyword-research.ts 调用 |
-| 2 | `api_keys.user_id` 类型不一致 | 低 | INTEGER vs TEXT，SQLite 弱类型暂无影响 |
-| 3 | VPS curl 依赖 | 中 | CF 可能加强防护，Python urllib 不可用 |
-| 4 | Discovery Scan 已停 | 低 | urllib 被 CF 拦截，功能废弃 |
-| 5 | CrazyGames 可能被封 | 低 | 同上，依赖 curl subprocess |
+| 1 | `api_keys.user_id` 类型不一致 | 低 | INTEGER vs TEXT，SQLite 弱类型暂无影响 |
+| 2 | VPS curl 依赖 | 中 | CF 可能加强防护，Python urllib 不可用 |
+| 3 | Discovery Scan 已停 | 低 | urllib 被 CF 拦截，功能废弃 |
+| 4 | CrazyGames 可能被封 | 低 | 同上，依赖 curl subprocess |
+
+> 注：SERP confidence cache 表和函数已就绪，当前预计算模式下无重复命中机会，待评估接入时机。
