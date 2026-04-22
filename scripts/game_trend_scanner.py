@@ -43,6 +43,7 @@ CRAZYGAMES_NEW = "https://www.crazygames.com/new"
 TREND_BENCHMARK = "gpts"
 TREND_MONTHS = 0  # Use TREND_DAYS instead
 TREND_DAYS = 14  # 14-day window for NEW game discovery
+HISTORY_DAYS = 90  # Historical baseline check window
 MIN_RATIO = 0.3
 MIN_SLOPE = 0.0
 BATCH_SIZE = 5  # trends API: small batches to avoid Worker CPU timeout
@@ -461,10 +462,18 @@ def call_serp_api(keywords):
         return None
 
 
-def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_featured=False):
-    """Classify a game keyword into a recommendation category with clear reason.
+def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_featured=False,
+                        hist_vs_bench=None, surge=None, hist_avg=None):
+    """Classify a game keyword into a recommendation category.
     
-    Uses 14-day trend data. Ratio = game search volume / GPTs benchmark.
+    Uses 14-day trend data + 90-day historical baseline check.
+    
+    Parameters:
+      ratio: 14-day ratio (keyword volume / benchmark)
+      slope: 14-day trend slope
+      hist_vs_bench: 75-day average value / 75-day benchmark average (from 90-day query)
+      surge: recent 15-day avg / historical 75-day avg (from 90-day query)
+      hist_avg: 75-day average normalized value (0-100)
     
     Returns: (recommendation, reason)
     """
@@ -499,9 +508,45 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
     
     reason = f"{traffic_desc}；{trend_desc}；{serp_desc}"
     
-    # Decision logic
-    if ratio >= 2.0:
+    # ── Historical baseline check (90-day data) ──
+    # If we have 90-day data, check if the game was already established
+    if hist_vs_bench is not None and surge is not None:
+        is_established = False
+        
+        # Criterion 1: historical value vs benchmark was already high
+        # hist_vs_bench >= 5.0 means keyword was already 5x+ benchmark for 75 days
+        if hist_vs_bench >= 5.0:
+            is_established = True
+            reason += f"；⚠️ 前75天搜索量已是benchmark的{hist_vs_bench:.1f}倍，非近期起势"
+        # Criterion 2: absolute historical level was high (normalized >= 30)
+        elif hist_avg is not None and hist_avg >= 30:
+            is_established = True
+            reason += f"；⚠️ 前75天搜索量均值{hist_avg:.0f}/100，已建立稳定搜索量"
+        # Criterion 3: not surging (recent not significantly higher than history)
+        elif hist_vs_bench >= 2.0 and surge < 1.2:
+            is_established = True
+            reason += f"；⚠️ 前期vs_bench={hist_vs_bench:.1f}x且近期未明显起势(surge={surge:.1f}x)"
+        
+        if is_established:
+            # Exception: if surge is very strong (>2x), it's a re-surge of an old game
+            # We might still want to flag it, but with lower priority
+            if surge >= 2.0:
+                reason += "（但近期有2x+回春趋势，可观察）"
+                if ratio >= 2.0 and slope > 5:
+                    return "📈 rising", reason
+                return "⏭️ skip", reason
+            return "⏭️ skip", reason
+    
+    # ── Decision logic (only for keywords without history data or passing history check) ──
+    if ratio >= 2.0 and slope > 2:
         return "🔥 hot", reason
+    elif ratio >= 2.0 and slope > 0:
+        if serp_auth == 0:
+            return "📈 rising", reason
+        else:
+            return "⏭️ skip", reason
+    elif ratio >= 2.0 and slope <= 0:
+        return "⏭️ skip", reason
     elif ratio >= 0.5 and slope > 0:
         if serp_auth <= 1:
             return "🎯 niche", reason
@@ -704,6 +749,88 @@ def main():
         if i + BATCH_SIZE < len(to_check):
             time.sleep(1)
 
+    # ── Phase 3.5: Historical baseline check (90-day) ──
+    # For keywords with ratio >= 0.5, check if they were already established before the 14-day window
+    hist_candidates = [r for r in results if r.get("ratio", 0) >= 0.5]
+    hist_baseline = {}
+    
+    if hist_candidates:
+        hist_kws = [r["keyword"] for r in hist_candidates]
+        print(f"\n📜 Phase 3.5: Historical baseline check for {len(hist_kws)} keywords (90-day window)...", flush=True)
+        
+        # Call trends API with 90-day window
+        hist_payload = json.dumps({"keywords": hist_kws, "days": HISTORY_DAYS, "benchmark": TREND_BENCHMARK})
+        hist_cmd = ["curl", "-sL", "--max-time", "20", f"{API_URL}/api/research/trends",
+                     "-H", "Content-Type: application/json",
+                     "-H", f"Authorization: Bearer {API_KEY}",
+                     "-d", hist_payload]
+        try:
+            hist_result = subprocess.run(hist_cmd, capture_output=True, text=True, timeout=25)
+            hist_data = json.loads(hist_result.stdout)
+            hist_job_id = hist_data.get("jobId")
+            
+            hist_results = None
+            if not hist_job_id and hist_data.get("status") == "complete":
+                hist_results = hist_data.get("results", [])
+            elif hist_job_id:
+                import time
+                for attempt in range(60):
+                    time.sleep(3)
+                    poll_cmd = ["curl", "-sL", "--max-time", "15",
+                                f"{API_URL}/api/research/trends/status?jobId={hist_job_id}",
+                                "-H", f"Authorization: Bearer {API_KEY}"]
+                    poll_r = subprocess.run(poll_cmd, capture_output=True, text=True, timeout=20)
+                    if not poll_r.stdout.strip():
+                        continue
+                    poll_d = json.loads(poll_r.stdout)
+                    if poll_d.get("status") == "complete":
+                        hist_results = poll_d.get("results", [])
+                        break
+                    elif poll_d.get("status") == "failed":
+                        break
+            
+            if hist_results:
+                for item in hist_results:
+                    kw = item.get("keyword", "").lower()
+                    series = item.get("series", {})
+                    vals = series.get("values", [])
+                    bench = series.get("benchmarkValues", [])
+                    
+                    if len(vals) >= 75:
+                        first75 = vals[:75]
+                        last15 = vals[75:]
+                        bench75 = bench[:75] if len(bench) >= 75 else bench
+                        
+                        avg75 = sum(first75) / len(first75)
+                        avg15 = sum(last15) / len(last15) if last15 else 0
+                        avg_bench75 = sum(bench75) / len(bench75) if bench75 else 0.01
+                        
+                        hist_vs_bench = avg75 / avg_bench75 if avg_bench75 > 0 else 999
+                        surge = avg15 / avg75 if avg75 > 0 else 999
+                        
+                        hist_baseline[kw] = {
+                            "hist_vs_bench": hist_vs_bench,
+                            "surge": surge,
+                            "hist_avg": avg75,
+                        }
+                        
+                        status = "🔴 OLD" if hist_vs_bench >= 5.0 or avg75 >= 30 or (hist_vs_bench >= 2.0 and surge < 1.2) else "🟢 NEW"
+                        print(f"  {status} {kw}: hist75d={avg75:.1f} vs_bench={hist_vs_bench:.1f}x surge={surge:.1f}x", flush=True)
+                    else:
+                        print(f"  ⚠️ {kw}: only {len(vals)} data points (need 75)", flush=True)
+            else:
+                print("  ❌ Historical baseline check failed or timed out", file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"  ❌ Historical baseline error: {e}", file=sys.stderr, flush=True)
+    
+    # Attach historical data to results
+    for r in results:
+        hb = hist_baseline.get(r["keyword"].lower())
+        if hb:
+            r["hist_vs_bench"] = hb["hist_vs_bench"]
+            r["surge"] = hb["surge"]
+            r["hist_avg"] = hb["hist_avg"]
+
     # ── Phase 4: SERP competition check for ALL keywords with ratio >= 0.1 ──
     serp_candidates = [r for r in results if r.get("ratio", 0) >= 0.1]
 
@@ -753,7 +880,10 @@ def main():
         auth = r.get("serp_auth", 0)
         featured = r.get("serp_featured", False)
         
-        rec, reason = classify_keyword(ratio, slope, verdict, organic, auth, featured)
+        rec, reason = classify_keyword(ratio, slope, verdict, organic, auth, featured,
+                                       hist_vs_bench=r.get("hist_vs_bench"),
+                                       surge=r.get("surge"),
+                                       hist_avg=r.get("hist_avg"))
         r["recommendation"] = rec
         r["reason"] = reason
         categorized[rec].append(r)
