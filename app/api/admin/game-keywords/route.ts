@@ -8,18 +8,29 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    // Accept: admin session, API key auth, or any logged-in user
+    // Strict admin-only access
     const admin = await requireAdmin();
     if (admin.error) {
-      // Fallback 1: API key via Authorization header
+      // Check if authenticated as admin via API key
       const authHeader = request.headers.get("authorization") || "";
       const token = authHeader.replace(/^Bearer\s+/i, "");
-      if (!token || !/gk_live_[0-9a-f]{32,64}/.test(token)) {
-        // Fallback 2: any logged-in user (student)
-        const user = await getAuthUser();
-        if (!user) {
-          return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      if (token && /gk_live_[0-9a-f]{32,64}/.test(token)) {
+        const { validateApiKey } = await import("@/lib/api_keys");
+        const auth = await validateApiKey(token, request);
+        if (!auth.valid) {
+          return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
         }
+        // Check user role
+        const { d1Query } = await import("@/lib/d1");
+        const { rows } = await d1Query<{ role: string }>(
+          "SELECT role FROM auth_users_v2 WHERE id = ?",
+          [auth.userId]
+        );
+        if (!rows.length || rows[0].role !== "admin") {
+          return NextResponse.json({ error: "Admin only" }, { status: 403 });
+        }
+      } else {
+        return NextResponse.json({ error: admin.error || "Admin only" }, { status: 403 });
       }
     }
 
