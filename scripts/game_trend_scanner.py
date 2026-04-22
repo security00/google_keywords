@@ -4,14 +4,15 @@ Game Trend Scanner — 从所有 sitemap 源发现新游戏，对比 GPTS 趋势
 
 两种发现模式并行：
 1. CrazyGames /new 页面 — 通过 __NEXT_DATA__ JSON 获取最新上架游戏（~70个/页）
-2. D1 sitemap_sources 表 — 从所有 enabled 源的 sitemap 提取游戏名，与 discovered_keywords 对比找新增
+2. Steam API new_releases — 获取最新免费游戏
 
 流程：
-1. 从所有源收集新游戏名
+1. 从 CrazyGames /new + Steam new_releases 收集新游戏名
 2. 过滤：排除已在 game_keyword_pipeline 中处理过的
-3. 分批调 /api/research/trends 对比 GPTS
-4. 筛选 ratio > 0.3 且在涨的 → 标记为 worth_doing
-5. 结果存入 game_keyword_pipeline
+3. 分批调 /api/research/trends 对比 GPTS (14天窗口)
+4. 对 ratio >= 0.3 的词做 90 天历史基线检查（排除老游戏）
+5. SERP 竞争检查
+6. 最终分类：🔥 Hot / 📈 Rising / 🎯 Niche / ⏭️ Skip
 
 用法：
   python3 scripts/game_trend_scanner.py [--dry-run] [--max-keywords 50] [--max-sources 5] [--api-url URL]
@@ -286,15 +287,14 @@ def fetch_steam_new_releases():
             # Filter: skip adult/NSFW games
             if any(x in name.lower() for x in ["hentai", "🔞", "nsfw", "18+"]):
                 continue
-            # Only paid games with real prices (filter asset flips)
+            # Only free games (paid games are not suitable for quick site building)
             price = item.get("original_price")
-            if price is not None and price > 0 and is_game_name_valid(name):
-                games.append({"name": name, "source": "steam", "steam_id": item.get("id")})
-            elif price is None and is_game_name_valid(name):
-                # Free games are fine
+            if price is not None and price > 0:
+                continue  # Skip paid games
+            if is_game_name_valid(name):
                 games.append({"name": name, "source": "steam", "steam_id": item.get("id")})
 
-        print(f"  Found {len(games)} new Steam releases", flush=True)
+        print(f"  Found {len(games)} new Steam releases (free only)", flush=True)
         return games
     except Exception as e:
         print(f"  ❌ Steam fetch failed: {e}", flush=True)
@@ -654,43 +654,22 @@ def main():
     print(f"🎮 Game Trend Scanner — {ts}")
     print(f"   Max keywords: {args.max_keywords}, Max sources: {args.max_sources}, Dry run: {args.dry_run}")
 
-    # ── Phase 1: Sitemap discovery (find new games from all sources) ──
-    sitemap_new = discover_new_from_sitemaps(args.max_sources)
-
-    # ── Phase 1b: Recent discoveries from D1 (sitemap crawl results not yet trend-checked) ──
-    recent_discoveries = []
-    if not args.dry_run:
-        rows = d1_query(
-            "SELECT d.keyword, d.source_id, COALESCE(s.name, 'unknown') as source_name "
-            "FROM discovered_keywords d "
-            "LEFT JOIN sitemap_sources s ON d.source_id = s.id "
-            "WHERE d.extracted_at >= datetime('now', '-7 days') "
-            "AND d.keyword NOT IN (SELECT keyword FROM game_keyword_pipeline) "
-            "ORDER BY d.extracted_at DESC LIMIT ?",
-            [args.max_keywords]
-        )
-        for r in rows:
-            name = r.get("keyword", "").strip()
-            if name and is_game_name_valid(name):
-                recent_discoveries.append({"name": name, "source": r.get("source_name", "sitemap")})
-        print(f"\n📋 Phase 1b: {len(recent_discoveries)} recent sitemap discoveries not yet checked", flush=True)
-
-    # ── Phase 2: CrazyGames /new (latest games by publish date) ──
+    # ── Phase 1: CrazyGames /new (latest games by publish date) ──
     crazygames_new = fetch_crazygames_new()
 
-    # ── Phase 2b: Steam New Releases ──
+    # ── Phase 1b: Steam New Releases (free only) ──
     steam_new = fetch_steam_new_releases()
 
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in sitemap_new + recent_discoveries + crazygames_new + steam_new:
+    for g in crazygames_new + steam_new:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
             all_games.append(g)
 
-    print(f"\n📋 Combined: {len(all_games)} unique new games", flush=True)
+    print(f"\n📋 Combined: {len(all_games)} unique new games (CrazyGames + Steam free)", flush=True)
 
     # ── Filter out already trend-checked ──
     pipeline_names = {r["keyword"].lower() for r in d1_query(
@@ -911,7 +890,7 @@ def main():
     
     print(f"\n{'='*60}")
     print(f"📊 SUMMARY — {ts}")
-    print(f"   Data source: CrazyGames /new")
+    print(f"   Data source: CrazyGames /new + Steam free")
     print(f"   Total new games found: {len(all_games)}")
     print(f"   Trend-checked: {len(results)}")
     print(f"   🔥 Hot:     {len(categorized['🔥 hot'])}")
