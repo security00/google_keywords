@@ -32,7 +32,7 @@ OPENROUTER_FILTER_TERMS = [
     term.strip()
     for term in os.environ.get(
         "OPENROUTER_FILTER_TERMS",
-        "gambling,betting,casino,news,celebrity,movie,film,lottery,politics,sports,games,exam,coupon",
+        "gambling,betting,casino,news,celebrity,movie,film,lottery,politics,sports,exam,coupon",
     ).replace("；", ",").split(",")
     if term.strip()
 ]
@@ -351,10 +351,10 @@ def refine_with_llm(expand_response):
     system_prompt = (
         "You are filtering keyword research candidates before they are shown to a human operator. "
         "Keep durable, productizable, commercial keywords, especially AI tools, software, utilities, "
-        "SaaS, templates, workflows, and automation. Block short-lived noise, entertainment/news/"
-        "sports/games/politics/celebrity/exam answers/coupons/gambling/adult/domain spam/local "
+        "SaaS, templates, workflows, automation, and online games (browser games, game tools, game platforms). "
+        "Block short-lived noise, entertainment/news/sports/politics/celebrity/exam answers/coupons/gambling/adult/domain spam/local "
         "navigation queries. Block exact brands or one-off entities unless the query clearly describes "
-        "a reusable software/tool opportunity. Return strict JSON only."
+        "a reusable software/tool/game opportunity. Return strict JSON only."
     )
 
     print(
