@@ -44,9 +44,9 @@ export default function StudentGamesPage() {
   async function load() {
     setLoading(true);
     try {
-      const r = await fetch("/api/admin/game-keywords?filter=recommended&pageSize=20");
+      const r = await fetch("/api/game-keywords");
       const d = await r.json();
-      const list = d.items || [];
+      const list = d.keywords || [];
       setItems(list);
       // Auto-expand first
       if (list.length > 0) setExpandedKey(list[0].keyword);
