@@ -590,18 +590,16 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
             return "⏭️ skip", reason
     elif ratio >= 2.0 and slope <= 0:
         return "⏭️ skip", reason
-    elif ratio >= 0.5 and slope > 0:
+    elif ratio >= 1.0 and slope > 0:
         if serp_auth <= 1:
             return "🎯 niche", reason
         else:
             return "📈 rising", reason
-    elif ratio >= 0.3 and slope > 0:
+    elif ratio >= 0.5 and slope > 0:
         if serp_auth == 0:
             return "🎯 niche", reason
         else:
             return "⏭️ skip", reason
-    elif ratio >= 0.3 and slope <= 0:
-        return "⏭️ skip", reason
     else:
         return "⏭️ skip", reason
 
