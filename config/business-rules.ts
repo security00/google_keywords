@@ -22,18 +22,18 @@ export const MIN_END_STREAK_STRONG = 3;
 export const MIN_END_STREAK_PASS = 2;
 
 /** 尾部/均值比阈值 */
-export const MIN_TAIL_RATIO_STRONG = 0.8;
-export const MIN_TAIL_RATIO_PASS = 0.6;
-export const MIN_TAIL_RATIO_CLOSE = 0.4;
+export const MIN_TAIL_RATIO_STRONG = 1.0;
+export const MIN_TAIL_RATIO_PASS = 0.9;
+export const MIN_TAIL_RATIO_CLOSE = 0.8;
 
 /** 末值/峰值比阈值 */
-export const MIN_END_VS_PEAK_STRONG = 0.75;
+export const MIN_END_VS_PEAK_STRONG = 0.7;
 export const MIN_END_VS_PEAK_PASS = 0.55;
-export const MIN_END_VS_PEAK_CLOSE = 0.35;
+export const MIN_END_VS_PEAK_CLOSE = 0.45;
 
 /** 波动率上限 */
-export const MAX_VOLATILITY_STRONG = 0.5;
-export const MAX_VOLATILITY_PASS = 0.7;
+export const MAX_VOLATILITY_STRONG = 1.2;
+export const MAX_VOLATILITY_PASS = 1.5;
 
 // ── 新鲜度 / 新词判断 ──
 
