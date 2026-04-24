@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "DiscoverKeywords <noreply@discoverkeywords.co>",
+        from: "DiscoverKeywords <support@discoverkeywords.co>",
         to: email.trim().toLowerCase(),
         subject: "重置您的密码 — DiscoverKeywords",
         html: `
