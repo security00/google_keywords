@@ -14,6 +14,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetCode, setResetCode] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -97,7 +104,85 @@ export default function LoginPage() {
                 学员注册
               </a>
             </div>
+            <div className="text-center">
+              <button
+                type="button"
+                className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+                onClick={() => { setShowReset(true); setError(null); }}
+              >
+                忘记密码？
+              </button>
+            </div>
           </form>
+
+          {showReset && (
+            <div className="mt-4 border-t pt-4">
+              <div className="text-sm font-medium mb-3">重置密码</div>
+              <div className="space-y-3">
+                <Input
+                  type="email"
+                  placeholder="注册邮箱"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  disabled={resetLoading}
+                />
+                <Input
+                  type="text"
+                  placeholder="邀请码"
+                  value={resetCode}
+                  onChange={(e) => setResetCode(e.target.value)}
+                  disabled={resetLoading}
+                />
+                <Input
+                  type="password"
+                  placeholder="新密码（至少6位）"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  disabled={resetLoading}
+                />
+                {resetError && <div className="text-sm text-destructive">{resetError}</div>}
+                {resetSuccess && <div className="text-sm text-green-600">密码已重置，请登录。</div>}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={resetLoading || !resetEmail || !resetCode || !resetPassword}
+                  onClick={async () => {
+                    setResetLoading(true);
+                    setResetError(null);
+                    setResetSuccess(false);
+                    try {
+                      const res = await fetch("/api/auth/reset-password", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: resetEmail, inviteCode: resetCode, newPassword: resetPassword }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || "重置失败");
+                      setResetSuccess(true);
+                      setResetEmail("");
+                      setResetCode("");
+                      setResetPassword("");
+                    } catch (err) {
+                      setResetError(err instanceof Error ? err.message : "重置失败");
+                    } finally {
+                      setResetLoading(false);
+                    }
+                  }}
+                >
+                  {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  重置密码
+                </Button>
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-primary w-full text-center"
+                  onClick={() => setShowReset(false)}
+                >
+                  返回登录
+                </button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
