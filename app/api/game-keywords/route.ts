@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth_middleware";
 import { d1Query } from "@/lib/d1";
+import { GAME_KEYWORDS_PER_USER } from "@/config/business-rules";
 
 /** Deterministic hash to pick a stable subset of keywords per user. */
 function simpleHash(str: string): number {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
   );
 
   const hash = simpleHash(userId);
-  const count = Math.min(3, rows.length);
+  const count = Math.min(GAME_KEYWORDS_PER_USER, rows.length);
   if (count === 0) {
     return NextResponse.json({
       keywords: [],
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Pick 3 keywords using hash offset (same as old-keywords)
+  // Pick keywords using hash offset (千人千面)
   const picked: typeof rows = [];
   for (let i = 0; i < count; i++) {
     const idx = (hash + i * 7) % rows.length;

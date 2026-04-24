@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth_middleware";
+import { OLD_WORD_PER_USER } from "@/config/business-rules";
 import { d1Query } from "@/lib/d1";
 
 /** Deterministic hash to pick a stable subset of keywords per user. */
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
   );
 
   const hash = simpleHash(userId);
-  const count = Math.min(3, withTrend.length);
+  const count = Math.min(OLD_WORD_PER_USER, withTrend.length);
   if (count === 0) {
     return NextResponse.json({ keywords: [], message: "暂无老词数据，等待后台管线运行" });
   }

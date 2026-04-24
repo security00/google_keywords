@@ -20,9 +20,9 @@ import {
   buildRecommendedSelection,
   countEstimate,
   formatUsd,
-  RECOMMENDED_COMPARE_LIMIT,
   useResearch,
 } from "@/lib/context/research-context";
+import { RECOMMENDED_COMPARE_LIMIT } from "@/config/business-rules";
 import type { Candidate, OrganizedCandidates } from "@/lib/types";
 
 const candidateTypeLabel = (type: "top" | "rising") => (type === "rising" ? "RISING" : "TOP");
