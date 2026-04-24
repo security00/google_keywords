@@ -71,7 +71,7 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 const hashSessionToken = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 
-const createPasswordHash = async (password: string) => {
+export const createPasswordHash = async (password: string) => {
   const salt = randomBytes(16).toString("base64url");
   const derived = await scrypt(
     password,
@@ -83,7 +83,7 @@ const createPasswordHash = async (password: string) => {
   return `scrypt$${SCRYPT_COST}$${SCRYPT_BLOCK_SIZE}$${SCRYPT_PARALLELIZATION}$${salt}$${hash}`;
 };
 
-const verifyPassword = async (password: string, stored: string) => {
+export const verifyPassword = async (password: string, stored: string) => {
   const parts = stored.split("$");
   if (parts.length !== 6) return false;
   const [prefix, costRaw, blockSizeRaw, parallelizationRaw, salt, hash] = parts;

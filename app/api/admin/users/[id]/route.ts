@@ -38,6 +38,19 @@ export async function PATCH(
 
   try {
     const body = await request.json().catch(() => ({}));
+
+    // Reset password
+    if (body.password) {
+      const { createPasswordHash } = await import("@/lib/auth");
+      if (typeof body.password !== "string" || body.password.length < 6) {
+        return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+      }
+      const hash = await createPasswordHash(body.password);
+      const { d1Query } = await import("@/lib/d1");
+      await d1Query("UPDATE auth_users_v2 SET password_hash = ? WHERE id = ?", [hash, id]);
+      return NextResponse.json({ success: true, message: "Password reset" });
+    }
+
     if (!body.role || !["admin", "student", "banned"].includes(body.role)) {
       return NextResponse.json({ error: "Invalid role. Must be admin, student, or banned" }, { status: 400 });
     }
