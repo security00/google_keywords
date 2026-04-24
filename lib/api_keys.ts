@@ -1,4 +1,9 @@
 import { d1Query } from '@/lib/d1';
+import { createHash } from 'crypto';
+
+function hashApiKey(key: string): string {
+    return createHash('sha256').update(key).digest('hex');
+}
 
 // Rate limiting: max failed attempts per key prefix before temporary block
 const MAX_FAILED_ATTEMPTS = 10;
@@ -86,8 +91,8 @@ export async function validateApiKey(
             `SELECT ak.user_id, ak.expires_at, u.trial_expires_at, u.role
              FROM api_keys ak
              JOIN auth_users_v2 u ON u.id = ak.user_id
-             WHERE ak.key = ? AND ak.active = 1`,
-            [apiKey]
+             WHERE ak.key_hash = ? AND ak.active = 1`,
+            [hashApiKey(apiKey)]
         );
 
         const result = rows[0];
@@ -172,8 +177,8 @@ export async function generateApiKey(userId: string, name: string = 'default'): 
     const key = 'gk_live_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
     await d1Query(
-        `INSERT INTO api_keys (key, user_id, name) VALUES (?, ?, ?)`,
-        [key, userId, safeName]
+        `INSERT INTO api_keys (key, key_hash, user_id, name) VALUES (?, ?, ?, ?)`,
+        [key, hashApiKey(key), userId, safeName]
     );
 
     return key;
