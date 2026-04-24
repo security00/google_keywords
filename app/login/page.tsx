@@ -16,8 +16,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const [resetCode, setResetCode] = useState("");
-  const [resetPassword, setResetPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState(false);
@@ -126,52 +124,35 @@ export default function LoginPage() {
                   onChange={(e) => setResetEmail(e.target.value)}
                   disabled={resetLoading}
                 />
-                <Input
-                  type="text"
-                  placeholder="邀请码"
-                  value={resetCode}
-                  onChange={(e) => setResetCode(e.target.value)}
-                  disabled={resetLoading}
-                />
-                <Input
-                  type="password"
-                  placeholder="新密码（至少6位）"
-                  value={resetPassword}
-                  onChange={(e) => setResetPassword(e.target.value)}
-                  disabled={resetLoading}
-                />
                 {resetError && <div className="text-sm text-destructive">{resetError}</div>}
-                {resetSuccess && <div className="text-sm text-green-600">密码已重置，请登录。</div>}
+                {resetSuccess && <div className="text-sm text-green-600">重置邮件已发送，请查收邮箱（30分钟内有效）。</div>}
                 <Button
                   type="button"
                   variant="outline"
                   className="w-full"
-                  disabled={resetLoading || !resetEmail || !resetCode || !resetPassword}
+                  disabled={resetLoading || !resetEmail}
                   onClick={async () => {
                     setResetLoading(true);
                     setResetError(null);
                     setResetSuccess(false);
                     try {
-                      const res = await fetch("/api/auth/reset-password", {
+                      const res = await fetch("/api/auth/forgot-password", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email: resetEmail, inviteCode: resetCode, newPassword: resetPassword }),
+                        body: JSON.stringify({ email: resetEmail }),
                       });
                       const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || "重置失败");
+                      if (!res.ok) throw new Error(data.error || "发送失败");
                       setResetSuccess(true);
-                      setResetEmail("");
-                      setResetCode("");
-                      setResetPassword("");
                     } catch (err) {
-                      setResetError(err instanceof Error ? err.message : "重置失败");
+                      setResetError(err instanceof Error ? err.message : "发送失败");
                     } finally {
                       setResetLoading(false);
                     }
                   }}
                 >
                   {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  重置密码
+                  发送重置邮件
                 </Button>
                 <button
                   type="button"
@@ -190,4 +171,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
