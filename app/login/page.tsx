@@ -14,11 +14,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showReset, setShowReset] = useState(false);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetError, setResetError] = useState<string | null>(null);
-  const [resetSuccess, setResetSuccess] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -96,74 +91,18 @@ export default function LoginPage() {
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               登录
             </Button>
-            <div className="text-center text-sm text-muted-foreground">
-              没有账号？{" "}
-              <a href="/register" className="text-primary underline-offset-4 hover:underline">
-                学员注册
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>
+                没有账号？{" "}
+                <a href="/register" className="text-primary underline-offset-4 hover:underline">
+                  学员注册
+                </a>
+              </span>
+              <a href="/forgot-password" className="text-primary underline-offset-4 hover:underline">
+                忘记密码？
               </a>
             </div>
-            <div className="text-center">
-              <button
-                type="button"
-                className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
-                onClick={() => { setShowReset(true); setError(null); }}
-              >
-                忘记密码？
-              </button>
-            </div>
           </form>
-
-          {showReset && (
-            <div className="mt-4 border-t pt-4">
-              <div className="text-sm font-medium mb-3">重置密码</div>
-              <div className="space-y-3">
-                <Input
-                  type="email"
-                  placeholder="注册邮箱"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  disabled={resetLoading}
-                />
-                {resetError && <div className="text-sm text-destructive">{resetError}</div>}
-                {resetSuccess && <div className="text-sm text-green-600">重置邮件已发送，请查收邮箱（30分钟内有效）。</div>}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={resetLoading || !resetEmail}
-                  onClick={async () => {
-                    setResetLoading(true);
-                    setResetError(null);
-                    setResetSuccess(false);
-                    try {
-                      const res = await fetch("/api/auth/forgot-password", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ email: resetEmail }),
-                      });
-                      const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || "发送失败");
-                      setResetSuccess(true);
-                    } catch (err) {
-                      setResetError(err instanceof Error ? err.message : "发送失败");
-                    } finally {
-                      setResetLoading(false);
-                    }
-                  }}
-                >
-                  {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  发送重置邮件
-                </Button>
-                <button
-                  type="button"
-                  className="text-sm text-muted-foreground hover:text-primary w-full text-center"
-                  onClick={() => setShowReset(false)}
-                >
-                  返回登录
-                </button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
