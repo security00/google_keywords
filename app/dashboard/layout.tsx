@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Loader2, Key, Users, Activity, Gamepad2, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,24 @@ import { ResearchProvider, useResearch } from "@/lib/context/research-context";
 
 function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, handleSignOut } = useResearch();
+
+  const ensureSessionBeforeNavigate = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    try {
+      const response = await fetch("/api/auth/session", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const payload = await response.json();
+      if (!payload?.user) {
+        event.preventDefault();
+        router.replace("/login");
+      }
+    } catch {
+      // Network hiccups should not block client-side navigation.
+    }
+  };
 
   // 学员菜单
   const studentSteps = [
@@ -53,6 +70,7 @@ function Navigation() {
               <Link
                 key={step.href}
                 href={step.href}
+                onClick={ensureSessionBeforeNavigate}
                 className={cn(
                   "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
                   step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
@@ -71,6 +89,7 @@ function Navigation() {
                   <Link
                     key={step.href}
                     href={step.href}
+                    onClick={ensureSessionBeforeNavigate}
                     className={cn(
                       "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
                       step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"

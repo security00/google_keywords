@@ -370,23 +370,39 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         [filterTermsText]);
     const effectiveKeywords = parsedKeywords.length > 0 ? parsedKeywords : DEFAULT_KEYWORDS;
 
+    const checkSession = useCallback(async () => {
+        try {
+            const response = await fetch("/api/auth/session", {
+                credentials: "include",
+                cache: "no-store",
+            });
+            const payload = await response.json();
+            setUser(payload?.user ?? null);
+        } catch {
+            setUser(null);
+        } finally {
+            setAuthReady(true);
+        }
+    }, []);
+
     // --- Auth Check ---
     useEffect(() => {
-        const checkSession = async () => {
-            try {
-                const response = await fetch("/api/auth/session", {
-                    credentials: "include",
-                });
-                const payload = await response.json();
-                setUser(payload?.user ?? null);
-            } catch {
-                setUser(null);
-            } finally {
-                setAuthReady(true);
+        checkSession();
+    }, [checkSession]);
+
+    useEffect(() => {
+        const refreshWhenVisible = () => {
+            if (document.visibilityState === "visible") {
+                checkSession();
             }
         };
-        checkSession();
-    }, []);
+        window.addEventListener("focus", checkSession);
+        document.addEventListener("visibilitychange", refreshWhenVisible);
+        return () => {
+            window.removeEventListener("focus", checkSession);
+            document.removeEventListener("visibilitychange", refreshWhenVisible);
+        };
+    }, [checkSession]);
 
     useEffect(() => {
         if (authReady && !user) {
