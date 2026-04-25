@@ -64,8 +64,8 @@
 ### ⚠️ 关键限制
 
 - **Worker CPU 30s 超时** — 所有同步 API 必须在此内完成
-- **D1 通过 HTTP API 访问** — 使用 `d1Query()` 封装，不是 Worker binding
-- **wrangler.toml 在 .gitignore** — 本地构建必须存在
+- **D1 通过 HTTP API 访问** — 业务代码主要使用 `d1Query()` 封装；Worker 仍保留 `DB` binding 作为运行时配置一致性保障
+- **Wrangler 配置唯一源** — `wrangler.jsonc` 是 canonical 配置文件，CI 显式 `--config wrangler.jsonc`
 - **仓库公开** — 严禁写入密钥、凭证、内部 URL
 - **CI 部署** — GitHub Actions 自动部署（pin wrangler@4.83.0）
 
@@ -748,8 +748,9 @@ lib/
 │   ├── fetch_community_signals.py             ← 社区信号
 │   └── run_precompute_with_retry.sh           ← 预计算启动脚本
 ├── config/
+│   ├── business-rules.ts/json                 ← 业务规则配置
 │   └── seed-keywords.txt                      ← 127 个种子关键词
-└── wrangler.toml                              ← CF 配置（.gitignore）
+└── wrangler.jsonc                             ← Cloudflare Worker canonical 配置
 
 风探 Skill:
 <skill-dir>/keyword-research-agent/
@@ -766,7 +767,7 @@ lib/
 git push origin main
 → GitHub Actions 自动触发
 → npx opennextjs-cloudflare build
-→ npx wrangler@4.83.0 deploy
+→ npx wrangler@4.83.0 deploy --config wrangler.jsonc
 → 线上更新
 ```
 
@@ -776,7 +777,8 @@ git push origin main
 source <env-file>  # 加载 CF_API_TOKEN
 cd <project-dir>
 npm run deploy
-# 等同于: npx opennextjs-cloudflare build && npx wrangler deploy
+# 或显式执行:
+# npx opennextjs-cloudflare build && npx wrangler@4.83.0 deploy --config wrangler.jsonc
 ```
 
 ⚠️ **注意：**

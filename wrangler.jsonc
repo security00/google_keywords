@@ -39,5 +39,12 @@
     "SERP_OS": "windows",
     "SERP_DEPTH": "10",
     "D1_DATABASE_NAME": "ai-trends"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ai-trends",
+      "database_id": "b40de8a4-75e1-4df6-a84d-3ecd62b70538"
+    }
+  ]
 }

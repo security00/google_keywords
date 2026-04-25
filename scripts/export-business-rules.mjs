@@ -1,74 +1,39 @@
 #!/usr/bin/env node
 /**
- * scripts/export-business-rules.mjs
+ * Export config/business-rules.ts to JSON for Python scripts.
  *
- * 导出 config/business-rules.ts 为 JSON，供 Python 端同步。
- * 用法: node scripts/export-business-rules.mjs
+ * This script intentionally imports BUSINESS_RULES_JSON from the TypeScript
+ * source instead of duplicating values here. That keeps TypeScript and Python
+ * on one business-rule source of truth.
  */
 
 import { writeFileSync } from "fs";
-
-// 直接读取 TS 文件中的常量（避免构建依赖）
-// 这些值必须和 config/business-rules.ts 保持一致
-const rules = {
-  compare: {
-    MIN_RECENT_MEAN: 8,
-    MIN_COVERAGE_STRONG: 0.7,
-    MIN_COVERAGE_PASS: 0.55,
-    MIN_COVERAGE_CLOSE: 0.4,
-    MIN_END_STREAK_STRONG: 3,
-    MIN_END_STREAK_PASS: 2,
-    MIN_TAIL_RATIO_STRONG: 0.8,
-    MIN_TAIL_RATIO_PASS: 0.6,
-    MIN_TAIL_RATIO_CLOSE: 0.4,
-    MIN_END_VS_PEAK_STRONG: 0.75,
-    MIN_END_VS_PEAK_PASS: 0.55,
-    MIN_END_VS_PEAK_CLOSE: 0.35,
-    MAX_VOLATILITY_STRONG: 0.5,
-    MAX_VOLATILITY_PASS: 0.7,
-    RECENT_POINTS: 7,
-    RECENT_TAIL_POINTS: 3,
-    NEWNESS_BASELINE_MEAN_MAX: 5,
-    NEWNESS_BASELINE_PEAK_MAX: 12,
-    NEWNESS_SURGE_MULTIPLIER: 3,
-    DEFAULT_COMPARE_BENCHMARK: "gpts",
-  },
-  game: {
-    GAME_MIN_RATIO: 1.0,
-    GAME_HOT_RATIO: 2.0,
-    GAME_HOT_SLOPE: 2,
-    GAME_RISING_RATIO: 0.5,
-    GAME_RISING_SLOPE: 0,
-    GAME_NICHE_RATIO: 0.5,
-    GAME_HIST_ESTABLISHED_BENCH_RATIO: 5.0,
-    GAME_HIST_ESTABLISHED_ABSOLUTE: 50,
-    GAME_HIST_DECLINING_SURGE: 0.8,
-    GAME_RESURGE_SURGE: 2.0,
-    GAME_14D_ESTABLISHED_AVG: 50,
-    GAME_14D_DECLINING_AVG: 40,
-    GAME_14D_STABLE_RATIO: 5.0,
-    GAME_14D_LOW_CV: 0.15,
-    GAME_KEYWORDS_PER_USER: 3,
-  },
-  old_word: {
-    OLD_WORD_MIN_VOLUME: 1000,
-    OLD_WORD_MAX_KD: 30,
-    OLD_WORD_MIN_CPC: 0,
-    OLD_WORD_TREND_TOP_N: 50,
-    OLD_WORD_SPIKE_RATIO: 0.5,
-    OLD_WORD_DECLINE_RATIO: 0.8,
-    OLD_WORD_PER_USER: 3,
-  },
-  auth: {
-    AUTH_MAX_FAILED_ATTEMPTS: 10,
-    AUTH_LOCKOUT_DURATION_MS: 900000,
-    AUTH_MAX_KEYS_PER_USER: 5,
-    AUTH_TRIAL_DAYS: 90,
-    AUTH_SESSION_EXPIRY_DAYS: 7,
-    AUTH_RESET_TOKEN_TTL_MS: 1800000,
-  },
-};
+import { pathToFileURL } from "url";
+import { build } from "esbuild";
 
 const outPath = new URL("../config/business-rules.json", import.meta.url);
-writeFileSync(outPath, JSON.stringify(rules, null, 2) + "\n");
-console.log(`✅ Exported business rules to ${outPath.pathname}`);
+const tempModule = new URL("../.tmp-business-rules-export.mjs", import.meta.url);
+
+await build({
+  entryPoints: [new URL("../config/business-rules.ts", import.meta.url).pathname],
+  outfile: tempModule.pathname,
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  logLevel: "silent",
+});
+
+try {
+  const mod = await import(pathToFileURL(tempModule.pathname).href + `?t=${Date.now()}`);
+  if (!mod.BUSINESS_RULES_JSON || typeof mod.BUSINESS_RULES_JSON !== "object") {
+    throw new Error("BUSINESS_RULES_JSON export not found");
+  }
+  writeFileSync(outPath, JSON.stringify(mod.BUSINESS_RULES_JSON, null, 2) + "\n");
+  console.log(`✅ Exported business rules to ${outPath.pathname}`);
+} finally {
+  try {
+    await import("fs").then(({ unlinkSync }) => unlinkSync(tempModule.pathname));
+  } catch {
+    // ignore cleanup errors
+  }
+}
