@@ -5,6 +5,10 @@ function hashApiKey(key: string): string {
     return createHash('sha256').update(key).digest('hex');
 }
 
+function legacyKeyPlaceholder(keyHash: string): string {
+    return `hash:${keyHash}`;
+}
+
 // Rate limiting: max failed attempts per key prefix before temporary block
 const MAX_FAILED_ATTEMPTS = 10;
 const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -176,9 +180,11 @@ export async function generateApiKey(userId: string, name: string = 'default'): 
     crypto.getRandomValues(bytes);
     const key = 'gk_live_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
+    const keyHash = hashApiKey(key);
+
     await d1Query(
         `INSERT INTO api_keys (key, key_hash, key_prefix, key_last4, user_id, name) VALUES (?, ?, ?, ?, ?, ?)`,
-        [key, hashApiKey(key), key.slice(0, 12), key.slice(-4), userId, safeName]
+        [legacyKeyPlaceholder(keyHash), keyHash, key.slice(0, 12), key.slice(-4), userId, safeName]
     );
 
     return key;

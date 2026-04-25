@@ -106,12 +106,13 @@ def main() -> int:
             "UPDATE research_jobs SET status = 'pending', error = NULL, session_id = NULL, updated_at = datetime('now') WHERE id = ?",
             [args.job_id],
         )
+        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
         d1_query(
             account_id,
             database_id,
             token,
             "INSERT INTO api_keys (key, key_hash, key_prefix, key_last4, user_id, name, expires_at, active) VALUES (?, ?, ?, ?, ?, 'codex-replay', datetime('now', '+1 hour'), 1)",
-            [api_key, hashlib.sha256(api_key.encode()).hexdigest(), api_key[:12], api_key[-4:], user_id],
+            [f"hash:{api_key_hash}", api_key_hash, api_key[:12], api_key[-4:], user_id],
         )
         status_code, payload = fetch_status(args.site_url, args.job_id, api_key, args.timeout)
         print(json.dumps({"httpStatus": status_code, "payload": payload}, ensure_ascii=False))
@@ -121,8 +122,8 @@ def main() -> int:
             account_id,
             database_id,
             token,
-            "DELETE FROM api_keys WHERE key = ? OR name = 'codex-replay'",
-            [api_key],
+            "DELETE FROM api_keys WHERE key_hash = ? OR name = 'codex-replay'",
+            [hashlib.sha256(api_key.encode()).hexdigest()],
         )
 
 
