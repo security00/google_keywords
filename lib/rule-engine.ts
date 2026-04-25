@@ -71,6 +71,10 @@ export function scoreKeyword(keyword: string): RuleResult {
   // Sports, games, and transient event trackers
   if (/\b(pokemon|fifa|football|soccer|rugby|nba|nhl|pga|masters|marathon|champions|team builder|draft|league|leagues|score chart)\b/i.test(lower))
     return { action: "block", reason: "sports_or_game", score: -80 };
+  if (/\b(chelsea|arsenal|liverpool|manchester united|man utd|manchester city|newcastle|barcelona|real madrid|tottenham|spurs)\b/i.test(lower))
+    return { action: "block", reason: "sports_team", score: -90 };
+  if (/\b(manager|coach|head coach)\b/i.test(lower) && /\b(sacked|rumor|rumors|next|new|replacement|hired|appointment|appointed)\b/i.test(lower))
+    return { action: "block", reason: "sports_manager_news", score: -90 };
   if (/\b(cyclone|typhoon|ship tracker|marine traffic|tanker tracker|hurricane|weather tracker)\b/i.test(lower))
     return { action: "block", reason: "event_tracker", score: -80 };
 
