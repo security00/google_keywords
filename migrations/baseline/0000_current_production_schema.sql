@@ -268,6 +268,14 @@ CREATE TABLE research_sessions (
   created_at TEXT
 , trends_summary TEXT);
 
+-- table: schema_migrations
+CREATE TABLE schema_migrations (
+  version TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  checksum TEXT NOT NULL,
+  applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- table: serp_confidence_cache
 CREATE TABLE serp_confidence_cache (keyword_normalized TEXT NOT NULL, cache_date TEXT NOT NULL, confidence INTEGER NOT NULL, organic_count INTEGER DEFAULT 0, has_featured INTEGER DEFAULT 0, ai_in_titles INTEGER DEFAULT 0, updated_at TEXT, PRIMARY KEY (keyword_normalized, cache_date));
 
