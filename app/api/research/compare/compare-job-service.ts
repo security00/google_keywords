@@ -71,16 +71,6 @@ export async function handleComparePost(request: Request, userId: string, isStud
     selectedKeywordIds = selectedKeywordIds;
   }
 
-  if (selectedKeywords.length === 0) {
-    if (debug) {
-      console.log("[api/compare] invalid request: no selectable keywords");
-    }
-    return NextResponse.json(
-      { error: "No keywords available for comparison" },
-      { status: 400 }
-    );
-  }
-
   const minRuleScore = normalizeIntInRange(
     body?.minRuleScore,
     DEFAULT_COMPARE_MIN_RULE_SCORE,
@@ -101,6 +91,52 @@ export async function handleComparePost(request: Request, userId: string, isStud
     body?.dateTo
   );
   const benchmark = resolveBenchmark(body?.benchmark);
+
+  if (selectedKeywords.length === 0) {
+    if (!allowCreateSharedJob && isStudent) {
+      const latestShared = await getLatestSharedCompareResult({
+        dateFrom,
+        dateTo,
+        benchmark,
+      });
+      if (latestShared?.response?.results?.length) {
+        const decoratedResults = addFreshnessToComparisonResults(latestShared.response.results);
+        return NextResponse.json({
+          status: "complete",
+          ...latestShared.response,
+          results: decoratedResults,
+          summary: summarizeResults(decoratedResults),
+          fromCache: true,
+          cacheFallback: "latest_shared_compare_result",
+        });
+      }
+
+      const latestSuccessfulShared = await getLatestSuccessfulSharedCompareResultAny(
+        benchmark
+      );
+      if (latestSuccessfulShared?.response?.results?.length) {
+        const decoratedResults = addFreshnessToComparisonResults(
+          latestSuccessfulShared.response.results
+        );
+        return NextResponse.json({
+          status: "complete",
+          ...latestSuccessfulShared.response,
+          results: decoratedResults,
+          summary: summarizeResults(decoratedResults),
+          fromCache: true,
+          cacheFallback: "latest_successful_shared_compare_result",
+        });
+      }
+    }
+
+    if (debug) {
+      console.log("[api/compare] invalid request: no selectable keywords");
+    }
+    return NextResponse.json(
+      { error: "No keywords available for comparison" },
+      { status: 400 }
+    );
+  }
 
   if (compareEligibleKeywords.length === 0) {
     if (!allowCreateSharedJob && isStudent) {
