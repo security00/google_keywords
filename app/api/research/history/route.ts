@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
  * Get historical trend data for a keyword
  */
 export async function GET(request: NextRequest) {
-  const user = await authenticate(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticate(request);
+  if (!auth.authenticated) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);

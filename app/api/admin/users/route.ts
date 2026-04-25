@@ -2,39 +2,10 @@ import { NextResponse } from "next/server";
 
 import { listRecentPrecomputeHealth, writePrecomputeHealth } from "@/lib/admin_health";
 import { activateUserTrials, listActiveUsers, listPendingUsers, listUsers, requireAdmin } from "@/lib/admin";
-import { validateApiKey } from "@/lib/api_keys";
-import { d1Query } from "@/lib/d1";
+import { isAuthzError, requireCronOrAdmin } from "@/lib/authz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const isCronAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET || process.env.GK_CRON_SECRET;
-  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
-  if (!secret && !externalSecret) return false;
-  const headerSecret = request.headers.get("x-cron-secret");
-  if (secret && headerSecret === secret) return true;
-  if (externalSecret && headerSecret === externalSecret) return true;
-
-  const authHeader = request.headers.get("authorization");
-  if (secret && authHeader === `Bearer ${secret}`) return true;
-  if (externalSecret && authHeader === `Bearer ${externalSecret}`) return true;
-
-  return false;
-};
-
-const hasAdminApiKey = async (request: Request) => {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return false;
-  const apiKey = authHeader.slice(7).trim();
-  const result = await validateApiKey(apiKey, request);
-  if (!result.valid || !result.userId) return false;
-  const { rows } = await d1Query<{ role: string }>(
-    `SELECT role FROM auth_users_v2 WHERE id = ? LIMIT 1`,
-    [result.userId]
-  );
-  return rows[0]?.role === "admin";
-};
 
 // GET /api/admin/users
 export async function GET(request: Request) {
@@ -70,11 +41,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
 
   if (body?.action === "sync_precompute_health") {
-    const authorized =
-      isCronAuthorized(request) || (await hasAdminApiKey(request));
-    if (!authorized) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const principal = await requireCronOrAdmin(request);
+    if (isAuthzError(principal)) return principal;
     if (
       typeof body?.sharedDate !== "string" ||
       typeof body?.status !== "string" ||

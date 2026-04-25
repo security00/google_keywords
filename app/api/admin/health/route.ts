@@ -5,18 +5,10 @@ import {
   type PrecomputeHealth,
   writePrecomputeHealth,
 } from "@/lib/admin_health";
-import { requireAdmin } from "@/lib/admin";
+import { isAuthzError, requireAdminRequest, requireCron } from "@/lib/authz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const isCronAuthorized = (request: Request) => {
-  const envSecret =
-    process.env.GK_CRON_SECRET || process.env.EXTERNAL_CRON_SECRET || "";
-  if (!envSecret) return false;
-  const headerSecret = request.headers.get("x-cron-secret");
-  return Boolean(headerSecret && headerSecret === envSecret);
-};
 
 const isValidHealth = (value: unknown): value is PrecomputeHealth => {
   if (!value || typeof value !== "object") return false;
@@ -31,14 +23,9 @@ const isValidHealth = (value: unknown): value is PrecomputeHealth => {
   );
 };
 
-export async function GET() {
-  const { error } = await requireAdmin();
-  if (error) {
-    return NextResponse.json(
-      { error },
-      { status: error === "Forbidden: admin only" ? 403 : 401 }
-    );
-  }
+export async function GET(request: Request) {
+  const principal = await requireAdminRequest(request);
+  if (isAuthzError(principal)) return principal;
 
   try {
     const items = await listRecentPrecomputeHealth(7);
@@ -55,9 +42,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!isCronAuthorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requireCron(request);
+  if (isAuthzError(principal)) return principal;
 
   try {
     const body = await request.json().catch(() => null);
