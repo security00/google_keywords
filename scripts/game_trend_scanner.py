@@ -35,6 +35,11 @@ from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
+try:
+    from scripts.pipeline_runtime import pipeline_run
+except ModuleNotFoundError:
+    from pipeline_runtime import pipeline_run
+
 # ─── Config ───────────────────────────────────────────────────────────
 D1_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
 D1_API_TOKEN = os.environ.get("CF_API_TOKEN", "")
@@ -1109,4 +1114,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with pipeline_run("game-trend-scanner") as run_id:
+        print(f"run_id={run_id}", flush=True)
+        main()

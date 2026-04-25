@@ -25,6 +25,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+try:
+    from scripts.pipeline_runtime import pipeline_run
+except ModuleNotFoundError:
+    from pipeline_runtime import pipeline_run
+
 GK_SITE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
 GK_API_KEY = os.environ.get("GK_API_KEY", "")
 GK_CRON_SECRET = os.environ.get("GK_CRON_SECRET", "")
@@ -251,4 +256,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with pipeline_run("old-word-pipeline") as run_id:
+        print(f"run_id={run_id}", file=sys.stderr)
+        main()

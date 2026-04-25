@@ -231,6 +231,35 @@ Every architecture/security change needs a fast production-level sanity check.
 
 ---
 
+### 8. Python pipeline runtime guardrails started
+
+**Why**
+
+Long-running cron pipelines should not overlap silently, and every run should have a traceable `run_id`. This is the first low-risk step toward SaaS-grade operations for Python pipelines.
+
+**Changed**
+
+- Added `scripts/pipeline_runtime.py`.
+- Provides:
+  - per-pipeline lock file
+  - generated `run_id`
+  - JSONL start/complete/error records in `pipeline_runs.jsonl`
+- Connected initial pipelines:
+  - `scripts/old_word_pipeline.py`
+  - `scripts/game_trend_scanner.py`
+
+**Verification**
+
+- `python3 -m py_compile` passed for the runtime module and connected scripts.
+- Runtime guard smoke test created and removed a temporary lock successfully.
+- Production smoke passed.
+
+**Commit**
+
+- Pending at the time of writing.
+
+---
+
 ## Operating Principle Going Forward
 
 For SaaS-hardening work:
