@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { listRecentPrecomputeHealth, writePrecomputeHealth } from "@/lib/admin_health";
-import { activateUserTrials, listPendingUsers, listUsers, requireAdmin } from "@/lib/admin";
+import { activateUserTrials, listActiveUsers, listPendingUsers, listUsers, requireAdmin } from "@/lib/admin";
 import { validateApiKey } from "@/lib/api_keys";
 import { d1Query } from "@/lib/d1";
 
@@ -54,7 +54,11 @@ export async function GET(request: Request) {
     const pageSize = Math.max(1, Math.min(100, parseInt(searchParams.get("pageSize") || "20", 10) || 20));
     const filter = searchParams.get("filter");
     const search = searchParams.get("search") || "";
-    const result = filter === "pending" ? await listPendingUsers(page, pageSize, search) : await listUsers(page, pageSize, search);
+    const result = filter === "pending"
+      ? await listPendingUsers(page, pageSize, search)
+      : filter === "active"
+        ? await listActiveUsers(page, pageSize, search)
+        : await listUsers(page, pageSize, search);
     return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Query failed" }, { status: 500 });

@@ -136,6 +136,40 @@ export async function listPendingUsers(
   };
 }
 
+export async function listActiveUsers(
+  page = 1,
+  pageSize = 20,
+  search = ""
+): Promise<{ users: AdminUser[]; total: number; page: number; pageSize: number; totalPages: number }> {
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(100, Math.max(1, pageSize));
+  const offset = (safePage - 1) * safePageSize;
+  const normalizedSearch = search.trim().toLowerCase();
+  const searchClause = normalizedSearch ? ` AND lower(email) LIKE ?` : "";
+  const searchParams = normalizedSearch ? [`%${normalizedSearch}%`] : [];
+
+  const countResult = await d1Query<{ total: number }>(
+    `SELECT COUNT(*) as total FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NOT NULL${searchClause}`,
+    searchParams
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+
+  const { rows: users } = await d1Query<AdminUser>(
+    `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
+     FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NOT NULL${searchClause}
+     ORDER BY trial_expires_at DESC, created_at DESC LIMIT ? OFFSET ?`,
+    [...searchParams, safePageSize, offset]
+  );
+
+  return {
+    users,
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+    totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+  };
+}
+
 export async function listAllUsers(): Promise<AdminUser[]> {
   const { rows } = await d1Query<AdminUser>(
     `SELECT id, email, role, trial_started_at, trial_expires_at, created_at

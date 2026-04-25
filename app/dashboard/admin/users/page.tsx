@@ -20,7 +20,7 @@ const roleConfig: Record<string, { label: string; color: string }> = {
   banned: { label: "已封禁", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
 };
 
-type TabKey = "all" | "pending";
+type TabKey = "all" | "active" | "pending";
 
 export default function UsersPage() {
   const [tab, setTab] = useState<TabKey>("all");
@@ -31,6 +31,13 @@ export default function UsersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+
+  // Active users (separate fetch)
+  const [activeUsers, setActiveUsers] = useState<User[]>([]);
+  const [activeLoading, setActiveLoading] = useState(true);
+  const [activePage, setActivePage] = useState(1);
+  const [activeTotalCount, setActiveTotalCount] = useState(0);
+  const [activeTotalPages, setActiveTotalPages] = useState(1);
 
   // Pending users (separate fetch)
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
@@ -67,6 +74,25 @@ export default function UsersPage() {
     }
   }, [page, searchQuery]);
 
+  // Fetch active users
+  const fetchActiveUsers = useCallback(async (targetPage?: number) => {
+    const p = targetPage ?? activePage;
+    try {
+      setActiveLoading(true);
+      const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : "";
+      const res = await fetch(`/api/admin/users?filter=active&page=${p}&pageSize=${pageSize}${searchParam}`);
+      if (!res.ok) throw new Error("Unauthorized");
+      const data = await res.json();
+      setActiveUsers(data.users || []);
+      setActiveTotalCount(data.total ?? 0);
+      setActiveTotalPages(data.totalPages ?? 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载失败");
+    } finally {
+      setActiveLoading(false);
+    }
+  }, [activePage, searchQuery]);
+
   // Fetch pending users
   const fetchPendingUsers = useCallback(async (targetPage?: number) => {
     const p = targetPage ?? pendingPage;
@@ -88,14 +114,16 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
+    fetchActiveUsers();
     fetchPendingUsers();
-  }, [fetchUsers, fetchPendingUsers]);
+  }, [fetchUsers, fetchActiveUsers, fetchPendingUsers]);
 
   const submitSearch = (e: FormEvent) => {
     e.preventDefault();
     const nextQuery = searchInput.trim();
     setSearchQuery(nextQuery);
     setPage(1);
+    setActivePage(1);
     setPendingPage(1);
   };
 
@@ -103,6 +131,7 @@ export default function UsersPage() {
     setSearchInput("");
     setSearchQuery("");
     setPage(1);
+    setActivePage(1);
     setPendingPage(1);
   };
 
@@ -111,11 +140,15 @@ export default function UsersPage() {
     return Math.ceil((new Date(u.trial_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   };
 
-  const makeGoToPage = (kind: "all" | "pending") => (p: number) => {
+  const makeGoToPage = (kind: TabKey) => (p: number) => {
     if (kind === "all") {
       const target = Math.max(1, Math.min(totalPages, p));
       setPage(target);
       fetchUsers(target);
+    } else if (kind === "active") {
+      const target = Math.max(1, Math.min(activeTotalPages, p));
+      setActivePage(target);
+      fetchActiveUsers(target);
     } else {
       const target = Math.max(1, Math.min(pendingTotalPages, p));
       setPendingPage(target);
@@ -149,6 +182,7 @@ export default function UsersPage() {
       setMessage(payload?.message || "批量开通成功");
       setSelectedUserIds([]);
       fetchUsers();
+      fetchActiveUsers();
       fetchPendingUsers();
     } catch (e) {
       setError(e instanceof Error ? e.message : "批量开通失败");
@@ -172,11 +206,13 @@ export default function UsersPage() {
     );
   };
 
-  const isLoading = (tab === "all" ? loading : pendingLoading) && (tab === "all" ? users.length === 0 : pendingUsers.length === 0);
+  const tabUsers = tab === "all" ? users : tab === "active" ? activeUsers : pendingUsers;
+  const tabLoading = tab === "all" ? loading : tab === "active" ? activeLoading : pendingLoading;
+  const isLoading = tabLoading && tabUsers.length === 0;
   if (isLoading) return <div className="py-10 text-center text-muted-foreground">加载中...</div>;
 
-  const currentUsers = tab === "all" ? users : pendingUsers;
-  const currentLoading = tab === "all" ? loading : pendingLoading;
+  const currentUsers = tabUsers;
+  const currentLoading = tabLoading;
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
@@ -215,6 +251,17 @@ export default function UsersPage() {
         >
           全部用户
           <span className="ml-1.5 rounded-full bg-muted px-2 py-0.5 text-xs">{totalCount}</span>
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === "active"
+              ? "border-emerald-500 text-emerald-700 dark:text-emerald-400"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => { setTab("active"); setSelectedUserIds([]); }}
+        >
+          已激活用户
+          <span className="ml-1.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 px-2 py-0.5 text-xs">{activeTotalCount}</span>
         </button>
         <button
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -274,7 +321,7 @@ export default function UsersPage() {
             {currentUsers.length === 0 ? (
               <tr>
                 <td colSpan={tab === "pending" ? 6 : 5} className="px-3 py-8 text-center text-muted-foreground">
-                  {tab === "pending" ? "没有待激活学员" : "没有用户"}
+                  {tab === "pending" ? "没有待激活学员" : tab === "active" ? "没有已激活用户" : "没有用户"}
                 </td>
               </tr>
             ) : (
@@ -323,6 +370,8 @@ export default function UsersPage() {
       {/* Pagination */}
       {tab === "all" ? (
         <Pagination current={page} total={totalPages} count={totalCount} goToPage={makeGoToPage("all")} />
+      ) : tab === "active" ? (
+        <Pagination current={activePage} total={activeTotalPages} count={activeTotalCount} goToPage={makeGoToPage("active")} />
       ) : (
         <Pagination current={pendingPage} total={pendingTotalPages} count={pendingTotalCount} goToPage={makeGoToPage("pending")} />
       )}
