@@ -71,21 +71,26 @@ export async function deleteInviteCode(code: string): Promise<void> {
 
 export async function listUsers(
   page = 1,
-  pageSize = 20
+  pageSize = 20,
+  search = ""
 ): Promise<{ users: AdminUser[]; total: number; page: number; pageSize: number; totalPages: number }> {
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(100, Math.max(1, pageSize));
   const offset = (safePage - 1) * safePageSize;
+  const normalizedSearch = search.trim().toLowerCase();
+  const whereClause = normalizedSearch ? `WHERE lower(email) LIKE ?` : "";
+  const searchParams = normalizedSearch ? [`%${normalizedSearch}%`] : [];
 
   const countResult = await d1Query<{ total: number }>(
-    `SELECT COUNT(*) as total FROM auth_users_v2`
+    `SELECT COUNT(*) as total FROM auth_users_v2 ${whereClause}`,
+    searchParams
   );
   const total = countResult.rows[0]?.total ?? 0;
 
   const { rows: users } = await d1Query<AdminUser>(
     `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
-     FROM auth_users_v2 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-    [safePageSize, offset]
+     FROM auth_users_v2 ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [...searchParams, safePageSize, offset]
   );
 
   return {
@@ -99,22 +104,27 @@ export async function listUsers(
 
 export async function listPendingUsers(
   page = 1,
-  pageSize = 20
+  pageSize = 20,
+  search = ""
 ): Promise<{ users: AdminUser[]; total: number; page: number; pageSize: number; totalPages: number }> {
   const safePage = Math.max(1, page);
   const safePageSize = Math.min(100, Math.max(1, pageSize));
   const offset = (safePage - 1) * safePageSize;
+  const normalizedSearch = search.trim().toLowerCase();
+  const searchClause = normalizedSearch ? ` AND lower(email) LIKE ?` : "";
+  const searchParams = normalizedSearch ? [`%${normalizedSearch}%`] : [];
 
   const countResult = await d1Query<{ total: number }>(
-    `SELECT COUNT(*) as total FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NULL`
+    `SELECT COUNT(*) as total FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NULL${searchClause}`,
+    searchParams
   );
   const total = countResult.rows[0]?.total ?? 0;
 
   const { rows: users } = await d1Query<AdminUser>(
     `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
-     FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NULL
+     FROM auth_users_v2 WHERE role = 'student' AND trial_expires_at IS NULL${searchClause}
      ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-    [safePageSize, offset]
+    [...searchParams, safePageSize, offset]
   );
 
   return {

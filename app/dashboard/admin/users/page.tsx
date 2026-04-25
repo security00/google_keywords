@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -42,6 +43,8 @@ export default function UsersPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const pageSize = 20;
 
@@ -50,7 +53,8 @@ export default function UsersPage() {
     const p = targetPage ?? page;
     try {
       setLoading(true);
-      const res = await fetch(`/api/admin/users?page=${p}&pageSize=${pageSize}`);
+      const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : "";
+      const res = await fetch(`/api/admin/users?page=${p}&pageSize=${pageSize}${searchParam}`);
       if (!res.ok) throw new Error("Unauthorized");
       const data = await res.json();
       setUsers(data.users || []);
@@ -61,14 +65,15 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, searchQuery]);
 
   // Fetch pending users
   const fetchPendingUsers = useCallback(async (targetPage?: number) => {
     const p = targetPage ?? pendingPage;
     try {
       setPendingLoading(true);
-      const res = await fetch(`/api/admin/users?filter=pending&page=${p}&pageSize=${pageSize}`);
+      const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : "";
+      const res = await fetch(`/api/admin/users?filter=pending&page=${p}&pageSize=${pageSize}${searchParam}`);
       if (!res.ok) throw new Error("Unauthorized");
       const data = await res.json();
       setPendingUsers(data.users || []);
@@ -79,12 +84,27 @@ export default function UsersPage() {
     } finally {
       setPendingLoading(false);
     }
-  }, [pendingPage]);
+  }, [pendingPage, searchQuery]);
 
   useEffect(() => {
     fetchUsers();
     fetchPendingUsers();
-  }, []);
+  }, [fetchUsers, fetchPendingUsers]);
+
+  const submitSearch = (e: FormEvent) => {
+    e.preventDefault();
+    const nextQuery = searchInput.trim();
+    setSearchQuery(nextQuery);
+    setPage(1);
+    setPendingPage(1);
+  };
+
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setPage(1);
+    setPendingPage(1);
+  };
 
   const getTrialDaysLeft = (u: User) => {
     if (!u.trial_expires_at) return null;
@@ -164,6 +184,24 @@ export default function UsersPage() {
 
       {error && <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
       {message && <div className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
+
+      <form onSubmit={submitSearch} className="rounded-lg border bg-card p-3">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="按邮箱搜索学员，例如 user@example.com"
+            className="h-9 flex-1 rounded-md border bg-background px-3 text-sm outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <Button type="submit" size="sm">搜索</Button>
+            {searchQuery && (
+              <Button type="button" variant="outline" size="sm" onClick={clearSearch}>清空</Button>
+            )}
+          </div>
+        </div>
+        {searchQuery && <div className="mt-2 text-xs text-muted-foreground">当前搜索：{searchQuery}</div>}
+      </form>
 
       {/* Tabs */}
       <div className="flex border-b">

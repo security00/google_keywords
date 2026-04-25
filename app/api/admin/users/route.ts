@@ -53,7 +53,8 @@ export async function GET(request: Request) {
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
     const pageSize = Math.max(1, Math.min(100, parseInt(searchParams.get("pageSize") || "20", 10) || 20));
     const filter = searchParams.get("filter");
-    const result = filter === "pending" ? await listPendingUsers(page, pageSize) : await listUsers(page, pageSize);
+    const search = searchParams.get("search") || "";
+    const result = filter === "pending" ? await listPendingUsers(page, pageSize, search) : await listUsers(page, pageSize, search);
     return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Query failed" }, { status: 500 });
