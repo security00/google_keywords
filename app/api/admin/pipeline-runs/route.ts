@@ -51,14 +51,20 @@ export async function GET(request: Request) {
     checked_count: number | null;
     saved_count: number | null;
     estimated_cost_usd: number | null;
+    cost_event_count: number | null;
     error: string | null;
     metadata_json: string | null;
   }>(
-    `SELECT run_id, pipeline, status, started_at, completed_at, duration_seconds,
-            checked_count, saved_count, estimated_cost_usd, error, metadata_json
-     FROM pipeline_runs
-     ${whereSql}
-     ORDER BY started_at DESC
+    `SELECT pr.run_id, pr.pipeline, pr.status, pr.started_at, pr.completed_at, pr.duration_seconds,
+            pr.checked_count, pr.saved_count,
+            COALESCE(SUM(pce.estimated_cost_usd), pr.estimated_cost_usd) as estimated_cost_usd,
+            COUNT(pce.id) as cost_event_count,
+            pr.error, pr.metadata_json
+     FROM pipeline_runs pr
+     LEFT JOIN pipeline_cost_events pce ON pce.run_id = pr.run_id
+     ${whereSql ? whereSql.replace(/\bpipeline\b/g, "pr.pipeline").replace(/\bstatus\b/g, "pr.status") : ""}
+     GROUP BY pr.run_id
+     ORDER BY pr.started_at DESC
      LIMIT ? OFFSET ?`,
     [...params, pageSize, offset],
   );

@@ -36,9 +36,9 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 try:
-    from scripts.pipeline_runtime import pipeline_run
+    from scripts.pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
 except ModuleNotFoundError:
-    from pipeline_runtime import pipeline_run
+    from pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
 
 # ─── Config ───────────────────────────────────────────────────────────
 D1_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
@@ -482,7 +482,7 @@ def fetch_crazygames_new():
 
 # ─── Trends API ───────────────────────────────────────────────────────
 
-def call_trends_api(keywords, max_wait=180):
+def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
     """Call /api/research/trends with keywords (async with polling).
     
     1. POST /api/research/trends → get jobId (or cached results)
@@ -545,6 +545,14 @@ def call_trends_api(keywords, max_wait=180):
             poll_resp = json.loads(poll_result.stdout)
             
             if poll_resp.get("status") == "complete":
+                record_cost_event(
+                    provider="dataforseo",
+                    endpoint=endpoint_label,
+                    unit_type="keyword",
+                    unit_count=len(keywords),
+                    unit_price_usd=0.005,
+                    metadata={"keywords": keywords, "days": TREND_DAYS if endpoint_label == "trends_14d" else HISTORY_DAYS},
+                )
                 return poll_resp
             elif poll_resp.get("status") == "processing":
                 progress = poll_resp.get("progress", "")
@@ -599,7 +607,17 @@ def call_serp_api(keywords):
         if result.returncode != 0:
             print(f"    ⚠️ SERP curl exit {result.returncode}: {result.stderr[:200]}", file=sys.stderr)
             return None
-        return json.loads(result.stdout)
+        response = json.loads(result.stdout)
+        if not response.get("fromCache"):
+            record_cost_event(
+                provider="dataforseo",
+                endpoint="serp_organic",
+                unit_type="keyword",
+                unit_count=len(keywords),
+                unit_price_usd=0.01,
+                metadata={"keywords": keywords},
+            )
+        return response
     except json.JSONDecodeError as e:
         print(f"    ⚠️ SERP JSON parse failed: {e}", file=sys.stderr)
         return None
@@ -967,6 +985,14 @@ def main():
                     poll_d = json.loads(poll_r.stdout)
                     if poll_d.get("status") == "complete":
                         hist_results = poll_d.get("results", [])
+                        record_cost_event(
+                            provider="dataforseo",
+                            endpoint="trends_history_90d",
+                            unit_type="keyword",
+                            unit_count=len(hist_kws),
+                            unit_price_usd=0.005,
+                            metadata={"keywords": hist_kws, "days": HISTORY_DAYS},
+                        )
                         break
                     elif poll_d.get("status") == "failed":
                         break
@@ -1111,6 +1137,21 @@ def main():
     if recommended:
         print(f"\n__RECOMMENDED_JSON__")
         print(json.dumps(recommended, ensure_ascii=False))
+
+    update_pipeline_run(
+        checked_count=len(to_check),
+        saved_count=0 if args.dry_run else len(results),
+        metadata={
+            "total_candidates": len(all_games),
+            "trend_checked": len(results),
+            "recommended": len(recommended),
+            "hot": len(categorized["🔥 hot"]),
+            "rising": len(categorized["📈 rising"]),
+            "niche": len(categorized["🎯 niche"]),
+            "skip": len(categorized["⏭️ skip"]),
+            "dry_run": args.dry_run,
+        },
+    )
 
 
 if __name__ == "__main__":

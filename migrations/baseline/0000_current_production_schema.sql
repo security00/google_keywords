@@ -1,6 +1,6 @@
 -- Production D1 baseline schema snapshot
--- Generated from remote ai-trends D1 after applying migrations through 0003.
--- Object count: 52
+-- Generated from remote ai-trends D1 after applying migrations through 0004.
+-- Object count: 55
 
 -- index: idx_api_keys_key
 CREATE INDEX idx_api_keys_key ON api_keys(key);
@@ -58,6 +58,14 @@ CREATE INDEX idx_keyword_history_date ON keyword_history(date);
 
 -- index: idx_keyword_history_keyword_date
 CREATE INDEX idx_keyword_history_keyword_date ON keyword_history(keyword_normalized, date);
+
+-- index: idx_pipeline_cost_events_pipeline_created
+CREATE INDEX idx_pipeline_cost_events_pipeline_created
+  ON pipeline_cost_events(pipeline, created_at DESC);
+
+-- index: idx_pipeline_cost_events_run_id
+CREATE INDEX idx_pipeline_cost_events_run_id
+  ON pipeline_cost_events(run_id, created_at DESC);
 
 -- index: idx_pipeline_runs_pipeline_started
 CREATE INDEX idx_pipeline_runs_pipeline_started
@@ -239,6 +247,22 @@ CREATE TABLE old_keyword_opportunities (
 
 -- table: password_reset_tokens
 CREATE TABLE password_reset_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, token_hash TEXT NOT NULL, expires_at TEXT NOT NULL, used INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));
+
+-- table: pipeline_cost_events
+CREATE TABLE pipeline_cost_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id TEXT NOT NULL,
+  pipeline TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  unit_type TEXT NOT NULL,
+  unit_count INTEGER NOT NULL DEFAULT 0,
+  unit_price_usd REAL,
+  estimated_cost_usd REAL,
+  actual_cost_usd REAL,
+  metadata_json TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
 
 -- table: pipeline_runs
 CREATE TABLE pipeline_runs (

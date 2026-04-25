@@ -26,9 +26,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
-    from scripts.pipeline_runtime import pipeline_run
+    from scripts.pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
 except ModuleNotFoundError:
-    from pipeline_runtime import pipeline_run
+    from pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
 
 GK_SITE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
 GK_API_KEY = os.environ.get("GK_API_KEY", "")
@@ -154,6 +154,8 @@ def main():
 
     all_keywords = {}
     errors = 0
+    keyword_suggestion_calls = 0
+    trends_quick_calls = 0
 
     for idx, seed in enumerate(seeds, start=1):
         query = seed if seed.lower().startswith("ai ") else f"ai {seed}"
@@ -161,6 +163,15 @@ def main():
         try:
             resp = curl_json("POST", "/api/research/keyword-suggestions",
                            {"keyword": query, "limit": LIMIT_PER_SEED}, timeout=60)
+            keyword_suggestion_calls += 1
+            record_cost_event(
+                provider="dataforseo",
+                endpoint="keyword_suggestions",
+                unit_type="seed",
+                unit_count=1,
+                unit_price_usd=0.013,
+                metadata={"seed": seed, "query": query, "limit": LIMIT_PER_SEED},
+            )
             items = resp.get("items", [])
             print(f"→ {len(items)} suggestions", file=sys.stderr)
             for item in items:
@@ -209,6 +220,15 @@ def main():
             try:
                 resp = curl_json("POST", "/api/research/trends-quick",
                                {"keyword": kw, "months": 12}, timeout=30)
+                trends_quick_calls += 1
+                record_cost_event(
+                    provider="dataforseo",
+                    endpoint="trends_quick_12m",
+                    unit_type="keyword",
+                    unit_count=1,
+                    unit_price_usd=0.005,
+                    metadata={"keyword": kw, "months": 12},
+                )
                 series = resp.get("series", [])
                 bm_series = resp.get("benchmarkSeries", [])
                 # Merge into single structure for frontend
@@ -224,13 +244,29 @@ def main():
             time.sleep(0.5)
 
     # Save to D1
+    saved_count = 0
     if filtered:
         try:
             resp = curl_json("POST", "/api/admin/old-keywords",
                            {"keywords": filtered}, timeout=60)
-            print(f"  Saved to D1: {resp.get('saved', 0)}", file=sys.stderr)
+            saved_count = int(resp.get('saved', 0) or 0)
+            print(f"  Saved to D1: {saved_count}", file=sys.stderr)
         except Exception as e:
             print(f"  ⚠️ Save failed: {e}", file=sys.stderr)
+
+    estimated_cost = keyword_suggestion_calls * 0.013 + trends_quick_calls * 0.005
+    update_pipeline_run(
+        checked_count=len(seeds),
+        saved_count=saved_count,
+        estimated_cost_usd=estimated_cost,
+        metadata={
+            "suggestions_total": len(all_keywords),
+            "filtered_total": len(filtered),
+            "errors": errors,
+            "keyword_suggestion_calls": keyword_suggestion_calls,
+            "trends_quick_calls": trends_quick_calls,
+        },
+    )
 
     # Report
     report_path = STATE_DIR / f"old-word-report-{date}.md"

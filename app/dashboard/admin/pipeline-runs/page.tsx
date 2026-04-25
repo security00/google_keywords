@@ -14,6 +14,7 @@ type PipelineRun = {
   checked_count: number | null;
   saved_count: number | null;
   estimated_cost_usd: number | null;
+  cost_event_count: number | null;
   error: string | null;
 };
 
@@ -99,14 +100,15 @@ export default function AdminPipelineRunsPage() {
                 <th className="px-4 py-3">耗时</th>
                 <th className="px-4 py-3">检查/保存</th>
                 <th className="px-4 py-3">估算成本</th>
+                <th className="px-4 py-3">成本事件</th>
                 <th className="px-4 py-3">错误</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={9}>加载中...</td></tr>
+                <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={10}>加载中...</td></tr>
               ) : runs.length === 0 ? (
-                <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={9}>暂无运行记录</td></tr>
+                <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={10}>暂无运行记录</td></tr>
               ) : runs.map((run) => (
                 <tr key={run.run_id} className="border-t align-top">
                   <td className="px-4 py-3 font-medium">{run.pipeline}</td>
@@ -121,6 +123,7 @@ export default function AdminPipelineRunsPage() {
                   <td className="px-4 py-3">{run.duration_seconds ?? "-"}s</td>
                   <td className="px-4 py-3">{run.checked_count ?? "-"} / {run.saved_count ?? "-"}</td>
                   <td className="px-4 py-3">{formatCost(run.estimated_cost_usd)}</td>
+                  <td className="px-4 py-3">{run.cost_event_count ?? 0}</td>
                   <td className="max-w-[240px] truncate px-4 py-3 text-red-600" title={run.error || ""}>{run.error || "-"}</td>
                 </tr>
               ))}

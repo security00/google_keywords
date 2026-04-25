@@ -21,6 +21,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+_CURRENT_RUN: dict[str, str] = {}
+
 DEFAULT_STATE_DIR = Path(os.environ.get("GK_PRECOMPUTE_STATE_DIR", "/root/.local/state/google_keywords"))
 DEFAULT_D1_DATABASE_ID = "b40de8a4-75e1-4df6-a84d-3ecd62b70538"
 
@@ -69,6 +71,14 @@ def _d1_execute(sql: str, params: list[object]) -> None:
         raise RuntimeError(f"D1 pipeline_runs write failed: {body}")
 
 
+def current_run_id() -> str | None:
+    return _CURRENT_RUN.get("run_id")
+
+
+def current_pipeline_name() -> str | None:
+    return _CURRENT_RUN.get("name")
+
+
 def _record_pipeline_run(
     *,
     run_id: str,
@@ -108,6 +118,84 @@ def _record_pipeline_run(
     except Exception as exc:
         # D1 run logging must never break the actual pipeline.
         print(f"⚠️ pipeline_runs D1 write skipped: {exc}", flush=True)
+
+
+def update_pipeline_run(
+    *,
+    checked_count: int | None = None,
+    saved_count: int | None = None,
+    estimated_cost_usd: float | None = None,
+    metadata: dict | None = None,
+) -> None:
+    """Best-effort update of aggregate counters for the active run."""
+    run_id = current_run_id()
+    if not run_id:
+        return
+    sets: list[str] = []
+    params: list[object] = []
+    if checked_count is not None:
+        sets.append("checked_count = ?")
+        params.append(int(checked_count))
+    if saved_count is not None:
+        sets.append("saved_count = ?")
+        params.append(int(saved_count))
+    if estimated_cost_usd is not None:
+        sets.append("estimated_cost_usd = ?")
+        params.append(round(float(estimated_cost_usd), 6))
+    if metadata is not None:
+        sets.append("metadata_json = ?")
+        params.append(json.dumps(metadata, ensure_ascii=False, sort_keys=True))
+    if not sets:
+        return
+    sets.append("updated_at = datetime('now')")
+    params.append(run_id)
+    try:
+        _d1_execute(f"UPDATE pipeline_runs SET {', '.join(sets)} WHERE run_id = ?", params)
+    except Exception as exc:
+        print(f"⚠️ pipeline_runs aggregate update skipped: {exc}", flush=True)
+
+
+def record_cost_event(
+    *,
+    provider: str,
+    endpoint: str,
+    unit_type: str,
+    unit_count: int,
+    unit_price_usd: float | None = None,
+    estimated_cost_usd: float | None = None,
+    actual_cost_usd: float | None = None,
+    metadata: dict | None = None,
+) -> None:
+    """Best-effort insert of one paid/cost-related event for the active run."""
+    run_id = current_run_id()
+    pipeline = current_pipeline_name()
+    if not run_id or not pipeline:
+        return
+    if estimated_cost_usd is None and unit_price_usd is not None:
+        estimated_cost_usd = int(unit_count) * float(unit_price_usd)
+    try:
+        _d1_execute(
+            """
+            INSERT INTO pipeline_cost_events
+              (run_id, pipeline, provider, endpoint, unit_type, unit_count, unit_price_usd,
+               estimated_cost_usd, actual_cost_usd, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                run_id,
+                pipeline,
+                provider,
+                endpoint,
+                unit_type,
+                int(unit_count),
+                unit_price_usd,
+                round(float(estimated_cost_usd), 6) if estimated_cost_usd is not None else None,
+                round(float(actual_cost_usd), 6) if actual_cost_usd is not None else None,
+                json.dumps(metadata or {}, ensure_ascii=False, sort_keys=True),
+            ],
+        )
+    except Exception as exc:
+        print(f"⚠️ pipeline cost event skipped: {exc}", flush=True)
 
 
 @contextmanager
@@ -159,6 +247,9 @@ def pipeline_run(
     )
     _append_jsonl(log_path, {"event": "start", "name": name, "run_id": run_id, "ts": started_at_iso, "pid": os.getpid()})
     _record_pipeline_run(run_id=run_id, name=name, status="running", started_at_iso=started_at_iso)
+    previous_run = dict(_CURRENT_RUN)
+    _CURRENT_RUN.clear()
+    _CURRENT_RUN.update({"name": name, "run_id": run_id})
 
     try:
         yield run_id
@@ -208,6 +299,8 @@ def pipeline_run(
             duration_seconds=duration,
         )
     finally:
+        _CURRENT_RUN.clear()
+        _CURRENT_RUN.update(previous_run)
         try:
             current = json.loads(lock_path.read_text(encoding="utf-8"))
             if current.get("run_id") == run_id:
