@@ -43,6 +43,28 @@ API_KEY = os.environ.get("GK_API_KEY", "")
 # CrazyGames /new — 特殊源，有发布日期排序
 CRAZYGAMES_NEW = "https://www.crazygames.com/new"
 
+# ── Load shared business rules from config ──
+_RULES_PATH = os.path.join(os.path.dirname(__file__), '..', 'config', 'business-rules.json')
+try:
+    with open(_RULES_PATH) as _f:
+        _RULES = json.load(_f)
+except (FileNotFoundError, json.JSONDecodeError):
+    _RULES = {}
+
+# Game pipeline rules (from config, with fallbacks)
+GAME = _RULES.get('game', {})
+GAME_HOT_RATIO = GAME.get('GAME_HOT_RATIO', 2.0)
+GAME_RISING_RATIO = GAME.get('GAME_RISING_RATIO', 0.5)
+GAME_NICHE_RATIO = GAME.get('GAME_NICHE_RATIO', 0.5)
+GAME_HIST_ESTABLISHED_BENCH_RATIO = GAME.get('GAME_HIST_ESTABLISHED_BENCH_RATIO', 5.0)
+GAME_HIST_ESTABLISHED_ABSOLUTE = GAME.get('GAME_HIST_ESTABLISHED_ABSOLUTE', 30)
+GAME_RESURGE_SURGE = GAME.get('GAME_RESURGE_SURGE', 2.0)
+GAME_14D_ESTABLISHED_AVG = GAME.get('GAME_14D_ESTABLISHED_AVG', 50)
+GAME_14D_DECLINING_AVG = GAME.get('GAME_14D_DECLINING_AVG', 40)
+GAME_14D_STABLE_RATIO = GAME.get('GAME_14D_STABLE_RATIO', 5.0)
+GAME_14D_LOW_CV = GAME.get('GAME_14D_LOW_CV', 0.15)
+GAME_MIN_RATIO = GAME.get('GAME_MIN_RATIO', 1.0)
+
 TREND_BENCHMARK = "gpts"
 TREND_MONTHS = 0  # Use TREND_DAYS instead
 TREND_DAYS = 14  # 14-day window for NEW game discovery
@@ -568,11 +590,11 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
         
         # Criterion 1: historical value vs benchmark was already high
         # hist_vs_bench >= 5.0 means keyword was already 5x+ benchmark for 75 days
-        if hist_vs_bench >= 5.0:
+        if hist_vs_bench >= GAME_HIST_ESTABLISHED_BENCH_RATIO:
             is_established = True
             reason += f"；⚠️ 前75天搜索量已是benchmark的{hist_vs_bench:.1f}倍，非近期起势"
         # Criterion 2: absolute historical level was high (normalized >= 30)
-        elif hist_avg is not None and hist_avg >= 30:
+        elif hist_avg is not None and hist_avg >= GAME_HIST_ESTABLISHED_ABSOLUTE:
             is_established = True
             reason += f"；⚠️ 前75天搜索量均值{hist_avg:.0f}/100，已建立稳定搜索量"
         # Criterion 3: not surging (recent not significantly higher than history)
@@ -600,12 +622,12 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
             else:
                 cv = 0
             
-            # Check 1: consistently high absolute value (>= 50/100) → established
-            if avg_val >= 50:
+            # Check 1: consistently high absolute value → established
+            if avg_val >= GAME_14D_ESTABLISHED_AVG:
                 is_established = True
                 reason += f"；⚠️ 14天均值{avg_val:.0f}/100，搜索量一直很高"
-            # Check 1b: high value (>= 40) + declining within 14 days
-            elif avg_val >= 40:
+            # Check 1b: high value + declining within 14 days
+            elif avg_val >= GAME_14D_DECLINING_AVG:
                 first_half = vals[:len(vals)//2]
                 second_half = vals[len(vals)//2:]
                 avg_first = sum(first_half) / len(first_half) if first_half else 0
@@ -614,19 +636,19 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
                     is_established = True
                     reason += f"；⚠️ 14天均值{avg_val:.0f}/100且在下降，非新起势"
             # Check 2: high ratio to benchmark + low variation → old stable keyword
-            elif avg_val / avg_bench >= 5.0 and cv < 0.15:
+            elif avg_val / avg_bench >= GAME_14D_STABLE_RATIO and cv < GAME_14D_LOW_CV:
                 is_established = True
                 reason += f"；⚠️ 14天vs_bench={avg_val/avg_bench:.1f}x且波动极小(cv={cv:.2f})，非新起势"
             # Check 3: high ratio + declining trend (slope <= 0) → old game fading
-            elif avg_val / avg_bench >= 5.0 and slope <= 0:
+            elif avg_val / avg_bench >= GAME_14D_STABLE_RATIO and slope <= 0:
                 is_established = True
                 reason += f"；⚠️ 14天vs_bench={avg_val/avg_bench:.1f}x且在下降，非新起势"
     
     if is_established:
             # Exception: if surge is very strong (>2x), it's a re-surge of an old game
             # We might still want to flag it, but with lower priority
-            if surge >= 2.0:
-                reason += "（但近期有2x+回春趋势，可观察）"
+            if surge >= GAME_RESURGE_SURGE:
+                reason += f"（但近期有{GAME_RESURGE_SURGE}x+回春趋势，可观察）"
                 if ratio >= 2.0 and slope > 5:
                     return "📈 rising", reason
                 return "⏭️ skip", reason
