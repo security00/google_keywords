@@ -6,6 +6,8 @@ Game Trend Scanner — 从所有 sitemap 源发现新游戏，对比 GPTS 趋势
 1. CrazyGames /new 页面 — 通过 __NEXT_DATA__ JSON 获取最新上架游戏（~70个/页）
 2. Poki /new 页面 — 获取最新上架游戏
 3. Addicting Games /new-games — 获取最新上架游戏
+4. itch.io /games/newest — 独立游戏新品
+5. itch.io /games/free — 免费独立游戏
 
 流程：
 1. 从 CrazyGames /new + Steam new_releases 收集新游戏名
@@ -372,6 +374,66 @@ def fetch_addicting_games_new():
         return games
     except Exception as e:
         print(f"  ❌ Addicting Games fetch failed: {e}", flush=True)
+        return []
+
+
+# ─── itch.io New Games ────────────────────────────────────────────
+
+def fetch_itchio_new():
+    """Fetch new games from itch.io /games/newest."""
+    print("\n🎮 Phase 1d: itch.io /games/newest", flush=True)
+    try:
+        req = urllib.request.Request(
+            "https://itch.io/games/newest",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        links = re.findall(r'href="(https://[a-z0-9-]+\.itch\.io/[a-z0-9-]+)"', html)
+        seen = set()
+        games = []
+        for link in dict.fromkeys(links):  # preserve order, deduplicate
+            slug = link.split(".itch.io/")[1] if ".itch.io/" in link else ""
+            name = slug.replace("-", " ").strip().title()
+            key = name.lower()
+            if name and key not in seen and is_game_name_valid(name):
+                seen.add(key)
+                games.append({"name": name, "source": "itchio"})
+
+        print(f"  Found {len(games)} new itch.io games", flush=True)
+        return games
+    except Exception as e:
+        print(f"  ❌ itch.io fetch failed: {e}", flush=True)
+        return []
+
+
+def fetch_itchio_free():
+    """Fetch free games from itch.io /games/free."""
+    print("\n🎮 Phase 1e: itch.io /games/free", flush=True)
+    try:
+        req = urllib.request.Request(
+            "https://itch.io/games/free",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            html = resp.read().decode("utf-8", errors="ignore")
+
+        links = re.findall(r'href="(https://[a-z0-9-]+\.itch\.io/[a-z0-9-]+)"', html)
+        seen = set()
+        games = []
+        for link in dict.fromkeys(links):
+            slug = link.split(".itch.io/")[1] if ".itch.io/" in link else ""
+            name = slug.replace("-", " ").strip().title()
+            key = name.lower()
+            if name and key not in seen and is_game_name_valid(name):
+                seen.add(key)
+                games.append({"name": name, "source": "itchio-free"})
+
+        print(f"  Found {len(games)} free itch.io games", flush=True)
+        return games
+    except Exception as e:
+        print(f"  ❌ itch.io free fetch failed: {e}", flush=True)
         return []
 
 
@@ -773,16 +835,22 @@ def main():
     # ── Phase 1c: Addicting Games new releases ──
     ag_new = fetch_addicting_games_new()
 
+    # ── Phase 1d: itch.io new games ──
+    itchio_new = fetch_itchio_new()
+
+    # ── Phase 1e: itch.io free games ──
+    itchio_free = fetch_itchio_free()
+
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in crazygames_new + poki_new + ag_new:
+    for g in crazygames_new + poki_new + ag_new + itchio_new + itchio_free:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
             all_games.append(g)
 
-    print(f"\n📋 Combined: {len(all_games)} unique new games (CrazyGames + Poki + Addicting Games)", flush=True)
+    print(f"\n📋 Combined: {len(all_games)} unique new games (CrazyGames + Poki + Addicting Games + itch.io)", flush=True)
 
     # ── Filter out already trend-checked ──
     pipeline_names = {r["keyword"].lower() for r in d1_query(
