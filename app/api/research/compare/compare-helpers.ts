@@ -133,17 +133,34 @@ export const getLatestSharedCompareResult = async (params: {
      ORDER BY created_at DESC
      LIMIT 50`
   );
-  const row = rows.find((candidate) => candidate.cache_key.endsWith(suffix));
-  if (!row) return null;
-  try {
-    return {
-      response: JSON.parse(row.response_data) as CompareResponse,
-      cacheKey: row.cache_key,
-      createdAt: row.created_at,
-    };
-  } catch {
-    return null;
+
+  let best: { response: CompareResponse; cacheKey: string; createdAt: string; resultCount: number } | null = null;
+
+  for (const row of rows) {
+    if (!row.cache_key.endsWith(suffix)) continue;
+    try {
+      const response = JSON.parse(row.response_data) as CompareResponse;
+      const resultCount = Array.isArray(response.results) ? response.results.length : 0;
+      if (resultCount === 0) continue;
+      if (!best || resultCount > best.resultCount) {
+        best = {
+          response,
+          cacheKey: row.cache_key,
+          createdAt: row.created_at,
+          resultCount,
+        };
+      }
+    } catch {
+      continue;
+    }
   }
+
+  if (!best) return null;
+  return {
+    response: best.response,
+    cacheKey: best.cacheKey,
+    createdAt: best.createdAt,
+  };
 };
 
 export const getLatestSuccessfulSharedCompareResult = async (params: {
@@ -212,6 +229,8 @@ export const getLatestSuccessfulSharedCompareResultAny = async (benchmark: strin
      LIMIT 50`
   );
 
+  let best: { response: CompareResponse; cacheKey: string; createdAt: string; resultCount: number } | null = null;
+
   for (const row of rows) {
     try {
       const response = JSON.parse(row.response_data) as CompareResponse;
@@ -219,15 +238,14 @@ export const getLatestSuccessfulSharedCompareResultAny = async (benchmark: strin
         typeof (response as CompareResponse & { benchmark?: unknown }).benchmark === "string"
           ? (response as CompareResponse & { benchmark?: string }).benchmark
           : benchmark;
-      if (
-        responseBenchmark === benchmark &&
-        Array.isArray(response.results) &&
-        response.results.length > 0
-      ) {
-        return {
+      const resultCount = Array.isArray(response.results) ? response.results.length : 0;
+      if (responseBenchmark !== benchmark || resultCount === 0) continue;
+      if (!best || resultCount > best.resultCount) {
+        best = {
           response,
           cacheKey: row.cache_key,
           createdAt: row.created_at,
+          resultCount,
         };
       }
     } catch {
@@ -235,7 +253,12 @@ export const getLatestSuccessfulSharedCompareResultAny = async (benchmark: strin
     }
   }
 
-  return null;
+  if (!best) return null;
+  return {
+    response: best.response,
+    cacheKey: best.cacheKey,
+    createdAt: best.createdAt,
+  };
 };
 
 export const normalizeKeywordIdList = (raw: unknown) => {
