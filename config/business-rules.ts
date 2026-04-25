@@ -119,7 +119,10 @@ export const GAME_NICHE_RATIO = 0.5;
 export const GAME_HIST_ESTABLISHED_BENCH_RATIO = 5.0;
 
 /** 历史基线：hist_avg >= 此值判定为已建立（归一化 0-100） */
-export const GAME_HIST_ESTABLISHED_ABSOLUTE = 30;
+export const GAME_HIST_ESTABLISHED_ABSOLUTE = 50;
+
+/** 历史基线：surge < 此值视为明显下滑，判定非起势词 */
+export const GAME_HIST_DECLINING_SURGE = 0.8;
 
 /** 历史基线：surge >= 此值视为"回春"例外 */
 export const GAME_RESURGE_SURGE = 2.0;

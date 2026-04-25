@@ -65,6 +65,7 @@ GAME_14D_ESTABLISHED_AVG = GAME.get('GAME_14D_ESTABLISHED_AVG', 50)
 GAME_14D_DECLINING_AVG = GAME.get('GAME_14D_DECLINING_AVG', 40)
 GAME_14D_STABLE_RATIO = GAME.get('GAME_14D_STABLE_RATIO', 5.0)
 GAME_14D_LOW_CV = GAME.get('GAME_14D_LOW_CV', 0.15)
+GAME_HIST_DECLINING_SURGE = GAME.get('GAME_HIST_DECLINING_SURGE', 0.8)
 GAME_MIN_RATIO = GAME.get('GAME_MIN_RATIO', 1.0)
 
 TREND_BENCHMARK = "gpts"
@@ -664,7 +665,7 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
             is_established = True
             reason += f"；⚠️ 前期vs_bench={hist_vs_bench:.1f}x且近期未明显起势(surge={surge:.1f}x)"
         # Criterion 4: declining or flat — even moderate keywords declining are not new opportunities
-        elif surge < 1.0:
+        elif surge < GAME_HIST_DECLINING_SURGE:
             is_established = True
             reason += f"；⚠️ 近15天搜索量低于前75天(surge={surge:.1f}x)，非起势词"
     
