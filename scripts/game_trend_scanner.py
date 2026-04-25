@@ -85,6 +85,12 @@ GENERIC_KEYWORDS = {
     "privacy", "terms", "contact", "blog", "home", "search", "category",
 }
 
+# Explicitly block highly ambiguous/common titles that keep producing false positives in Trends.
+TOO_GENERIC_GAME_NAMES = {
+    "ant", "memories", "number", "delivery", "where", "pin", "rush hour",
+    "time traveler", "the lighthouse", "cold city", "passenger 6",
+}
+
 
 # ─── D1 Helpers ───────────────────────────────────────────────────────
 
@@ -685,6 +691,7 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
             else:
                 cv = 0
             
+            avg_bench_ratio = avg_val / avg_bench if avg_bench > 0 else 999
             # Check 1: consistently high absolute value → established
             if avg_val >= GAME_14D_ESTABLISHED_AVG:
                 is_established = True
@@ -699,18 +706,18 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
                     is_established = True
                     reason += f"；⚠️ 14天均值{avg_val:.0f}/100且在下降，非新起势"
             # Check 2: high ratio to benchmark + low variation → old stable keyword
-            elif avg_val / avg_bench >= GAME_14D_STABLE_RATIO and cv < GAME_14D_LOW_CV:
+            elif avg_bench_ratio >= GAME_14D_STABLE_RATIO and cv < GAME_14D_LOW_CV:
                 is_established = True
-                reason += f"；⚠️ 14天vs_bench={avg_val/avg_bench:.1f}x且波动极小(cv={cv:.2f})，非新起势"
+                reason += f"；⚠️ 14天vs_bench={avg_bench_ratio:.1f}x且波动极小(cv={cv:.2f})，非新起势"
             # Check 3: high ratio + declining trend (slope <= 0) → old game fading
-            elif avg_val / avg_bench >= GAME_14D_STABLE_RATIO and slope <= 0:
+            elif avg_bench_ratio >= GAME_14D_STABLE_RATIO and slope <= 0:
                 is_established = True
-                reason += f"；⚠️ 14天vs_bench={avg_val/avg_bench:.1f}x且在下降，非新起势"
+                reason += f"；⚠️ 14天vs_bench={avg_bench_ratio:.1f}x且在下降，非新起势"
     
     if is_established:
             # Exception: if surge is very strong (>2x), it's a re-surge of an old game
             # We might still want to flag it, but with lower priority
-            if surge >= GAME_RESURGE_SURGE:
+            if surge is not None and surge >= GAME_RESURGE_SURGE:
                 reason += f"（但近期有{GAME_RESURGE_SURGE}x+回春趋势，可观察）"
                 if ratio >= 2.0 and slope > 5:
                     return "📈 rising", reason
@@ -787,10 +794,14 @@ def is_game_name_valid(name):
         return False
     if re.match(r"^[0-9\s]+$", name_lower):
         return False
-    if name_lower in GENERIC_KEYWORDS:
+    if name_lower in GENERIC_KEYWORDS or name_lower in TOO_GENERIC_GAME_NAMES:
         return False
+    words = [w for w in re.split(r"[^a-z0-9]+", name_lower) if w]
     # Multi-word generic combos (category pages, not game names)
-    if all(w in GENERIC_KEYWORDS for w in name_lower.split()):
+    if words and all(w in GENERIC_KEYWORDS for w in words):
+        return False
+    # Single common word titles are usually false positives, unless clearly stylized.
+    if len(words) == 1 and words[0].isalpha() and len(words[0]) <= 8 and words[0] not in {"votv", "obby"}:
         return False
     # SEO junk patterns (embed, website, unblocked, etc.)
     if SEO_JUNK_PATTERNS.search(name_lower):
