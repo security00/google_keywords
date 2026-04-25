@@ -23,6 +23,15 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 GK_SITE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
+
+# ── Load shared business rules ──
+_RULES_PATH = os.path.join(os.path.dirname(__file__), '..', 'config', 'business-rules.json')
+try:
+    with open(_RULES_PATH) as _f:
+        _RULES = json.load(_f)
+except (FileNotFoundError, json.JSONDecodeError):
+    _RULES = {}
+
 GK_API_KEY = os.environ.get("GK_API_KEY", "")
 GK_CRON_SECRET = os.environ.get("GK_CRON_SECRET", os.environ.get("CRON_SECRET", ""))
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
@@ -73,8 +82,8 @@ PRINT_RESULT = os.environ.get("GK_PRECOMPUTE_PRINT_RESULT", "false").lower() in 
     "true",
     "yes",
 }
-COMPARE_BENCHMARK = os.environ.get("GK_COMPARE_BENCHMARK", "gpts")
-RECOMMENDED_COMPARE_LIMIT = int(os.environ.get("GK_RECOMMENDED_COMPARE_LIMIT", "50"))
+COMPARE_BENCHMARK = os.environ.get("GK_COMPARE_BENCHMARK", _RULES.get('compare', {}).get('DEFAULT_COMPARE_BENCHMARK', 'gpts'))
+RECOMMENDED_COMPARE_LIMIT = int(os.environ.get("GK_RECOMMENDED_COMPARE_LIMIT", _RULES.get('expand', {}).get('RECOMMENDED_COMPARE_LIMIT', 50)))
 RECOMMENDED_MIN_SCORE = int(os.environ.get("GK_RECOMMENDED_MIN_SCORE", "20"))
 RECOMMENDED_HIGH_CONFIDENCE_SCORE = int(os.environ.get("GK_RECOMMENDED_HIGH_CONFIDENCE_SCORE", "60"))
 RECOMMENDED_SECTION_QUOTAS = {
