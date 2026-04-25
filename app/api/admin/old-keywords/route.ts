@@ -1,28 +1,10 @@
 import { NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
-import { requireAdmin } from "@/lib/admin";
-
-async function checkAuth(request: Request): Promise<boolean> {
-  // Cron secret
-  const cronSecret = request.headers.get("x-cron-secret");
-  if (cronSecret && cronSecret === process.env.CRON_SECRET) return true;
-
-  // API key
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const apiKey = authHeader.slice(7).trim();
-    if (apiKey.startsWith("gk_live_")) return true;
-  }
-
-  // Cookie session (browser admin)
-  const { error } = await requireAdmin();
-  return !error;
-}
+import { isAuthzError, requireCronOrAdmin } from "@/lib/authz";
 
 export async function POST(request: Request) {
-  if (!(await checkAuth(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requireCronOrAdmin(request);
+  if (isAuthzError(principal)) return principal;
 
   const body = await request.json();
   const keywords: Array<Record<string, unknown>> = body.keywords || [];
@@ -64,9 +46,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  if (!(await checkAuth(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requireCronOrAdmin(request);
+  if (isAuthzError(principal)) return principal;
 
   const url = new URL(request.url);
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);

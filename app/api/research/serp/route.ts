@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
 import { checkStudentAccess } from "@/lib/usage";
+import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 import {
   submitSerpTasks,
   waitForSerpTasks,
@@ -47,7 +48,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ results: cached, fromCache: true });
     }
 
-    // Submit SERP tasks
+    const paidPrincipal = await requirePaidApiPermission(request);
+    if (isAuthzError(paidPrincipal)) {
+      return NextResponse.json(
+        { error: "今日 SERP 共享缓存尚未预计算完成，请稍后重试。", status: "cache_miss" },
+        { status: 409 }
+      );
+    }
+
+    // Submit SERP tasks (admin/cron only)
     const taskIds = await submitSerpTasks(keywords);
 
     // Wait for results

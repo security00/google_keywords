@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
+
 const DATAFORSEO_BASE = "https://api.dataforseo.com/v3";
 
 function buildAuthHeader(): string {
@@ -11,21 +13,9 @@ function buildAuthHeader(): string {
   return `Basic ${encoded}`;
 }
 
-async function requireAuth(request: Request): Promise<boolean> {
-  const cronSecret = request.headers.get("x-cron-secret");
-  if (cronSecret && cronSecret === process.env.CRON_SECRET) return true;
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const apiKey = authHeader.slice(7).trim();
-    if (apiKey.startsWith("gk_live_")) return true;
-  }
-  return false;
-}
-
 export async function POST(request: Request) {
-  if (!(await requireAuth(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requirePaidApiPermission(request);
+  if (isAuthzError(principal)) return principal;
 
   const body = await request.json();
   const { keyword, limit = 20 } = body;

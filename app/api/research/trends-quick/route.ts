@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { d1Query } from "@/lib/d1";
-import { requireAdmin } from "@/lib/admin";
+
+import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 
 const DATAFORSEO_BASE = "https://api.dataforseo.com/v3";
 
@@ -12,22 +12,9 @@ function buildAuthHeader(): string {
   return `Basic ${encoded}`;
 }
 
-async function checkAuth(request: Request): Promise<boolean> {
-  const cronSecret = request.headers.get("x-cron-secret");
-  if (cronSecret && cronSecret === process.env.CRON_SECRET) return true;
-  const authHeader = request.headers.get("authorization");
-  if (authHeader?.startsWith("Bearer ")) {
-    const apiKey = authHeader.slice(7).trim();
-    if (apiKey.startsWith("gk_live_")) return true;
-  }
-  const { error } = await requireAdmin();
-  return !error;
-}
-
 export async function POST(request: Request) {
-  if (!(await checkAuth(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requirePaidApiPermission(request);
+  if (isAuthzError(principal)) return principal;
 
   const body = await request.json();
   const { keyword, months = 12, benchmark = "gpts" } = body;

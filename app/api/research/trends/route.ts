@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
 import { checkStudentAccess } from "@/lib/usage";
+import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 import {
   submitComparisonTasks,
   resolveComparisonDateRange,
@@ -56,7 +57,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ results: cached.results, fromCache: true });
     }
 
-    // Cache miss → submit to DataForSEO (no postback needed, status route polls directly)
+    const paidPrincipal = await requirePaidApiPermission(request);
+    if (isAuthzError(paidPrincipal)) {
+      return NextResponse.json(
+        { error: "今日趋势对比缓存尚未预计算完成，请稍后重试。", status: "cache_miss" },
+        { status: 409 }
+      );
+    }
+
+    // Cache miss → admin/cron may submit to DataForSEO (no postback needed, status route polls directly)
     const taskIds = await submitComparisonTasks(keywords, dateFrom, dateTo, benchmark);
 
     if (!taskIds || taskIds.length === 0) {

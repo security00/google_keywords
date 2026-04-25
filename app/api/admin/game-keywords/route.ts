@@ -1,38 +1,14 @@
 import { NextResponse } from "next/server";
 import { d1Query } from "@/lib/d1";
-import { requireAdmin } from "@/lib/admin";
-import { getAuthUser } from "@/lib/auth";
+import { isAuthzError, requireAdminRequest } from "@/lib/authz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
-    // Strict admin-only access
-    const admin = await requireAdmin();
-    if (admin.error) {
-      // Check if authenticated as admin via API key
-      const authHeader = request.headers.get("authorization") || "";
-      const token = authHeader.replace(/^Bearer\s+/i, "");
-      if (token && /gk_live_[0-9a-f]{32,64}/.test(token)) {
-        const { validateApiKey } = await import("@/lib/api_keys");
-        const auth = await validateApiKey(token, request);
-        if (!auth.valid) {
-          return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
-        }
-        // Check user role
-        const { d1Query } = await import("@/lib/d1");
-        const { rows } = await d1Query<{ role: string }>(
-          "SELECT role FROM auth_users_v2 WHERE id = ?",
-          [auth.userId]
-        );
-        if (!rows.length || rows[0].role !== "admin") {
-          return NextResponse.json({ error: "Admin only" }, { status: 403 });
-        }
-      } else {
-        return NextResponse.json({ error: admin.error || "Admin only" }, { status: 403 });
-      }
-    }
+    const principal = await requireAdminRequest(request);
+    if (isAuthzError(principal)) return principal;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
