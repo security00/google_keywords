@@ -1,8 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+
+type CostEvent = {
+  provider: string;
+  endpoint: string;
+  unit_type: string;
+  unit_count: number;
+  unit_price_usd: number | null;
+  estimated_cost_usd: number | null;
+  actual_cost_usd: number | null;
+  created_at: string;
+};
 
 type PipelineRun = {
   run_id: string;
@@ -15,6 +26,7 @@ type PipelineRun = {
   saved_count: number | null;
   estimated_cost_usd: number | null;
   cost_event_count: number | null;
+  cost_events?: CostEvent[];
   error: string | null;
 };
 
@@ -39,6 +51,7 @@ const formatCost = (value: number | null) => {
 
 export default function AdminPipelineRunsPage() {
   const [runs, setRuns] = useState<PipelineRun[]>([]);
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -110,22 +123,74 @@ export default function AdminPipelineRunsPage() {
               ) : runs.length === 0 ? (
                 <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={10}>暂无运行记录</td></tr>
               ) : runs.map((run) => (
-                <tr key={run.run_id} className="border-t align-top">
-                  <td className="px-4 py-3 font-medium">{run.pipeline}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(run.status)}`}>
-                      {run.status}
-                    </span>
-                  </td>
-                  <td className="max-w-[240px] truncate px-4 py-3 font-mono text-xs" title={run.run_id}>{run.run_id}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(run.started_at)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">{formatDate(run.completed_at)}</td>
-                  <td className="px-4 py-3">{run.duration_seconds ?? "-"}s</td>
-                  <td className="px-4 py-3">{run.checked_count ?? "-"} / {run.saved_count ?? "-"}</td>
-                  <td className="px-4 py-3">{formatCost(run.estimated_cost_usd)}</td>
-                  <td className="px-4 py-3">{run.cost_event_count ?? 0}</td>
-                  <td className="max-w-[240px] truncate px-4 py-3 text-red-600" title={run.error || ""}>{run.error || "-"}</td>
-                </tr>
+                <Fragment key={run.run_id}>
+                  <tr className="border-t align-top">
+                    <td className="px-4 py-3 font-medium">{run.pipeline}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass(run.status)}`}>
+                        {run.status}
+                      </span>
+                    </td>
+                    <td className="max-w-[240px] truncate px-4 py-3 font-mono text-xs" title={run.run_id}>{run.run_id}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(run.started_at)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(run.completed_at)}</td>
+                    <td className="px-4 py-3">{run.duration_seconds ?? "-"}s</td>
+                    <td className="px-4 py-3">{run.checked_count ?? "-"} / {run.saved_count ?? "-"}</td>
+                    <td className="px-4 py-3">{formatCost(run.estimated_cost_usd)}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        className="rounded border px-2 py-1 text-xs hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={!run.cost_event_count}
+                        onClick={() => setExpandedRunId((id) => id === run.run_id ? null : run.run_id)}
+                      >
+                        {run.cost_event_count ?? 0} 条
+                      </button>
+                    </td>
+                    <td className="max-w-[240px] truncate px-4 py-3 text-red-600" title={run.error || ""}>{run.error || "-"}</td>
+                  </tr>
+                  {expandedRunId === run.run_id && (
+                    <tr className="border-t bg-muted/30">
+                      <td colSpan={10} className="px-4 py-4">
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium">成本明细</div>
+                          {(run.cost_events || []).length === 0 ? (
+                            <div className="text-sm text-muted-foreground">暂无成本事件</div>
+                          ) : (
+                            <div className="overflow-x-auto rounded-lg border bg-background">
+                              <table className="w-full min-w-[720px] text-xs">
+                                <thead className="bg-muted/60 text-left text-muted-foreground">
+                                  <tr>
+                                    <th className="px-3 py-2">时间</th>
+                                    <th className="px-3 py-2">Provider</th>
+                                    <th className="px-3 py-2">Endpoint</th>
+                                    <th className="px-3 py-2">单位</th>
+                                    <th className="px-3 py-2">数量</th>
+                                    <th className="px-3 py-2">单价</th>
+                                    <th className="px-3 py-2">估算</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(run.cost_events || []).map((event, index) => (
+                                    <tr key={`${run.run_id}-${index}`} className="border-t">
+                                      <td className="px-3 py-2 whitespace-nowrap">{formatDate(event.created_at)}</td>
+                                      <td className="px-3 py-2">{event.provider}</td>
+                                      <td className="px-3 py-2">{event.endpoint}</td>
+                                      <td className="px-3 py-2">{event.unit_type}</td>
+                                      <td className="px-3 py-2">{event.unit_count}</td>
+                                      <td className="px-3 py-2">{formatCost(event.unit_price_usd)}</td>
+                                      <td className="px-3 py-2">{formatCost(event.estimated_cost_usd)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>

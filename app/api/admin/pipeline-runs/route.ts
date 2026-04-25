@@ -69,10 +69,44 @@ export async function GET(request: Request) {
     [...params, pageSize, offset],
   );
 
+  const runIds = rows.map((row) => row.run_id);
+  const eventsByRun = new Map<string, Array<Record<string, unknown>>>();
+  if (runIds.length > 0) {
+    const placeholders = runIds.map(() => "?").join(",");
+    const { rows: eventRows } = await d1Query<{
+      run_id: string;
+      provider: string;
+      endpoint: string;
+      unit_type: string;
+      unit_count: number;
+      unit_price_usd: number | null;
+      estimated_cost_usd: number | null;
+      actual_cost_usd: number | null;
+      metadata_json: string | null;
+      created_at: string;
+    }>(
+      `SELECT run_id, provider, endpoint, unit_type, unit_count, unit_price_usd,
+              estimated_cost_usd, actual_cost_usd, metadata_json, created_at
+       FROM pipeline_cost_events
+       WHERE run_id IN (${placeholders})
+       ORDER BY created_at DESC`,
+      runIds,
+    );
+    for (const event of eventRows) {
+      const list = eventsByRun.get(event.run_id) || [];
+      list.push({
+        ...event,
+        metadata: event.metadata_json ? safeParseJson(event.metadata_json) : null,
+      });
+      eventsByRun.set(event.run_id, list);
+    }
+  }
+
   return NextResponse.json({
     runs: rows.map((row) => ({
       ...row,
       metadata: row.metadata_json ? safeParseJson(row.metadata_json) : null,
+      cost_events: eventsByRun.get(row.run_id) || [],
     })),
     total,
     page,
