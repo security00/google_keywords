@@ -53,7 +53,7 @@ const current = rows
 const baselineText = readFileSync("migrations/baseline/0000_current_production_schema.sql", "utf8");
 const baseline = baselineText
   .split(/\n/)
-  .filter((line) => !line.startsWith("-- Production D1 baseline") && !line.startsWith("-- Generated from"))
+  .filter((line) => !line.startsWith("-- Production D1 baseline") && !line.startsWith("-- Generated from") && !line.startsWith("-- Object count"))
   .join("\n")
   .trim() + "\n";
 if (current.trim() !== baseline.trim()) {

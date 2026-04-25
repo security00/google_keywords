@@ -1,5 +1,6 @@
--- Production D1 baseline schema snapshot.
--- Generated from remote ai-trends. Do not edit by hand for migrations.
+-- Production D1 baseline schema snapshot
+-- Generated from remote ai-trends D1 after applying migrations through 0003.
+-- Object count: 52
 
 -- index: idx_api_keys_key
 CREATE INDEX idx_api_keys_key ON api_keys(key);
@@ -57,6 +58,14 @@ CREATE INDEX idx_keyword_history_date ON keyword_history(date);
 
 -- index: idx_keyword_history_keyword_date
 CREATE INDEX idx_keyword_history_keyword_date ON keyword_history(keyword_normalized, date);
+
+-- index: idx_pipeline_runs_pipeline_started
+CREATE INDEX idx_pipeline_runs_pipeline_started
+  ON pipeline_runs(pipeline, started_at DESC);
+
+-- index: idx_pipeline_runs_status_started
+CREATE INDEX idx_pipeline_runs_status_started
+  ON pipeline_runs(status, started_at DESC);
 
 -- index: idx_results_comparison
 CREATE INDEX idx_results_comparison on comparison_results (comparison_id);
@@ -230,6 +239,23 @@ CREATE TABLE old_keyword_opportunities (
 
 -- table: password_reset_tokens
 CREATE TABLE password_reset_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, token_hash TEXT NOT NULL, expires_at TEXT NOT NULL, used INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));
+
+-- table: pipeline_runs
+CREATE TABLE pipeline_runs (
+  run_id TEXT PRIMARY KEY,
+  pipeline TEXT NOT NULL,
+  status TEXT NOT NULL,
+  started_at TEXT NOT NULL,
+  completed_at TEXT,
+  duration_seconds REAL,
+  checked_count INTEGER,
+  saved_count INTEGER,
+  estimated_cost_usd REAL,
+  error TEXT,
+  metadata_json TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
 
 -- table: postback_results
 CREATE TABLE postback_results (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, api_type TEXT NOT NULL, cache_key TEXT, result_data TEXT NOT NULL, created_at TEXT NOT NULL);
