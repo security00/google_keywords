@@ -22,6 +22,11 @@ import urllib.request
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+try:
+    from scripts.pipeline_runtime import pipeline_run
+except ModuleNotFoundError:
+    from pipeline_runtime import pipeline_run
+
 GK_SITE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
 
 # ── Load shared business rules ──
@@ -768,7 +773,9 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        with pipeline_run("precompute-shared-expand") as run_id:
+            print(f"run_id={run_id}", file=sys.stderr)
+            main()
     except Exception as exc:
         import traceback
         tb = traceback.format_exc()

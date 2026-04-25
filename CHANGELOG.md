@@ -247,6 +247,7 @@ Long-running cron pipelines should not overlap silently, and every run should ha
 - Connected initial pipelines:
   - `scripts/old_word_pipeline.py`
   - `scripts/game_trend_scanner.py`
+  - `scripts/precompute_shared_expand.py`
 
 **Verification**
 
