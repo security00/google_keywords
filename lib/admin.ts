@@ -233,8 +233,8 @@ export async function getUserDetail(id: string): Promise<AdminUserDetail | null>
   };
 
   const [keys, codes, usage] = await Promise.all([
-    d1Query<Record<string, unknown>>(
-      `SELECT id, name, key, created_at, active FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
+    d1Query<{ id: number; name: string; key_prefix: string | null; key_last4: string | null; created_at: string; active: number }>(
+      `SELECT id, name, key_prefix, key_last4, created_at, active FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
       [id]
     ),
     d1Query<Record<string, unknown>>(
@@ -249,7 +249,13 @@ export async function getUserDetail(id: string): Promise<AdminUserDetail | null>
 
   return {
     ...user,
-    api_keys: keys.rows as AdminUserDetail["api_keys"],
+    api_keys: keys.rows.map((key) => ({
+      id: key.id,
+      name: key.name,
+      key: `${key.key_prefix ?? "gk_live_****"}...${key.key_last4 ?? "****"}`,
+      active: key.active,
+      created_at: key.created_at,
+    })),
     invite_codes: codes.rows as AdminUserDetail["invite_codes"],
     daily_usage: usage.rows as AdminUserDetail["daily_usage"],
   };

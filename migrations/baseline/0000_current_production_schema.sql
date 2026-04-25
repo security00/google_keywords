@@ -80,7 +80,7 @@ CREATE TABLE _cf_KV (
       ) WITHOUT ROWID;
 
 -- table: api_keys
-CREATE TABLE api_keys (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL, name TEXT DEFAULT 'default', created_at TEXT DEFAULT (datetime('now')), expires_at TEXT, active INTEGER DEFAULT 1, key_hash TEXT);
+CREATE TABLE api_keys (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL, name TEXT DEFAULT 'default', created_at TEXT DEFAULT (datetime('now')), expires_at TEXT, active INTEGER DEFAULT 1, key_hash TEXT, key_prefix TEXT, key_last4 TEXT);
 
 -- table: auth_sessions
 CREATE TABLE auth_sessions (

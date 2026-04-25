@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import secrets
@@ -109,8 +110,8 @@ def main() -> int:
             account_id,
             database_id,
             token,
-            "INSERT INTO api_keys (key, user_id, name, expires_at, active) VALUES (?, ?, 'codex-replay', datetime('now', '+1 hour'), 1)",
-            [api_key, user_id],
+            "INSERT INTO api_keys (key, key_hash, key_prefix, key_last4, user_id, name, expires_at, active) VALUES (?, ?, ?, ?, ?, 'codex-replay', datetime('now', '+1 hour'), 1)",
+            [api_key, hashlib.sha256(api_key.encode()).hexdigest(), api_key[:12], api_key[-4:], user_id],
         )
         status_code, payload = fetch_status(args.site_url, args.job_id, api_key, args.timeout)
         print(json.dumps({"httpStatus": status_code, "payload": payload}, ensure_ascii=False))

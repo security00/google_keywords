@@ -177,8 +177,8 @@ export async function generateApiKey(userId: string, name: string = 'default'): 
     const key = 'gk_live_' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
     await d1Query(
-        `INSERT INTO api_keys (key, key_hash, user_id, name) VALUES (?, ?, ?, ?)`,
-        [key, hashApiKey(key), userId, safeName]
+        `INSERT INTO api_keys (key, key_hash, key_prefix, key_last4, user_id, name) VALUES (?, ?, ?, ?, ?, ?)`,
+        [key, hashApiKey(key), key.slice(0, 12), key.slice(-4), userId, safeName]
     );
 
     return key;
@@ -194,20 +194,24 @@ export async function listApiKeys(userId: string): Promise<Array<{
 }>> {
     const { rows } = await d1Query<{
         id: number;
-        key: string;
+        key_prefix: string | null;
+        key_last4: string | null;
         name: string;
         created_at: string;
         expires_at: string | null;
         active: number;
     }>(
-        `SELECT id, key, name, created_at, expires_at, active FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
+        `SELECT id, key_prefix, key_last4, name, created_at, expires_at, active FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
         [userId]
     );
 
-    // Always mask keys — never return full key in list
     return rows.map(k => ({
-        ...k,
-        key: k.key.slice(0, 12) + '...' + k.key.slice(-4),
+        id: k.id,
+        key: `${k.key_prefix ?? 'gk_live_****'}...${k.key_last4 ?? '****'}`,
+        name: k.name,
+        created_at: k.created_at,
+        expires_at: k.expires_at,
+        active: k.active,
     }));
 }
 
