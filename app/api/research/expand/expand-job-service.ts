@@ -199,5 +199,5 @@ export async function handleExpandPost(request: Request, userId: string, isStude
 
   await setCache(d1CacheKey, jobId);
 
-  return NextResponse.json({ jobId, status: "pending" });
+  return NextResponse.json({ jobId, status: "pending", cost: taskSubmission.cost, total: taskIds.length });
 }

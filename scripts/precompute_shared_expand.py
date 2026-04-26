@@ -98,9 +98,8 @@ RECOMMENDED_SECTION_QUOTAS = {
 }
 LLM_BATCH_SIZE = int(os.environ.get("GK_PRECOMPUTE_LLM_BATCH_SIZE", "80"))
 LLM_MAX_CANDIDATES = int(os.environ.get("GK_PRECOMPUTE_LLM_MAX_CANDIDATES", "900"))
-DATAFORSEO_EXPAND_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_EXPAND_PER_KEYWORD", "0.005"))
-DATAFORSEO_COMPARE_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_COMPARE_PER_KEYWORD", "0.005"))
-DATAFORSEO_SERP_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_SERP_PER_KEYWORD", "0.01"))
+DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_TRENDS_PER_TASK", "0.009"))
+DATAFORSEO_SERP_TASK_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_SERP_PER_TASK", "0.0006"))
 OPENROUTER_LLM_BATCH_UNIT_PRICE_USD = float(os.environ.get("GK_COST_OPENROUTER_LLM_BATCH", "0"))
 SHARED_DEFAULTS_PATH = Path(
     os.environ.get(
@@ -580,9 +579,9 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
     record_cost_event(
         provider="dataforseo",
         endpoint="compare_trends",
-        unit_type="keyword",
-        unit_count=len(selected),
-        unit_price_usd=DATAFORSEO_COMPARE_UNIT_PRICE_USD,
+        unit_type="task",
+        unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or 0) or ((len(selected) + 3) // 4),
+        unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
         metadata={"job_id": job_id, "benchmark": COMPARE_BENCHMARK, "cost": submit.get("cost")},
     )
@@ -671,9 +670,9 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
     record_cost_event(
         provider="dataforseo",
         endpoint="compare_intent_serp",
-        unit_type="keyword",
-        unit_count=intent_keywords,
-        unit_price_usd=DATAFORSEO_SERP_UNIT_PRICE_USD,
+        unit_type="task",
+        unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or intent_keywords),
+        unit_price_usd=DATAFORSEO_SERP_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
         metadata={"job_id": job_id, "tasks": submit.get("total"), "cost": submit.get("cost")},
     )
@@ -779,9 +778,9 @@ def main():
             record_cost_event(
                 provider="dataforseo",
                 endpoint="expand_trends",
-                unit_type="keyword",
-                unit_count=len(keywords),
-                unit_price_usd=DATAFORSEO_EXPAND_UNIT_PRICE_USD,
+                unit_type="task",
+                unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or len(keywords)),
+                unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
                 actual_cost_usd=extract_job_actual_cost(submit),
                 metadata={"job_id": submit.get("jobId"), "keywords": len(keywords), "cost": submit.get("cost")},
             )
@@ -812,9 +811,9 @@ def main():
     record_cost_event(
         provider="dataforseo",
         endpoint="expand_trends",
-        unit_type="keyword",
-        unit_count=len(keywords),
-        unit_price_usd=DATAFORSEO_EXPAND_UNIT_PRICE_USD,
+        unit_type="task",
+        unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or len(keywords)),
+        unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
         metadata={"job_id": job_id, "keywords": len(keywords), "cost": submit.get("cost")},
     )
