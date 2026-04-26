@@ -59,6 +59,16 @@ const formatCost = (value: number | null) => {
   return `$${Number(value).toFixed(4)}`;
 };
 
+const primaryCost = (actual: number | null, estimated: number | null) => {
+  if (actual !== null && actual !== undefined) {
+    return { value: actual, label: "真实", isActual: true };
+  }
+  if (estimated !== null && estimated !== undefined) {
+    return { value: estimated, label: "估算", isActual: false };
+  }
+  return { value: null, label: "-", isActual: false };
+};
+
 export default function AdminPipelineRunsPage() {
   const [runs, setRuns] = useState<PipelineRun[]>([]);
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
@@ -96,7 +106,7 @@ export default function AdminPipelineRunsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">管线运行记录</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            查看预计算、老词、新游等后台管线的 run_id、状态、耗时和成本字段。当前成本字段允许为空，后续会逐步补全。
+查看预计算、老词、新游等后台管线的 run_id、状态、耗时和成本。成本优先展示真实支出；没有真实值时才展示估算。
           </p>
         </div>
         <Button variant="outline" onClick={() => void loadRuns()} disabled={loading}>
@@ -122,7 +132,7 @@ export default function AdminPipelineRunsPage() {
                 <th className="px-4 py-3">结束</th>
                 <th className="px-4 py-3">耗时</th>
                 <th className="px-4 py-3">检查/保存</th>
-                <th className="px-4 py-3">估算成本</th>
+                <th className="px-4 py-3">成本</th>
                 <th className="px-4 py-3">成本事件</th>
                 <th className="px-4 py-3">错误</th>
               </tr>
@@ -132,7 +142,9 @@ export default function AdminPipelineRunsPage() {
                 <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={10}>加载中...</td></tr>
               ) : runs.length === 0 ? (
                 <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={10}>暂无运行记录</td></tr>
-              ) : runs.map((run) => (
+              ) : runs.map((run) => {
+                const cost = primaryCost(run.actual_cost_usd, run.estimated_cost_usd);
+                return (
                 <Fragment key={run.run_id}>
                   <tr className="border-t align-top">
                     <td className="px-4 py-3 font-medium">{run.pipeline}</td>
@@ -147,10 +159,10 @@ export default function AdminPipelineRunsPage() {
                     <td className="px-4 py-3">{run.duration_seconds ?? "-"}s</td>
                     <td className="px-4 py-3">{run.checked_count ?? "-"} / {run.saved_count ?? "-"}</td>
                     <td className="px-4 py-3">
-                      <div>{formatCost(run.estimated_cost_usd)}</div>
-                      {run.actual_cost_usd !== null && run.actual_cost_usd !== undefined && (
-                        <div className="text-xs text-emerald-600 dark:text-emerald-400">真实 {formatCost(run.actual_cost_usd)}</div>
-                      )}
+                      <div className={cost.isActual ? "font-medium text-emerald-600 dark:text-emerald-400" : "font-medium text-amber-600 dark:text-amber-400"}>
+                        {formatCost(cost.value)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{cost.label}</div>
                     </td>
                     <td className="px-4 py-3">
                       <button
@@ -182,8 +194,8 @@ export default function AdminPipelineRunsPage() {
                                     <th className="px-3 py-2">单位</th>
                                     <th className="px-3 py-2">数量</th>
                                     <th className="px-3 py-2">单价</th>
-                                    <th className="px-3 py-2">估算</th>
-                                    <th className="px-3 py-2">真实</th>
+                                    <th className="px-3 py-2">成本</th>
+                                    <th className="px-3 py-2">口径</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -195,8 +207,8 @@ export default function AdminPipelineRunsPage() {
                                       <td className="px-3 py-2">{event.unit_type}</td>
                                       <td className="px-3 py-2">{event.unit_count}</td>
                                       <td className="px-3 py-2">{formatCost(event.unit_price_usd)}</td>
-                                      <td className="px-3 py-2">{formatCost(event.estimated_cost_usd)}</td>
-                                      <td className="px-3 py-2">{formatCost(event.actual_cost_usd)}</td>
+                                      <td className="px-3 py-2">{formatCost(primaryCost(event.actual_cost_usd, event.estimated_cost_usd).value)}</td>
+                                      <td className="px-3 py-2">{primaryCost(event.actual_cost_usd, event.estimated_cost_usd).label}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -208,7 +220,8 @@ export default function AdminPipelineRunsPage() {
                     </tr>
                   )}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
