@@ -4,7 +4,7 @@ import { authenticate } from "@/lib/auth_middleware";
 import { checkStudentAccess } from "@/lib/usage";
 import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 import {
-  submitComparisonTasks,
+  submitComparisonTasksWithCost,
   resolveComparisonDateRange,
 } from "@/lib/keyword-research";
 import { buildCacheKey, getCached, setCache } from "@/lib/cache";
@@ -66,7 +66,8 @@ export async function POST(request: Request) {
     }
 
     // Cache miss → admin/cron may submit to DataForSEO (no postback needed, status route polls directly)
-    const taskIds = await submitComparisonTasks(keywords, dateFrom, dateTo, benchmark);
+    const taskSubmission = await submitComparisonTasksWithCost(keywords, dateFrom, dateTo, benchmark);
+    const taskIds = taskSubmission.taskIds;
 
     if (!taskIds || taskIds.length === 0) {
       return NextResponse.json({ error: "Failed to submit trends tasks" }, { status: 500 });
@@ -78,12 +79,14 @@ export async function POST(request: Request) {
       userId,
       "trends",
       taskIds,
-      { keywords, benchmark: benchmark || "gpts", dateFrom, dateTo, cacheKey }
+      { keywords, benchmark: benchmark || "gpts", dateFrom, dateTo, cacheKey, cost: taskSubmission.cost }
     );
 
     return NextResponse.json({
       jobId,
       status: "processing",
+      cost: taskSubmission.cost,
+      total: taskIds.length,
       message: "Trends tasks submitted. Poll /api/research/trends/status?jobId= for results.",
     });
   } catch (error) {

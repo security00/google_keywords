@@ -119,6 +119,12 @@ def opportunity_score(volume: int, kd: int, cpc: float) -> float:
     return round(volume * (100 - kd) / 100 * cpc_w, 1)
 
 
+def actual_cost_from_response(resp):
+    if isinstance(resp, dict) and isinstance(resp.get("cost"), dict):
+        return resp["cost"].get("actualCostUsd")
+    return None
+
+
 def curl_json(method, path, body=None, timeout=30):
     url = f"{GK_SITE_URL}{path}"
     cmd = ["curl", "-sS", "-L", "--max-time", str(timeout), "-X", method, url,
@@ -167,10 +173,11 @@ def main():
             record_cost_event(
                 provider="dataforseo",
                 endpoint="keyword_suggestions",
-                unit_type="seed",
+                unit_type="call",
                 unit_count=1,
                 unit_price_usd=0.013,
-                metadata={"seed": seed, "query": query, "limit": LIMIT_PER_SEED},
+                actual_cost_usd=actual_cost_from_response(resp),
+                metadata={"seed": seed, "query": query, "limit": LIMIT_PER_SEED, "cost": resp.get("cost")},
             )
             items = resp.get("items", [])
             print(f"→ {len(items)} suggestions", file=sys.stderr)
@@ -224,10 +231,11 @@ def main():
                 record_cost_event(
                     provider="dataforseo",
                     endpoint="trends_quick_12m",
-                    unit_type="keyword",
+                    unit_type="call",
                     unit_count=1,
-                    unit_price_usd=0.005,
-                    metadata={"keyword": kw, "months": 12},
+                    unit_price_usd=0.00225,
+                    actual_cost_usd=actual_cost_from_response(resp),
+                    metadata={"keyword": kw, "months": 12, "cost": resp.get("cost")},
                 )
                 series = resp.get("series", [])
                 bm_series = resp.get("benchmarkSeries", [])

@@ -85,6 +85,10 @@ export async function POST(request: Request) {
       points: keywordSeries.length,
       series: keywordSeries,
       benchmarkSeries,
+      cost: {
+        estimatedCostUsd: null,
+        actualCostUsd: typeof data.cost === "number" ? data.cost : null,
+      },
       _debug: debugRaw,
     });
   } catch (e) {

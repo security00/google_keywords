@@ -509,6 +509,10 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
             print(f"    ⚠️ trends submit failed: curl exit {result.returncode}", file=sys.stderr)
             return None
         resp = json.loads(result.stdout)
+        actual_cost = None
+        if isinstance(resp.get("cost"), dict):
+            actual_cost = resp["cost"].get("actualCostUsd")
+        task_count = int(resp.get("total") or len(resp.get("taskIds") or []) or ((len(keywords) + 3) // 4))
         
         # Cache hit — return immediately
         if resp.get("results") is not None:
@@ -548,10 +552,11 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
                 record_cost_event(
                     provider="dataforseo",
                     endpoint=endpoint_label,
-                    unit_type="keyword",
-                    unit_count=len(keywords),
-                    unit_price_usd=0.005,
-                    metadata={"keywords": keywords, "days": TREND_DAYS if endpoint_label == "trends_14d" else HISTORY_DAYS},
+                    unit_type="task",
+                    unit_count=task_count,
+                    unit_price_usd=0.00225,
+                    actual_cost_usd=actual_cost,
+                    metadata={"keywords": keywords, "days": TREND_DAYS if endpoint_label == "trends_14d" else HISTORY_DAYS, "cost": resp.get("cost")},
                 )
                 return poll_resp
             elif poll_resp.get("status") == "processing":
@@ -609,13 +614,15 @@ def call_serp_api(keywords):
             return None
         response = json.loads(result.stdout)
         if not response.get("fromCache"):
+            cost = response.get("cost") if isinstance(response.get("cost"), dict) else {}
             record_cost_event(
                 provider="dataforseo",
                 endpoint="serp_organic",
-                unit_type="keyword",
-                unit_count=len(keywords),
-                unit_price_usd=0.01,
-                metadata={"keywords": keywords},
+                unit_type="task",
+                unit_count=int(response.get("total") or len(keywords)),
+                unit_price_usd=0.0006,
+                actual_cost_usd=cost.get("actualCostUsd"),
+                metadata={"keywords": keywords, "cost": response.get("cost")},
             )
         return response
     except json.JSONDecodeError as e:
@@ -968,6 +975,8 @@ def main():
             hist_result = subprocess.run(hist_cmd, capture_output=True, text=True, timeout=25)
             hist_data = json.loads(hist_result.stdout)
             hist_job_id = hist_data.get("jobId")
+            hist_cost = hist_data.get("cost") if isinstance(hist_data.get("cost"), dict) else {}
+            hist_task_count = int(hist_data.get("total") or len(hist_data.get("taskIds") or []) or ((len(hist_kws) + 3) // 4))
             
             hist_results = None
             timed_out = False
@@ -988,10 +997,11 @@ def main():
                         record_cost_event(
                             provider="dataforseo",
                             endpoint="trends_history_90d",
-                            unit_type="keyword",
-                            unit_count=len(hist_kws),
-                            unit_price_usd=0.005,
-                            metadata={"keywords": hist_kws, "days": HISTORY_DAYS},
+                            unit_type="task",
+                            unit_count=hist_task_count,
+                            unit_price_usd=0.00225,
+                            actual_cost_usd=hist_cost.get("actualCostUsd"),
+                            metadata={"keywords": hist_kws, "days": HISTORY_DAYS, "cost": hist_data.get("cost")}, 
                         )
                         break
                     elif poll_d.get("status") == "failed":

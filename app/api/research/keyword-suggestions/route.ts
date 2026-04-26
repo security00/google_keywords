@@ -78,6 +78,10 @@ export async function POST(request: Request) {
       seed: keyword,
       count: items.length,
       items,
+      cost: {
+        estimatedCostUsd: null,
+        actualCostUsd: typeof data.cost === "number" ? data.cost : null,
+      },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
