@@ -34,8 +34,8 @@ function Navigation() {
     { href: "/dashboard/expand", label: "1. 词根扩展", active: pathname.includes("/expand") && !pathname.includes("/expand/") },
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
-    { href: "/dashboard/games", label: "🎮 新游发现", icon: Gamepad2, active: pathname === "/dashboard/games" },
-    { href: "/dashboard/old-keywords", label: "🔍 老词推荐", icon: Search, active: pathname === "/dashboard/old-keywords" },
+    { href: "/dashboard/games", label: "新游发现", icon: Gamepad2, active: pathname === "/dashboard/games" },
+    { href: "/dashboard/old-keywords", label: "老词推荐", icon: Search, active: pathname === "/dashboard/old-keywords" },
     { href: "/dashboard/settings", label: "设置", icon: Settings, active: pathname.includes("/settings") },
   ];
 
@@ -50,20 +50,19 @@ function Navigation() {
   ];
 
   const isAdmin = (user as { role?: string } | null)?.role === "admin";
-
   const visibleStudentSteps = studentSteps.filter((step) => {
     // 管理员有自己的新游发现页(/admin/games)和老词页(/admin/old-keywords)，不重复显示学员版
     if (isAdmin && (step.href === "/dashboard/games" || step.href === "/dashboard/old-keywords")) return false;
     return true;
   });
 
-  const renderNavLink = (step: (typeof studentSteps)[number] | (typeof adminSteps)[number]) => (
+  const renderTopNavLink = (step: (typeof studentSteps)[number]) => (
     <Link
       key={step.href}
       href={step.href}
       onClick={ensureSessionBeforeNavigate}
       className={cn(
-        "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors hover:text-primary lg:px-3.5",
+        "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors hover:text-primary",
         step.active ? "bg-primary/10 text-primary shadow-sm" : "text-muted-foreground hover:bg-muted"
       )}
     >
@@ -72,41 +71,107 @@ function Navigation() {
     </Link>
   );
 
+  const renderSidebarLink = (step: (typeof studentSteps)[number] | (typeof adminSteps)[number]) => (
+    <Link
+      key={step.href}
+      href={step.href}
+      onClick={ensureSessionBeforeNavigate}
+      className={cn(
+        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+        step.active ? "bg-primary/10 text-primary shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {step.icon && <step.icon className="h-4 w-4 shrink-0" />}
+      <span>{step.label}</span>
+    </Link>
+  );
+
+  if (isAdmin) {
+    return (
+      <>
+        <aside className="fixed inset-y-0 left-0 z-50 hidden w-60 border-r border-border/80 bg-background/95 px-3 py-4 shadow-sm shadow-black/5 backdrop-blur-xl lg:block dark:shadow-black/25">
+          <Link href="/dashboard" className="mb-6 block px-2">
+            <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
+              关键词研究台
+            </h1>
+            <p className="mt-1 text-xs text-muted-foreground">Admin Console</p>
+          </Link>
+
+          <nav className="space-y-5">
+            <div>
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">研究功能</p>
+              <div className="space-y-1">{visibleStudentSteps.map(renderSidebarLink)}</div>
+            </div>
+
+            <div>
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">管理后台</p>
+              <div className="space-y-1">{adminSteps.map(renderSidebarLink)}</div>
+            </div>
+          </nav>
+        </aside>
+
+        <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 shadow-sm shadow-black/5 backdrop-blur-xl lg:ml-60 dark:shadow-black/25">
+          <div className="container mx-auto flex min-h-14 items-center justify-between gap-3 px-4">
+            <Link href="/dashboard" className="lg:hidden">
+              <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-lg font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
+                关键词研究台
+              </h1>
+            </Link>
+
+            <nav className="hidden min-w-0 flex-1 items-center gap-2 overflow-x-auto lg:flex">
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">管理员后台</span>
+              <span className="text-sm text-muted-foreground">{pathname.startsWith("/dashboard/admin") ? "管理功能" : "研究功能"}</span>
+            </nav>
+
+            <div className="flex min-w-0 shrink-0 items-center gap-2">
+              {user ? (
+                <>
+                  <span className="max-w-[180px] truncate text-xs text-muted-foreground sm:max-w-[260px]">
+                    {user.email}
+                    <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">管理员</span>
+                  </span>
+
+                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                    退出
+                  </Button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">检查登录状态...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <nav className="flex gap-2 overflow-x-auto border-t border-border/60 px-4 py-2 lg:hidden">
+            {[...visibleStudentSteps, ...adminSteps].map(renderTopNavLink)}
+          </nav>
+        </header>
+      </>
+    );
+  }
+
   return (
     <div className="sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-sm shadow-black/5 backdrop-blur-xl dark:shadow-black/25">
-      <div className="container mx-auto flex min-h-16 flex-col gap-3 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-start">
-          <Link href="/dashboard" className="flex shrink-0 items-center">
-            <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-lg font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400 lg:w-24 lg:text-xl">
+      <div className="container mx-auto flex min-h-16 items-center justify-between gap-4 px-4 py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-6">
+          <Link href="/dashboard" className="hidden shrink-0 md:block">
+            <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
               关键词研究台
             </h1>
           </Link>
 
-          <nav className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="hidden rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
-                研究
-              </span>
-              {visibleStudentSteps.map(renderNavLink)}
-            </div>
-
-            {isAdmin && (
-              <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2 lg:border-t-0 lg:pt-0">
-                <span className="hidden rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
-                  管理
-                </span>
-                {adminSteps.map(renderNavLink)}
-              </div>
-            )}
+          <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+            {visibleStudentSteps.map(renderTopNavLink)}
           </nav>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border/60 pt-2 xl:justify-end xl:border-t-0 xl:pt-0">
+        <div className="flex shrink-0 items-center gap-2">
           {user ? (
             <>
-              <span className="max-w-[220px] truncate text-xs text-muted-foreground sm:max-w-[280px]">
+              <span className="hidden max-w-[260px] truncate text-xs text-muted-foreground md:inline-block">
                 {user.email}
-                {isAdmin && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">管理员</span>}
               </span>
 
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
@@ -132,11 +197,20 @@ export default function DashboardLayout({
 }) {
   return (
     <ResearchProvider>
-      <div className="min-h-screen bg-background/40 pb-20">
-        <Navigation />
-        <main className="container mx-auto max-w-7xl px-4 py-8">{children}</main>
-        <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-200/20 via-background to-background dark:from-indigo-500/10 dark:via-background dark:to-background" />
-      </div>
+      <DashboardShell>{children}</DashboardShell>
     </ResearchProvider>
+  );
+}
+
+function DashboardShell({ children }: { children: React.ReactNode }) {
+  const { user } = useResearch();
+  const isAdmin = (user as { role?: string } | null)?.role === "admin";
+
+  return (
+    <div className="min-h-screen bg-background/40 pb-20">
+      <Navigation />
+      <main className={cn("container mx-auto max-w-7xl px-4 py-8", isAdmin && "lg:ml-60 lg:max-w-none lg:pr-8")}>{children}</main>
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-200/20 via-background to-background dark:from-indigo-500/10 dark:via-background dark:to-background" />
+    </div>
   );
 }
