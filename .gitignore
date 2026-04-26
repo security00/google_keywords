@@ -44,3 +44,9 @@ next-env.d.ts
 .open-next/
 __pycache__/
 dist/
+
+# local data / generated migration dumps
+.data/
+d1_export.sql
+d1_export_parts/
+*.pyc
