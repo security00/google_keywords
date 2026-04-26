@@ -7,6 +7,7 @@ export {
 
 export {
   submitExpansionTasks,
+  submitExpansionTasksWithCost,
   waitForTasks,
   getReadyTaskIds,
   getExpansionResults,

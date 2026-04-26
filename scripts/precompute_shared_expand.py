@@ -271,6 +271,44 @@ def post_json(url, headers, body, timeout=120):
         raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
 
 
+def extract_usage_cost(payload):
+    if not isinstance(payload, dict):
+        return None
+    usage = payload.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    for key in ("cost", "total_cost", "estimated_cost"):
+        value = usage.get(key)
+        try:
+            if value is not None:
+                return float(value)
+        except (TypeError, ValueError):
+            pass
+    details = usage.get("cost_details")
+    if isinstance(details, dict):
+        value = details.get("upstream_inference_cost")
+        try:
+            if value is not None:
+                return float(value)
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def extract_job_actual_cost(payload):
+    if not isinstance(payload, dict):
+        return None
+    cost = payload.get("cost")
+    if isinstance(cost, dict):
+        value = cost.get("actualCostUsd")
+        try:
+            if value is not None:
+                return float(value)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def batches(items, size):
     for index in range(0, len(items), size):
         yield items[index:index + size]
@@ -419,13 +457,20 @@ def refine_with_llm(expand_response):
             body,
             timeout=120,
         )
+        actual_cost = extract_usage_cost(result)
         record_cost_event(
             provider="openrouter",
             endpoint="chat_completions_llm_filter",
             unit_type="batch",
             unit_count=1,
             unit_price_usd=OPENROUTER_LLM_BATCH_UNIT_PRICE_USD,
-            metadata={"batch_index": idx, "keywords": [item["keyword"] for item in batch], "model": OPENROUTER_MODEL},
+            actual_cost_usd=actual_cost,
+            metadata={
+                "batch_index": idx,
+                "keywords": [item["keyword"] for item in batch],
+                "model": OPENROUTER_MODEL,
+                "usage": result.get("usage"),
+            },
         )
         content = (
             ((result.get("choices") or [{}])[0].get("message") or {}).get("content")
@@ -735,7 +780,8 @@ def main():
                 unit_type="keyword",
                 unit_count=len(keywords),
                 unit_price_usd=DATAFORSEO_EXPAND_UNIT_PRICE_USD,
-                metadata={"job_id": submit.get("jobId"), "keywords": len(keywords)},
+                actual_cost_usd=extract_job_actual_cost(submit),
+                metadata={"job_id": submit.get("jobId"), "keywords": len(keywords), "cost": submit.get("cost")},
             )
 
     if submit.get("status") == "complete":
@@ -767,7 +813,8 @@ def main():
         unit_type="keyword",
         unit_count=len(keywords),
         unit_price_usd=DATAFORSEO_EXPAND_UNIT_PRICE_USD,
-        metadata={"job_id": job_id, "keywords": len(keywords)},
+        actual_cost_usd=extract_job_actual_cost(submit),
+        metadata={"job_id": job_id, "keywords": len(keywords), "cost": submit.get("cost")},
     )
     started_at = time.time()
 

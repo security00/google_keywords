@@ -5,7 +5,7 @@ import {
   normalizeKeywords,
   resolveFilterConfig,
   resolveDateRange,
-  submitExpansionTasks,
+  submitExpansionTasksWithCost,
 } from "@/lib/keyword-research";
 import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 import { createJob, getJob } from "@/lib/research-jobs";
@@ -156,10 +156,11 @@ export async function handleExpandPost(request: Request, userId: string, isStude
   const POSTBACK_BASE = process.env.PUBLIC_BASE_URL || "https://discoverkeywords.co";
   const postbackUrl = `${POSTBACK_BASE}/api/research/webhook`;
 
-  const taskIds = await submitExpansionTasks(keywords, dateFrom, dateTo, {
+  const taskSubmission = await submitExpansionTasksWithCost(keywords, dateFrom, dateTo, {
     postbackUrl,
     cacheKey: d1CacheKey,
   });
+  const taskIds = taskSubmission.taskIds;
   if (taskIds.length === 0) {
     const message = `Expansion task creation returned 0 task ids for ${keywords.length} keywords`;
     console.error("[api/expand] task creation returned 0 ids", {
@@ -186,6 +187,7 @@ export async function handleExpandPost(request: Request, userId: string, isStude
     sharedResultCacheKey,
     responseLimit,
     enableLlmFilter,
+    cost: taskSubmission.cost,
   });
 
   if (debug) {

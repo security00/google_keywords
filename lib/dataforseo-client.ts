@@ -421,3 +421,56 @@ export const safeDivide = (numerator: number, denominator: number) => {
   if (numerator > 0) return 99;
   return 0;
 };
+
+export type CostSummary = {
+  estimatedCostUsd: number | null;
+  actualCostUsd: number | null;
+};
+
+export type TaskSubmission = {
+  taskIds: string[];
+  cost: CostSummary;
+};
+
+const toFiniteNumber = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+export const extractDataForSeoCost = (response: unknown): CostSummary => {
+  const record = response as { cost?: unknown; tasks?: Array<{ cost?: unknown }> } | null;
+  const rootCost = toFiniteNumber(record?.cost);
+  const taskCost = Array.isArray(record?.tasks)
+    ? record.tasks.reduce((sum, task) => sum + (toFiniteNumber(task?.cost) ?? 0), 0)
+    : 0;
+  const actualCostUsd = rootCost !== null ? rootCost : (taskCost > 0 ? taskCost : null);
+  return { estimatedCostUsd: null, actualCostUsd };
+};
+
+export const zeroCostSummary = (): CostSummary => ({
+  estimatedCostUsd: null,
+  actualCostUsd: null,
+});
+
+export const mergeCostSummaries = (items: CostSummary[]): CostSummary => {
+  let hasEstimated = false;
+  let hasActual = false;
+  let estimatedCostUsd = 0;
+  let actualCostUsd = 0;
+
+  for (const item of items) {
+    if (item.estimatedCostUsd !== null && item.estimatedCostUsd !== undefined) {
+      hasEstimated = true;
+      estimatedCostUsd += item.estimatedCostUsd;
+    }
+    if (item.actualCostUsd !== null && item.actualCostUsd !== undefined) {
+      hasActual = true;
+      actualCostUsd += item.actualCostUsd;
+    }
+  }
+
+  return {
+    estimatedCostUsd: hasEstimated ? Number(estimatedCostUsd.toFixed(6)) : null,
+    actualCostUsd: hasActual ? Number(actualCostUsd.toFixed(6)) : null,
+  };
+};

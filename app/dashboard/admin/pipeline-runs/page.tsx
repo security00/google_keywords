@@ -25,6 +25,7 @@ type PipelineRun = {
   checked_count: number | null;
   saved_count: number | null;
   estimated_cost_usd: number | null;
+  actual_cost_usd: number | null;
   cost_event_count: number | null;
   cost_events?: CostEvent[];
   error: string | null;
@@ -145,7 +146,12 @@ export default function AdminPipelineRunsPage() {
                     <td className="px-4 py-3 whitespace-nowrap">{formatDate(run.completed_at)}</td>
                     <td className="px-4 py-3">{run.duration_seconds ?? "-"}s</td>
                     <td className="px-4 py-3">{run.checked_count ?? "-"} / {run.saved_count ?? "-"}</td>
-                    <td className="px-4 py-3">{formatCost(run.estimated_cost_usd)}</td>
+                    <td className="px-4 py-3">
+                      <div>{formatCost(run.estimated_cost_usd)}</div>
+                      {run.actual_cost_usd !== null && run.actual_cost_usd !== undefined && (
+                        <div className="text-xs text-emerald-600 dark:text-emerald-400">真实 {formatCost(run.actual_cost_usd)}</div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         type="button"
@@ -177,6 +183,7 @@ export default function AdminPipelineRunsPage() {
                                     <th className="px-3 py-2">数量</th>
                                     <th className="px-3 py-2">单价</th>
                                     <th className="px-3 py-2">估算</th>
+                                    <th className="px-3 py-2">真实</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -189,6 +196,7 @@ export default function AdminPipelineRunsPage() {
                                       <td className="px-3 py-2">{event.unit_count}</td>
                                       <td className="px-3 py-2">{formatCost(event.unit_price_usd)}</td>
                                       <td className="px-3 py-2">{formatCost(event.estimated_cost_usd)}</td>
+                                      <td className="px-3 py-2">{formatCost(event.actual_cost_usd)}</td>
                                     </tr>
                                   ))}
                                 </tbody>

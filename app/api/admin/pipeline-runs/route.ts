@@ -51,6 +51,7 @@ export async function GET(request: Request) {
     checked_count: number | null;
     saved_count: number | null;
     estimated_cost_usd: number | null;
+    actual_cost_usd: number | null;
     cost_event_count: number | null;
     error: string | null;
     metadata_json: string | null;
@@ -58,6 +59,7 @@ export async function GET(request: Request) {
     `SELECT pr.run_id, pr.pipeline, pr.status, pr.started_at, pr.completed_at, pr.duration_seconds,
             pr.checked_count, pr.saved_count,
             COALESCE(SUM(pce.estimated_cost_usd), pr.estimated_cost_usd) as estimated_cost_usd,
+            SUM(pce.actual_cost_usd) as actual_cost_usd,
             COUNT(pce.id) as cost_event_count,
             pr.error, pr.metadata_json
      FROM pipeline_runs pr

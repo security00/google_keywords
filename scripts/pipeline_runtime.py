@@ -173,6 +173,8 @@ def record_cost_event(
         return
     if estimated_cost_usd is None and unit_price_usd is not None:
         estimated_cost_usd = int(unit_count) * float(unit_price_usd)
+    if actual_cost_usd is not None:
+        actual_cost_usd = round(float(actual_cost_usd), 6)
     try:
         _d1_execute(
             """
@@ -190,7 +192,7 @@ def record_cost_event(
                 int(unit_count),
                 unit_price_usd,
                 round(float(estimated_cost_usd), 6) if estimated_cost_usd is not None else None,
-                round(float(actual_cost_usd), 6) if actual_cost_usd is not None else None,
+                actual_cost_usd,
                 json.dumps(metadata or {}, ensure_ascii=False, sort_keys=True),
             ],
         )

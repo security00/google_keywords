@@ -11,10 +11,12 @@ import {
   buildAuthHeaders,
   requestWithRetry,
   sleep,
+  extractDataForSeoCost,
+  mergeCostSummaries,
 } from "../dataforseo-client";
 import { createBatches } from "../keyword-utils";
 
-export const submitExpansionTasks = async (
+export const submitExpansionTasksWithCost = async (
   keywords: string[],
   dateFrom: string,
   dateTo: string,
@@ -23,6 +25,7 @@ export const submitExpansionTasks = async (
   const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "expand");
   const batches = createBatches(keywords, EXPANSION_TASK_POST_BATCH_SIZE);
   const taskIds: string[] = [];
+  const costs = [];
 
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
     const batch = batches[batchIndex];
@@ -52,6 +55,8 @@ export const submitExpansionTasks = async (
       throw new Error(result?.status_message || "Failed to create expansion tasks");
     }
 
+    costs.push(extractDataForSeoCost(result));
+
     const createdTaskIds = (result.tasks || [])
       .filter((task: { status_code: number }) => task.status_code === 20100)
       .map((task: { id: string }) => task.id);
@@ -77,7 +82,17 @@ export const submitExpansionTasks = async (
     taskIds.push(...createdTaskIds);
   }
 
-  return taskIds;
+  return { taskIds, cost: mergeCostSummaries(costs) };
+};
+
+export const submitExpansionTasks = async (
+  keywords: string[],
+  dateFrom: string,
+  dateTo: string,
+  options?: { postbackUrl?: string; cacheKey?: string }
+) => {
+  const submission = await submitExpansionTasksWithCost(keywords, dateFrom, dateTo, options);
+  return submission.taskIds;
 };
 
 export const waitForTasks = async (taskIds: string[]) => {
