@@ -37,9 +37,18 @@ const statusClass = (status: string) => {
   return "bg-muted text-muted-foreground";
 };
 
+const parseUtcDate = (value: string) => {
+  // D1/SQLite datetime('now') returns "YYYY-MM-DD HH:mm:ss" without timezone.
+  // Treat that shape as UTC so it displays consistently with ISO timestamps ending in Z.
+  const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
+    ? `${value.replace(" ", "T")}Z`
+    : value;
+  return new Date(normalized);
+};
+
 const formatDate = (value: string | null) => {
   if (!value) return "-";
-  const date = new Date(value);
+  const date = parseUtcDate(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("zh-CN", { hour12: false });
 };
