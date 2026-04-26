@@ -11,6 +11,8 @@ import {
   buildAuthHeaders,
   requestWithRetry,
   sleep,
+  extractDataForSeoCost,
+  mergeCostSummaries,
 } from "./dataforseo-client";
 import { createBatches } from "./keyword-utils";
 
@@ -66,12 +68,13 @@ const buildSerpTask = (keyword: string) => {
   return task;
 };
 
-export const submitSerpTasks = async (
+export const submitSerpTasksWithCost = async (
   keywords: string[],
   options?: { postbackUrl?: string; cacheKey?: string }
 ) => {
   const batches = createBatches(keywords, SERP_TASK_BATCH_SIZE);
   const taskIds: string[] = [];
+  const costs = [];
   const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "serp");
 
   for (const batch of batches) {
@@ -88,6 +91,8 @@ export const submitSerpTasks = async (
       throw new Error(result?.status_message || "Failed to create SERP tasks");
     }
 
+    costs.push(extractDataForSeoCost(result));
+
     for (const task of result.tasks ?? []) {
       if (task?.status_code === 20100 && task?.id) {
         taskIds.push(task.id);
@@ -95,7 +100,15 @@ export const submitSerpTasks = async (
     }
   }
 
-  return taskIds;
+  return { taskIds, cost: mergeCostSummaries(costs) };
+};
+
+export const submitSerpTasks = async (
+  keywords: string[],
+  options?: { postbackUrl?: string; cacheKey?: string }
+) => {
+  const submission = await submitSerpTasksWithCost(keywords, options);
+  return submission.taskIds;
 };
 
 export const waitForSerpTasks = async (taskIds: string[]) => {

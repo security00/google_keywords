@@ -583,7 +583,8 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
         unit_type="keyword",
         unit_count=len(selected),
         unit_price_usd=DATAFORSEO_COMPARE_UNIT_PRICE_USD,
-        metadata={"job_id": job_id, "benchmark": COMPARE_BENCHMARK},
+        actual_cost_usd=extract_job_actual_cost(submit),
+        metadata={"job_id": job_id, "benchmark": COMPARE_BENCHMARK, "cost": submit.get("cost")},
     )
     started_at = time.time()
     while time.time() - started_at < MAX_WAIT_SECONDS:
@@ -673,7 +674,8 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
         unit_type="keyword",
         unit_count=intent_keywords,
         unit_price_usd=DATAFORSEO_SERP_UNIT_PRICE_USD,
-        metadata={"job_id": job_id, "tasks": submit.get("total")},
+        actual_cost_usd=extract_job_actual_cost(submit),
+        metadata={"job_id": job_id, "tasks": submit.get("total"), "cost": submit.get("cost")},
     )
     started_at = time.time()
     while time.time() - started_at < MAX_WAIT_SECONDS:

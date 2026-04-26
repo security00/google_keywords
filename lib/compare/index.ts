@@ -15,7 +15,7 @@ import {
   enrichComparisonResultsWithIntent,
 } from "./compare-client";
 
-export { submitComparisonTasks, getComparisonResultsFromTasks, getComparisonResults, enrichComparisonResultsWithIntent } from "./compare-client";
+export { submitComparisonTasks, submitComparisonTasksWithCost, getComparisonResultsFromTasks, getComparisonResults, enrichComparisonResultsWithIntent } from "./compare-client";
 export { classifyVerdict, buildVerdictExplanation, buildFreshnessSignal, computeDecayRisk, isLikelyAiKeyword, resolveFallbackIntent, AI_HINTS } from "./verdict-engine";
 export { mean, positiveMean, stdDev, linearSlope, countCrossings, nearOne, formatPercent, formatRatio, formatNumber, normalizeTrendTimestamp } from "./trend-math";
 

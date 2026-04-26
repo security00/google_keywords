@@ -15,13 +15,15 @@ import {
   buildPostbackUrl,
   buildAuthHeaders,
   requestWithRetry,
+  extractDataForSeoCost,
+  mergeCostSummaries,
 } from "../dataforseo-client";
 import { createBatches } from "../keyword-utils";
 import type { SerpSummary } from "../serp";
 import { mean, stdDev, linearSlope, countCrossings, nearOne, normalizeTrendTimestamp } from "./trend-math";
 import { classifyVerdict, buildFreshnessSignal, computeDecayRisk, buildVerdictExplanation, resolveFallbackIntent } from "./verdict-engine";
 
-export const submitComparisonTasks = async (
+export const submitComparisonTasksWithCost = async (
   keywords: string[],
   dateFrom: string,
   dateTo: string,
@@ -32,6 +34,7 @@ export const submitComparisonTasks = async (
   const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "compare");
   const requestBatches = createBatches(batches, 25);
   const taskIds: string[] = [];
+  const costs = [];
 
   for (const requestBatch of requestBatches) {
     const payload = requestBatch.map((batch) => ({
@@ -51,6 +54,8 @@ export const submitComparisonTasks = async (
       throw new Error(result?.status_message || "Failed to create comparison tasks");
     }
 
+    costs.push(extractDataForSeoCost(result));
+
     taskIds.push(
       ...(result.tasks || [])
         .filter((task: { status_code: number }) => task.status_code === 20100)
@@ -58,7 +63,18 @@ export const submitComparisonTasks = async (
     );
   }
 
-  return taskIds;
+  return { taskIds, cost: mergeCostSummaries(costs) };
+};
+
+export const submitComparisonTasks = async (
+  keywords: string[],
+  dateFrom: string,
+  dateTo: string,
+  benchmark = "gpts",
+  options?: { postbackUrl?: string; cacheKey?: string }
+) => {
+  const submission = await submitComparisonTasksWithCost(keywords, dateFrom, dateTo, benchmark, options);
+  return submission.taskIds;
 };
 
 export const enrichComparisonResultsWithIntent = async (

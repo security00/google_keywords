@@ -4,7 +4,7 @@ import {
   normalizeKeywords,
   resolveBenchmark,
   resolveComparisonDateRange,
-  submitSerpTasks,
+  submitSerpTasksWithCost,
 } from "@/lib/keyword-research";
 import type { CompareResponse } from "@/lib/types";
 import { authenticate } from "@/lib/auth_middleware";
@@ -94,7 +94,8 @@ export async function POST(request: Request) {
       });
     }
 
-    const taskIds = await submitSerpTasks(intentKeywords);
+    const taskSubmission = await submitSerpTasksWithCost(intentKeywords);
+    const taskIds = taskSubmission.taskIds;
     if (taskIds.length === 0) {
       return NextResponse.json({ error: "No SERP tasks were created" }, { status: 502 });
     }
@@ -106,11 +107,13 @@ export async function POST(request: Request) {
       dateFrom,
       dateTo,
       benchmark,
+      cost: taskSubmission.cost,
     });
 
     return NextResponse.json({
       status: "pending",
       jobId,
+      cost: taskSubmission.cost,
       total: taskIds.length,
       intentKeywords: intentKeywords.length,
     });

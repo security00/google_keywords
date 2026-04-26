@@ -7,7 +7,7 @@ import {
   resolveBenchmark,
   resolveComparisonDateRange,
   summarizeResults,
-  submitComparisonTasks,
+  submitComparisonTasksWithCost,
 } from "@/lib/keyword-research";
 import type { CompareResponse, ComparisonSignalConfig } from "@/lib/types";
 import { buildCacheKey, getCached, setCache } from "@/lib/cache";
@@ -322,7 +322,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
   const POSTBACK_BASE = process.env.PUBLIC_BASE_URL || "https://discoverkeywords.co";
   const postbackUrl = `${POSTBACK_BASE}/api/research/webhook`;
 
-  const taskIds = await submitComparisonTasks(
+  const taskSubmission = await submitComparisonTasksWithCost(
     selectedKeywords,
     dateFrom,
     dateTo,
@@ -332,6 +332,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
       cacheKey: compareCacheKey,
     }
   );
+  const taskIds = taskSubmission.taskIds;
 
   if (taskIds.length === 0) {
     if (debug) {
@@ -362,6 +363,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
     cacheKey: compareCacheKey,
     resultCacheKey: compareResultCacheKey,
     enableIntentLlm,
+    cost: taskSubmission.cost,
   });
 
   if (debug) {
@@ -377,6 +379,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
   return NextResponse.json({
     jobId,
     status: "pending",
+    cost: taskSubmission.cost,
     strategy: appliedStrategy,
     budget: maxItems,
     selectedCount,
