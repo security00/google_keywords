@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks } from "lucide-react";
+import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ function Navigation() {
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
     { href: "/dashboard/games", label: "🎮 新游发现", icon: Gamepad2, active: pathname === "/dashboard/games" },
     { href: "/dashboard/old-keywords", label: "🔍 老词推荐", icon: Search, active: pathname === "/dashboard/old-keywords" },
-    { href: "/dashboard/settings", label: "设置", active: pathname.includes("/settings") },
+    { href: "/dashboard/settings", label: "设置", icon: Settings, active: pathname.includes("/settings") },
   ];
 
   // 管理员菜单
@@ -51,64 +51,60 @@ function Navigation() {
 
   const isAdmin = (user as { role?: string } | null)?.role === "admin";
 
+  const visibleStudentSteps = studentSteps.filter((step) => {
+    // 管理员有自己的新游发现页(/admin/games)和老词页(/admin/old-keywords)，不重复显示学员版
+    if (isAdmin && (step.href === "/dashboard/games" || step.href === "/dashboard/old-keywords")) return false;
+    return true;
+  });
+
+  const renderNavLink = (step: (typeof studentSteps)[number] | (typeof adminSteps)[number]) => (
+    <Link
+      key={step.href}
+      href={step.href}
+      onClick={ensureSessionBeforeNavigate}
+      className={cn(
+        "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors hover:text-primary lg:px-3.5",
+        step.active ? "bg-primary/10 text-primary shadow-sm" : "text-muted-foreground hover:bg-muted"
+      )}
+    >
+      {step.icon && <step.icon className="h-4 w-4 shrink-0" />}
+      <span className="whitespace-nowrap">{step.label}</span>
+    </Link>
+  );
+
   return (
-    <div className="sticky top-0 z-50 w-full border-b border-border/80 bg-background/80 shadow-sm shadow-black/5 backdrop-blur-xl dark:shadow-black/25">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="hidden md:block">
-            <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
+    <div className="sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-sm shadow-black/5 backdrop-blur-xl dark:shadow-black/25">
+      <div className="container mx-auto flex min-h-16 flex-col gap-3 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-start">
+          <Link href="/dashboard" className="flex shrink-0 items-center">
+            <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-lg font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400 lg:w-24 lg:text-xl">
               关键词研究台
             </h1>
           </Link>
 
-          <nav className="flex items-center gap-1">
-            {/* 研究菜单 - 所有人都能看到 */}
-            {studentSteps.filter(step => {
-              // 管理员有自己的新游发现页(/admin/games)和老词页(/admin/old-keywords)，不重复显示学员版
-              if (isAdmin && (step.href === "/dashboard/games" || step.href === "/dashboard/old-keywords")) return false;
-              return true;
-            }).map((step) => (
-              <Link
-                key={step.href}
-                href={step.href}
-                onClick={ensureSessionBeforeNavigate}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
-                  step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
-                )}
-              >
-                {step.icon && <step.icon className="h-4 w-4" />}
-                {step.label}
-              </Link>
-            ))}
+          <nav className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="hidden rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
+                研究
+              </span>
+              {visibleStudentSteps.map(renderNavLink)}
+            </div>
 
-            {/* 管理员菜单 - 只有管理员能看到 */}
             {isAdmin && (
-              <>
-                <div className="mx-2 h-6 w-px bg-border" />
-                {adminSteps.map((step) => (
-                  <Link
-                    key={step.href}
-                    href={step.href}
-                    onClick={ensureSessionBeforeNavigate}
-                    className={cn(
-                      "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:text-primary",
-                      step.active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
-                    )}
-                  >
-                    {step.icon && <step.icon className="h-4 w-4" />}
-                    {step.label}
-                  </Link>
-                ))}
-              </>
+              <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2 lg:border-t-0 lg:pt-0">
+                <span className="hidden rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground lg:inline-flex">
+                  管理
+                </span>
+                {adminSteps.map(renderNavLink)}
+              </div>
             )}
           </nav>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border/60 pt-2 xl:justify-end xl:border-t-0 xl:pt-0">
           {user ? (
             <>
-              <span className="hidden text-xs text-muted-foreground md:inline-block">
+              <span className="max-w-[220px] truncate text-xs text-muted-foreground sm:max-w-[280px]">
                 {user.email}
                 {isAdmin && <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">管理员</span>}
               </span>
