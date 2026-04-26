@@ -1,134 +1,212 @@
-﻿# Keyword Research Platform
+# Discover Keywords
 
-一个基于 Next.js App Router 的关键词研究与发现平台，当前主要用于内部使用。
+Discover Keywords is an internal keyword research and discovery platform for finding, scoring, and operating SEO opportunities. It combines student-facing research workflows, admin tooling, scheduled precompute jobs, and Cloudflare-native deployment.
 
-## 主要能力
+Production site: <https://discoverkeywords.co>
 
-- 关键词扩展：从种子词扩展候选关键词
-- 候选词筛选：结合规则过滤、SERP 信息和趋势信号筛选候选词
-- 趋势对比：将候选词与基准词做时序对比，给出分级结果
-- Sitemap 发现：监控站点 sitemap，发现最近新增页面与新词
-- 对外数据接口：可通过 API 输出“发现的词 + 原因”
+## What it does
 
-## 当前使用方式
+- **Keyword expansion** — expand seed terms into candidate keyword sets.
+- **Candidate filtering** — apply business rules, SERP signals, trend checks, and optional LLM filtering.
+- **Trend comparison** — compare candidates against a benchmark keyword and classify opportunity strength.
+- **Game discovery** — scan Steam/community signals and surface new game keyword opportunities.
+- **Old keyword mining** — identify older keywords worth revisiting.
+- **Shared precompute cache** — keep expensive research work in scheduled background jobs instead of user clicks.
+- **Student access control** — registration, pending activation, 90-day trials, API keys, quotas, and session auth.
+- **Admin operations** — user activation, invite codes, health panels, pipeline runs, and cost visibility.
+- **External APIs** — authenticated endpoints for research and discovery-feed consumers.
 
-- 当前站点为内部工具
-- 注册入口已关闭
-- 敏感配置不应提交到仓库
+## Current architecture
 
-## Tech Stack
+- **Frontend / API:** Next.js 16 App Router + React 19 + TypeScript
+- **Styling:** Tailwind CSS 4
+- **Deployment:** Cloudflare Worker via OpenNext (`@opennextjs/cloudflare`)
+- **Database:** Cloudflare D1 (`ai-trends`)
+- **External data:** DataForSEO, OpenRouter, Steam/community sources
+- **Analytics:** Google Analytics + Microsoft Clarity
 
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Cloudflare D1
-- DataForSEO
-- OpenRouter（可选，用于语义过滤 / 意图补充）
+Supabase is no longer used. Do not add Supabase credentials or migration files back into this repo.
 
-## 快速开始
+## Main workflows
 
-1. 安装依赖
+### Student workflow
+
+1. Register / sign in.
+2. Wait for admin activation if the account is pending.
+3. Use dashboard modules:
+   - `/dashboard/expand` — keyword expansion
+   - `/dashboard/candidates` — candidate selection
+   - `/dashboard/analysis` — trend comparison
+   - `/dashboard/games` — new game discovery
+   - `/dashboard/old-keywords` — old keyword recommendations
+   - `/dashboard/settings` — API keys and account settings
+
+Student-facing pages should use shared cache and background precompute results wherever possible. Avoid adding new user-click paths that call paid APIs directly unless explicitly required.
+
+### Admin workflow
+
+Admin pages live under `/dashboard/admin`:
+
+- `/dashboard/admin/users` — users, pending accounts, activation
+- `/dashboard/admin/codes` — invite codes
+- `/dashboard/admin/health` — system/precompute health
+- `/dashboard/admin/games` — game discovery operations
+- `/dashboard/admin/old-keywords` — old keyword pipeline
+- `/dashboard/admin/pipeline-runs` — pipeline run and cost visibility
+
+### Scheduled jobs
+
+Important scripts:
+
+- `scripts/precompute_shared_expand.py` — shared keyword precompute pipeline
+- `scripts/run_precompute.sh` — main precompute entrypoint
+- `scripts/run_precompute_with_retry.sh` — retry wrapper
+- `scripts/run_precompute_watchdog.sh` — watchdog/backfill wrapper
+- `scripts/game_trend_scanner.py` — game discovery scanner
+- `scripts/old_word_pipeline.py` — old keyword pipeline
+- `scripts/check-business-rules.mjs` — CI guard for business-rule sync
+
+Local state for precompute/watchdog health is written outside the repo under `/root/.local/state/google_keywords/`.
+
+## Local development
+
+### Requirements
+
+- Node.js 22+
+- npm
+- Wrangler CLI / Cloudflare credentials for remote D1 and deployment work
+
+### Install
 
 ```bash
-npm install
+npm ci
 ```
 
-2. 复制环境变量模板
-
-```bash
-cp .env.local.example .env.local
-```
-
-3. 初始化 D1 必要表
-
-```bash
-npx wrangler d1 execute <D1_DATABASE_NAME> --remote --file scripts/d1_auth_schema.sql
-npx wrangler d1 execute <D1_DATABASE_NAME> --remote --file scripts/d1_jobs_schema.sql
-npx wrangler d1 execute <D1_DATABASE_NAME> --remote --file scripts/d1_sitemaps_schema.sql
-```
-
-4. 启动开发环境
+### Run locally
 
 ```bash
 npm run dev
 ```
 
-5. 访问本地地址
+Open <http://localhost:3000>.
 
-```text
-http://localhost:3000
+### Validate
+
+```bash
+npm run build
+npm run lint
+node scripts/check-business-rules.mjs
 ```
 
-## 环境变量说明
+`npm run build` is the minimum required gate before merging or deploying code changes.
 
-请根据 `.env.local.example` 在本地配置环境变量。敏感信息只应保存在本地环境或 Cloudflare Secret 中，不要写入仓库。
+## Environment variables
 
-常见配置分类如下：
+Keep secrets in local env files, Cloudflare secrets, or GitHub Actions secrets. Do not commit real credentials.
 
-- DataForSEO 账号配置
-- 基准词与任务轮询配置
-- OpenRouter 配置（可选）
-- Cloudflare / D1 部署配置
-- 鉴权 Cookie / Cron Secret 等安全配置
+Common variables:
 
-## 目录说明
+| Area | Variables |
+|---|---|
+| Cloudflare / D1 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID`, `D1_DATABASE_NAME` |
+| DataForSEO | DataForSEO login/password or configured API credentials used by the runtime |
+| OpenRouter | `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL` |
+| Auth / cron | session secrets, cron secrets, admin credentials as configured in deployment |
+| Analytics | `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_CLARITY_PROJECT_ID` |
 
-- `app/dashboard/*`：前端页面，包括扩词、候选词、分析、新游发现等模块
-- `app/api/*`：API 路由，包括 auth、research、sitemaps、integrations 等
-- `lib/keyword-research.ts`：关键词扩展、过滤、对比的核心逻辑
-- `lib/context/research-context.tsx`：前端全局状态与任务轮询
-- `lib/sitemap-discovery.ts`：sitemap 来源发现与扫描逻辑
-- `lib/d1.ts`：D1 查询与写入封装
-- `scripts/*.sql`：D1 数据表初始化与迁移脚本
-- `discovery-feed-api.md`：对外数据接口说明
+`wrangler.jsonc` contains non-secret defaults and the D1 binding. Secrets must stay outside the file.
 
-## Sitemap 自动发现
+## Database and migrations
 
-项目已支持基于 sitemap 的自动发现流程，并可配合 Cloudflare Cron 定时执行。
+D1 is the source of truth.
 
-相关入口：
+Current migration folders:
 
-- 定时扫描接口：`POST /api/cron/discovery`
-- 来源管理与扫描页面：`/dashboard/discovery`
+- `migrations/baseline/` — current production schema baseline
+- `migrations/d1/` — incremental D1 migrations
+- `scripts/d1_*.sql` — legacy/manual schema helpers kept for operational reference
+- `scripts/schema/` — schema baseline checks and migration helpers
 
-部署时建议：
+Before changing schema-sensitive code:
 
-- 使用 Cloudflare Cron 定时触发扫描
-- 通过 Secret 保护 cron 调用
-- 不要在 README 或仓库中写入真实 token、数据库 ID、账号密码
+1. Inspect the current D1 schema or baseline.
+2. Add/update a migration where needed.
+3. Run build and relevant smoke checks.
+4. Verify deployment through GitHub Actions.
 
-如果数据库仍是旧版 `sitemap_sources` 结构，请先执行对应迁移脚本，补齐调度字段。
+## Deployment
 
-## 对外接口
+Deployment is automatic on push to `main`.
 
-项目支持通过 API 向第三方输出发现结果，完整 API 文档：
+GitHub Actions workflow: `.github/workflows/deploy.yml`
 
-- [API.md](./API.md) — 完整 REST API 文档（认证方式、配额、示例代码）
-- [discovery-feed-api.md](./discovery-feed-api.md) — 发现数据输出接口说明
+Pipeline:
 
-默认输出会尽量精简，只返回：
+1. `npm ci`
+2. `node scripts/check-business-rules.mjs`
+3. `npx opennextjs-cloudflare build`
+4. `npx wrangler deploy --config wrangler.jsonc`
 
-- 找到的词
-- 命中原因
+Useful commands:
 
-## 安全说明
+```bash
+npm run build
+npx opennextjs-cloudflare build
+npx wrangler deploy --config wrangler.jsonc
+```
 
-本次已检查 README 内容：
+After pushing, check the latest workflow run and confirm the Cloudflare deploy succeeded.
 
-- 未发现真实的 token、密码、账号、数据库 ID 等敏感值
-- 原文件主要问题是文本编码污染，导致 GitHub 展示乱码
+## API documentation
 
-为避免后续误泄露，建议遵循下面的约束：
+- [`API.md`](./API.md) — main REST API documentation
+- [`discovery-feed-api.md`](./discovery-feed-api.md) — discovery feed interface
+- `/api-docs` — in-app API docs page
 
-- 不在 README 中写入任何真实密钥
-- 不提交 `.env.local`
-- Cloudflare Secret、第三方 API Key 仅在部署环境配置
+Important API groups:
 
-## 备注
+- `/api/auth/*` — sign-in, sign-up, sessions, password reset, API keys
+- `/api/research/*` — expansion, SERP, trends, compare, history, sessions
+- `/api/sitemaps/*` — sitemap sources and keyword discovery
+- `/api/admin/*` — admin-only operations
+- `/api/integrations/discovery-feed` — external discovery feed
 
-如果你准备将该项目部署到 Cloudflare，建议优先检查：
+## Repository hygiene
 
-- D1 表结构是否已完成最新迁移
-- Cron 所需 Secret 是否已配置
-- DataForSEO / OpenRouter 等外部依赖是否已正确注入环境变量
+The repo should not contain generated data or local runtime output.
+
+Ignored/generated examples:
+
+- `.next/`
+- `.open-next/`
+- `.wrangler/`
+- `.data/`
+- `d1_export.sql`
+- `d1_export_parts/`
+- `*.pyc`
+- `*.tsbuildinfo`
+- `next-env.d.ts`
+- `.env*`
+
+Do not commit:
+
+- API keys or tokens
+- database dumps
+- local cache files
+- build output
+- generated Python bytecode
+
+## Maintenance notes
+
+- Keep paid API calls in background jobs or cached server flows whenever possible.
+- Keep student-facing requests fast and cache-first.
+- When adding/removing team or admin workflows, update admin pages, scripts, docs, and CI checks together.
+- If Clarity/GA behavior needs verification, inspect built client chunks; analytics scripts are injected client-side.
+- If the site appears stale after a push, check GitHub Actions and Cloudflare deployment before assuming CDN cache issues.
+
+## Related docs
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — detailed system architecture
+- [`CHANGELOG.md`](./CHANGELOG.md) — project change history
+- [`FILTER_RULES.md`](./FILTER_RULES.md) — filtering/business rule notes
+- [`SESSION_HANDOFF_2026-04-18.md`](./SESSION_HANDOFF_2026-04-18.md) — historical handoff context
