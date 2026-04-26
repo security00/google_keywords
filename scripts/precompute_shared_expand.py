@@ -23,9 +23,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
-    from scripts.pipeline_runtime import pipeline_run
+    from scripts.pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
 except ModuleNotFoundError:
-    from pipeline_runtime import pipeline_run
+    from pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
 
 GK_SITE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
 
@@ -98,6 +98,10 @@ RECOMMENDED_SECTION_QUOTAS = {
 }
 LLM_BATCH_SIZE = int(os.environ.get("GK_PRECOMPUTE_LLM_BATCH_SIZE", "80"))
 LLM_MAX_CANDIDATES = int(os.environ.get("GK_PRECOMPUTE_LLM_MAX_CANDIDATES", "900"))
+DATAFORSEO_EXPAND_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_EXPAND_PER_KEYWORD", "0.005"))
+DATAFORSEO_COMPARE_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_COMPARE_PER_KEYWORD", "0.005"))
+DATAFORSEO_SERP_UNIT_PRICE_USD = float(os.environ.get("GK_COST_DFS_SERP_PER_KEYWORD", "0.01"))
+OPENROUTER_LLM_BATCH_UNIT_PRICE_USD = float(os.environ.get("GK_COST_OPENROUTER_LLM_BATCH", "0"))
 SHARED_DEFAULTS_PATH = Path(
     os.environ.get(
         "GK_SHARED_DEFAULTS_PATH",
@@ -415,6 +419,14 @@ def refine_with_llm(expand_response):
             body,
             timeout=120,
         )
+        record_cost_event(
+            provider="openrouter",
+            endpoint="chat_completions_llm_filter",
+            unit_type="batch",
+            unit_count=1,
+            unit_price_usd=OPENROUTER_LLM_BATCH_UNIT_PRICE_USD,
+            metadata={"batch_index": idx, "keywords": [item["keyword"] for item in batch], "model": OPENROUTER_MODEL},
+        )
         content = (
             ((result.get("choices") or [{}])[0].get("message") or {}).get("content")
             or (result.get("choices") or [{}])[0].get("text")
@@ -520,6 +532,14 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
         compareStartedAt=utc_now_iso(),
     )
     print(f"📋 Submitted compare job: {job_id}", file=sys.stderr)
+    record_cost_event(
+        provider="dataforseo",
+        endpoint="compare_trends",
+        unit_type="keyword",
+        unit_count=len(selected),
+        unit_price_usd=DATAFORSEO_COMPARE_UNIT_PRICE_USD,
+        metadata={"job_id": job_id, "benchmark": COMPARE_BENCHMARK},
+    )
     started_at = time.time()
     while time.time() - started_at < MAX_WAIT_SECONDS:
         status = curl_json(
@@ -600,6 +620,15 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
     print(
         f"📋 Submitted intent job: {job_id} tasks={submit.get('total')} keywords={submit.get('intentKeywords')}",
         file=sys.stderr,
+    )
+    intent_keywords = int(submit.get("intentKeywords") or len(selected) or 0)
+    record_cost_event(
+        provider="dataforseo",
+        endpoint="compare_intent_serp",
+        unit_type="keyword",
+        unit_count=intent_keywords,
+        unit_price_usd=DATAFORSEO_SERP_UNIT_PRICE_USD,
+        metadata={"job_id": job_id, "tasks": submit.get("total")},
     )
     started_at = time.time()
     while time.time() - started_at < MAX_WAIT_SECONDS:
@@ -700,6 +729,14 @@ def main():
         )
         if submit.get("jobId"):
             save_state(stage="expand_pending", expandJobId=submit.get("jobId"), expandStartedAt=utc_now_iso())
+            record_cost_event(
+                provider="dataforseo",
+                endpoint="expand_trends",
+                unit_type="keyword",
+                unit_count=len(keywords),
+                unit_price_usd=DATAFORSEO_EXPAND_UNIT_PRICE_USD,
+                metadata={"job_id": submit.get("jobId"), "keywords": len(keywords)},
+            )
 
     if submit.get("status") == "complete":
         refined = refine_with_llm(submit)
@@ -724,6 +761,14 @@ def main():
 
     save_state(stage="expand_pending", expandJobId=job_id, expandStartedAt=utc_now_iso())
     print(f"📋 Submitted job: {job_id}", file=sys.stderr)
+    record_cost_event(
+        provider="dataforseo",
+        endpoint="expand_trends",
+        unit_type="keyword",
+        unit_count=len(keywords),
+        unit_price_usd=DATAFORSEO_EXPAND_UNIT_PRICE_USD,
+        metadata={"job_id": job_id, "keywords": len(keywords)},
+    )
     started_at = time.time()
 
     while time.time() - started_at < MAX_WAIT_SECONDS:
