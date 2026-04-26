@@ -4,7 +4,7 @@ import { authenticate } from "@/lib/auth_middleware";
 import { checkStudentAccess } from "@/lib/usage";
 import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 import {
-  submitSerpTasks,
+  submitSerpTasksWithCost,
   waitForSerpTasks,
   getSerpResults,
 } from "@/lib/keyword-research";
@@ -57,7 +57,8 @@ export async function POST(request: Request) {
     }
 
     // Submit SERP tasks (admin/cron only)
-    const taskIds = await submitSerpTasks(keywords);
+    const taskSubmission = await submitSerpTasksWithCost(keywords);
+    const taskIds = taskSubmission.taskIds;
 
     // Wait for results
     const completed = await waitForSerpTasks(taskIds);
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     // 缓存结果
     await setCache(cacheKey, results);
 
-    return NextResponse.json({ results });
+    return NextResponse.json({ results, cost: taskSubmission.cost, total: taskIds.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: 500 });
