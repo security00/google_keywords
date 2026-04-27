@@ -17,9 +17,32 @@ type OldKeyword = {
   score: number;
   scan_date: string;
   trend_series: string | null;
+  real_score: number | null;
+  base_score: number | null;
+  serp_score: number | null;
+  brand_safety_score: number | null;
+  intent_score: number | null;
+  content_feasibility_score: number | null;
+  serp_organic: number | null;
+  serp_auth: number | null;
+  serp_featured: number | null;
+  serp_ai_overview: number | null;
+  top_domains: string[] | null;
+  evaluated_at: string | null;
 };
 
 const PAGE_SIZE = 20;
+
+type EvaluationResult = {
+  evaluated: number;
+  skippedExisting: number;
+  topCandidateCount: number;
+  actualCostUsd: number;
+  estimatedCostUsd: number;
+  pipelineRunId?: string;
+  force: boolean;
+  message?: string;
+};
 
 function parseSeries(raw: string | null): {
   keyword: Array<{ date: string; value: number }>;
@@ -97,6 +120,16 @@ function compBadge(comp: string) {
   return <span className="px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">{comp || "-"}</span>;
 }
 
+function formatScore(value: number | null | undefined) {
+  return value === null || value === undefined ? "-" : Number(value).toFixed(1);
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
 function KeywordRow({ kw, globalIdx, isExpanded, onToggle }: {
   kw: OldKeyword; globalIdx: number; isExpanded: boolean; onToggle: () => void;
 }) {
@@ -104,7 +137,7 @@ function KeywordRow({ kw, globalIdx, isExpanded, onToggle }: {
   return (
     <div className="border rounded-lg overflow-hidden">
       <div
-        className="grid grid-cols-[40px_1fr_90px_70px_50px_70px_70px_80px] items-center px-3 py-2.5 cursor-pointer hover:bg-muted/30 text-sm gap-1"
+        className="grid grid-cols-[40px_1fr_90px_70px_50px_70px_70px_80px_80px] items-center px-3 py-2.5 cursor-pointer hover:bg-muted/30 text-sm gap-1"
         onClick={onToggle}
       >
         <span className="text-muted-foreground">{globalIdx + 1}</span>
@@ -114,19 +147,51 @@ function KeywordRow({ kw, globalIdx, isExpanded, onToggle }: {
         <span className={`text-right font-medium ${kdColor(kw.kd)}`}>{kw.kd}</span>
         <span className="text-center">{compBadge(kw.competition)}</span>
         <span className="text-center text-xs text-muted-foreground">{kw.intent}</span>
-        <span className="text-right font-bold text-indigo-600 dark:text-indigo-400">{kw.score.toLocaleString()}</span>
+        <span className="text-right font-medium text-muted-foreground">{kw.score.toLocaleString()}</span>
+        <span className="text-right font-bold text-indigo-600 dark:text-indigo-400">{formatScore(kw.real_score)}</span>
       </div>
       {isExpanded && (
         <div className="px-4 pb-3 pt-1 border-t bg-muted/10">
-          <div className="flex gap-4 text-xs text-muted-foreground mb-1">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-1">
             <span>来源: {kw.source_seed}</span>
             <span>月搜索量: {kw.volume.toLocaleString()}</span>
             <span>CPC: ${kw.cpc.toFixed(2)}</span>
             <span>KD: {kw.kd}</span>
+            <span>真实分: {formatScore(kw.real_score)}</span>
+            <span>SERP: {formatScore(kw.serp_score)}</span>
+            <span>品牌安全: {formatScore(kw.brand_safety_score)}</span>
+            <span>意图: {formatScore(kw.intent_score)}</span>
+            <span>内容可做: {formatScore(kw.content_feasibility_score)}</span>
+            {kw.evaluated_at && <span>评估: {formatDate(kw.evaluated_at)}</span>}
           </div>
+          {kw.real_score !== null && (
+            <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span>自然结果: {kw.serp_organic ?? 0}</span>
+              <span>权威域名: {kw.serp_auth ?? 0}</span>
+              <span>精选摘要: {kw.serp_featured ? "有" : "无"}</span>
+              <span>AI Overview: {kw.serp_ai_overview ? "有" : "无"}</span>
+              {kw.top_domains?.length ? <span>Top domains: {kw.top_domains.slice(0, 5).join(", ")}</span> : null}
+            </div>
+          )}
           <TrendChart data={data} />
         </div>
       )}
+    </div>
+  );
+}
+
+function KeywordHeader() {
+  return (
+    <div className="grid grid-cols-[40px_1fr_90px_70px_50px_70px_70px_80px_80px] items-center px-3 text-xs font-medium text-muted-foreground gap-1">
+      <span>#</span>
+      <span>关键词</span>
+      <span className="text-right">月搜索量</span>
+      <span className="text-right">CPC</span>
+      <span className="text-right">KD</span>
+      <span className="text-center">竞争</span>
+      <span className="text-center">意图</span>
+      <span className="text-right">初筛分</span>
+      <span className="text-right">真实分</span>
     </div>
   );
 }
@@ -138,6 +203,8 @@ export default function OldKeywordsPage() {
   const [minScore, setMinScore] = useState(0);
   const [page, setPage] = useState(1);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
+  const [evaluating, setEvaluating] = useState(false);
+  const [lastEvaluation, setLastEvaluation] = useState<EvaluationResult | null>(null);
 
   const fetchKeywords = useCallback(async () => {
     setLoading(true);
@@ -155,6 +222,49 @@ export default function OldKeywordsPage() {
       setLoading(false);
     }
   }, [minScore]);
+
+  const runEvaluation = useCallback(async (force = false) => {
+    const ok = window.confirm(
+      force
+        ? "将强制重跑当前最新批次 Top80 的 DataForSEO SERP 真实评分，已有评分也会重新计费。是否继续？"
+        : "将为当前最新批次 Top80 中尚未评分的词调用 DataForSEO SERP，已有评分会跳过。是否继续？"
+    );
+    if (!ok) return;
+
+    setEvaluating(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/old-keywords/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ limit: 80, minScore, force }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "真实评分失败");
+      const result: EvaluationResult = {
+        evaluated: Number(data.evaluated || 0),
+        skippedExisting: Number(data.skippedExisting || 0),
+        topCandidateCount: Number(data.topCandidateCount || 0),
+        actualCostUsd: Number(data.actualCostUsd || 0),
+        estimatedCostUsd: Number(data.estimatedCostUsd || 0),
+        pipelineRunId: typeof data.pipelineRunId === "string" ? data.pipelineRunId : undefined,
+        force,
+        message: typeof data.message === "string" ? data.message : undefined,
+      };
+      setLastEvaluation(result);
+      window.alert(
+        `真实评分完成：${result.evaluated} 个词，跳过 ${result.skippedExisting} 个已评分，成本 $${result.actualCostUsd.toFixed(4)}${
+          result.pipelineRunId ? `，管线 ${result.pipelineRunId}` : result.message ? `，${result.message}` : ""
+        }`
+      );
+      await fetchKeywords();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "真实评分失败");
+    } finally {
+      setEvaluating(false);
+    }
+  }, [fetchKeywords, minScore]);
 
   useEffect(() => { fetchKeywords(); }, [fetchKeywords]);
 
@@ -184,6 +294,20 @@ export default function OldKeywordsPage() {
           >
             刷新
           </button>
+          <button
+            onClick={() => void runEvaluation(false)}
+            disabled={evaluating}
+            className="px-3 py-1.5 text-sm rounded border border-border hover:bg-muted disabled:opacity-50"
+          >
+            {evaluating ? "评分中..." : "真实评分 Top80"}
+          </button>
+          <button
+            onClick={() => void runEvaluation(true)}
+            disabled={evaluating}
+            className="px-3 py-1.5 text-sm rounded border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
+          >
+            强制重跑
+          </button>
         </div>
       </div>
 
@@ -202,7 +326,27 @@ export default function OldKeywordsPage() {
             {keywords[0]?.scan_date && <span>扫描日期: {keywords[0].scan_date}</span>}
           </div>
 
+          <div className="mb-3 rounded-lg border bg-muted/20 px-4 py-3 text-xs leading-6 text-muted-foreground">
+            <span className="font-medium text-foreground">字段说明：</span>
+            月搜索量=美国月均搜索量；CPC=广告点击均价；KD=关键词自然排名难度，越低越容易；竞争=广告竞争强度；意图=搜索意图分类；初筛分=搜索量、KD、CPC 加权；真实分=初筛分、SERP竞争、品牌安全、意图深度、内容可做性加权。
+          </div>
+          {lastEvaluation && (
+            <div className="mb-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-xs leading-6 text-indigo-900 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-100">
+              <span className="font-medium">最近评分：</span>
+              <span>评估 {lastEvaluation.evaluated} 个</span>
+              <span className="ml-3">跳过 {lastEvaluation.skippedExisting} 个</span>
+              <span className="ml-3">成本 ${lastEvaluation.actualCostUsd.toFixed(4)}</span>
+              {lastEvaluation.pipelineRunId && (
+                <span className="ml-3 break-all">管线 {lastEvaluation.pipelineRunId}</span>
+              )}
+              {lastEvaluation.message && !lastEvaluation.pipelineRunId && (
+                <span className="ml-3">{lastEvaluation.message}</span>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
+            <KeywordHeader />
             {pageKeywords.map((kw, idx) => {
               const globalIdx = (page - 1) * PAGE_SIZE + idx;
               return (

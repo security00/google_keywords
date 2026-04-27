@@ -1,6 +1,6 @@
--- Production D1 baseline schema snapshot
--- Generated from remote ai-trends D1 after applying migrations through 0004.
--- Object count: 55
+-- Production D1 baseline
+-- Generated from Cloudflare D1 on 2026-04-27T09:16:55.316Z
+-- Object count: 70
 
 -- index: idx_api_keys_key
 CREATE INDEX idx_api_keys_key ON api_keys(key);
@@ -59,21 +59,71 @@ CREATE INDEX idx_keyword_history_date ON keyword_history(date);
 -- index: idx_keyword_history_keyword_date
 CREATE INDEX idx_keyword_history_keyword_date ON keyword_history(keyword_normalized, date);
 
+-- index: idx_old_keyword_evaluations_keyword
+CREATE INDEX idx_old_keyword_evaluations_keyword
+  ON old_keyword_evaluations(keyword_normalized, scan_date);
+
+-- index: idx_old_keyword_evaluations_scan_score
+CREATE INDEX idx_old_keyword_evaluations_scan_score
+  ON old_keyword_evaluations(scan_date, real_score DESC);
+
+-- index: idx_pipeline_artifacts_run_kind
+CREATE INDEX idx_pipeline_artifacts_run_kind
+  ON pipeline_artifacts(run_id, kind);
+
+-- index: idx_pipeline_artifacts_task
+CREATE INDEX idx_pipeline_artifacts_task
+  ON pipeline_artifacts(task_id, kind);
+
+-- index: idx_pipeline_cost_events_event_key
+CREATE UNIQUE INDEX idx_pipeline_cost_events_event_key
+  ON pipeline_cost_events(event_key)
+  WHERE event_key IS NOT NULL;
+
 -- index: idx_pipeline_cost_events_pipeline_created
 CREATE INDEX idx_pipeline_cost_events_pipeline_created
   ON pipeline_cost_events(pipeline, created_at DESC);
+
+-- index: idx_pipeline_cost_events_research_job
+CREATE INDEX idx_pipeline_cost_events_research_job
+  ON pipeline_cost_events(research_job_id, created_at DESC);
 
 -- index: idx_pipeline_cost_events_run_id
 CREATE INDEX idx_pipeline_cost_events_run_id
   ON pipeline_cost_events(run_id, created_at DESC);
 
+-- index: idx_pipeline_cost_events_task
+CREATE INDEX idx_pipeline_cost_events_task
+  ON pipeline_cost_events(task_id, created_at DESC);
+
 -- index: idx_pipeline_runs_pipeline_started
 CREATE INDEX idx_pipeline_runs_pipeline_started
   ON pipeline_runs(pipeline, started_at DESC);
 
+-- index: idx_pipeline_runs_run_key
+CREATE UNIQUE INDEX idx_pipeline_runs_run_key
+  ON pipeline_runs(run_key)
+  WHERE run_key IS NOT NULL;
+
 -- index: idx_pipeline_runs_status_started
 CREATE INDEX idx_pipeline_runs_status_started
   ON pipeline_runs(status, started_at DESC);
+
+-- index: idx_pipeline_tasks_lease
+CREATE INDEX idx_pipeline_tasks_lease
+  ON pipeline_tasks(status, lease_expires_at);
+
+-- index: idx_pipeline_tasks_research_job
+CREATE INDEX idx_pipeline_tasks_research_job
+  ON pipeline_tasks(research_job_id);
+
+-- index: idx_pipeline_tasks_run_stage_status
+CREATE INDEX idx_pipeline_tasks_run_stage_status
+  ON pipeline_tasks(run_id, stage, status);
+
+-- index: idx_pipeline_tasks_status_next_run
+CREATE INDEX idx_pipeline_tasks_status_next_run
+  ON pipeline_tasks(status, next_run_at);
 
 -- index: idx_results_comparison
 CREATE INDEX idx_results_comparison on comparison_results (comparison_id);
@@ -228,6 +278,30 @@ CREATE TABLE invite_codes (code TEXT PRIMARY KEY, created_by TEXT NOT NULL, used
 -- table: keyword_history
 CREATE TABLE keyword_history (id TEXT PRIMARY KEY, keyword TEXT NOT NULL, keyword_normalized TEXT NOT NULL, value INTEGER NOT NULL DEFAULT 0, type TEXT NOT NULL DEFAULT 'top', source TEXT NOT NULL DEFAULT '', date TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 
+-- table: old_keyword_evaluations
+CREATE TABLE old_keyword_evaluations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  keyword TEXT NOT NULL,
+  keyword_normalized TEXT NOT NULL,
+  scan_date TEXT NOT NULL,
+  evaluation_version TEXT NOT NULL,
+  real_score REAL NOT NULL,
+  base_score REAL NOT NULL,
+  serp_score REAL NOT NULL,
+  brand_safety_score REAL NOT NULL,
+  intent_score REAL NOT NULL,
+  content_feasibility_score REAL NOT NULL,
+  serp_organic INTEGER DEFAULT 0,
+  serp_auth INTEGER DEFAULT 0,
+  serp_featured INTEGER DEFAULT 0,
+  serp_ai_overview INTEGER DEFAULT 0,
+  top_domains_json TEXT,
+  signals_json TEXT,
+  cost_json TEXT,
+  evaluated_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(keyword_normalized, scan_date, evaluation_version)
+);
+
 -- table: old_keyword_opportunities
 CREATE TABLE old_keyword_opportunities (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -248,6 +322,23 @@ CREATE TABLE old_keyword_opportunities (
 -- table: password_reset_tokens
 CREATE TABLE password_reset_tokens (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, token_hash TEXT NOT NULL, expires_at TEXT NOT NULL, used INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));
 
+-- table: pipeline_artifacts
+CREATE TABLE pipeline_artifacts (
+  artifact_id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  task_id TEXT,
+  pipeline TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  storage_provider TEXT NOT NULL,
+  bucket TEXT,
+  object_key TEXT NOT NULL,
+  content_type TEXT,
+  size_bytes INTEGER,
+  checksum TEXT,
+  metadata_json TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- table: pipeline_cost_events
 CREATE TABLE pipeline_cost_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -262,7 +353,7 @@ CREATE TABLE pipeline_cost_events (
   actual_cost_usd REAL,
   metadata_json TEXT,
   created_at TEXT DEFAULT (datetime('now'))
-);
+, task_id TEXT, research_job_id TEXT, event_key TEXT, provider_request_id TEXT, idempotency_key TEXT);
 
 -- table: pipeline_runs
 CREATE TABLE pipeline_runs (
@@ -275,6 +366,34 @@ CREATE TABLE pipeline_runs (
   checked_count INTEGER,
   saved_count INTEGER,
   estimated_cost_usd REAL,
+  error TEXT,
+  metadata_json TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+, run_key TEXT, budget_usd REAL);
+
+-- table: pipeline_tasks
+CREATE TABLE pipeline_tasks (
+  task_id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  pipeline TEXT NOT NULL,
+  stage TEXT NOT NULL,
+  status TEXT NOT NULL,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  queue_message_id TEXT,
+  research_job_id TEXT,
+  provider_task_ids_json TEXT,
+  input_ref TEXT,
+  output_ref TEXT,
+  payload_json TEXT,
+  result_json TEXT,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 3,
+  lease_owner TEXT,
+  lease_expires_at TEXT,
+  next_run_at TEXT,
+  started_at TEXT,
+  completed_at TEXT,
   error TEXT,
   metadata_json TEXT,
   created_at TEXT DEFAULT (datetime('now')),

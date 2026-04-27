@@ -556,6 +556,7 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
                     unit_count=task_count,
                     unit_price_usd=0.00225,
                     actual_cost_usd=actual_cost,
+                    research_job_id=job_id,
                     metadata={"keywords": keywords, "days": TREND_DAYS if endpoint_label == "trends_14d" else HISTORY_DAYS, "cost": resp.get("cost")},
                 )
                 return poll_resp
@@ -622,6 +623,7 @@ def call_serp_api(keywords):
                 unit_count=int(response.get("total") or len(keywords)),
                 unit_price_usd=0.0006,
                 actual_cost_usd=cost.get("actualCostUsd"),
+                idempotency_key=f"serp-organic:{','.join(keywords)}",
                 metadata={"keywords": keywords, "cost": response.get("cost")},
             )
         return response
@@ -1001,6 +1003,7 @@ def main():
                             unit_count=hist_task_count,
                             unit_price_usd=0.00225,
                             actual_cost_usd=hist_cost.get("actualCostUsd"),
+                            research_job_id=hist_job_id,
                             metadata={"keywords": hist_kws, "days": HISTORY_DAYS, "cost": hist_data.get("cost")}, 
                         )
                         break

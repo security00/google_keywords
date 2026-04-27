@@ -464,6 +464,7 @@ def refine_with_llm(expand_response):
             unit_count=1,
             unit_price_usd=OPENROUTER_LLM_BATCH_UNIT_PRICE_USD,
             actual_cost_usd=actual_cost,
+            idempotency_key=f"llm-filter:{idx}",
             metadata={
                 "batch_index": idx,
                 "keywords": [item["keyword"] for item in batch],
@@ -583,6 +584,7 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
         unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or 0) or ((len(selected) + 3) // 4),
         unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
+        research_job_id=job_id,
         metadata={"job_id": job_id, "benchmark": COMPARE_BENCHMARK, "cost": submit.get("cost")},
     )
     started_at = time.time()
@@ -674,6 +676,7 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
         unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or intent_keywords),
         unit_price_usd=DATAFORSEO_SERP_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
+        research_job_id=job_id,
         metadata={"job_id": job_id, "tasks": submit.get("total"), "cost": submit.get("cost")},
     )
     started_at = time.time()
@@ -775,15 +778,6 @@ def main():
         )
         if submit.get("jobId"):
             save_state(stage="expand_pending", expandJobId=submit.get("jobId"), expandStartedAt=utc_now_iso())
-            record_cost_event(
-                provider="dataforseo",
-                endpoint="expand_trends",
-                unit_type="task",
-                unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or len(keywords)),
-                unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
-                actual_cost_usd=extract_job_actual_cost(submit),
-                metadata={"job_id": submit.get("jobId"), "keywords": len(keywords), "cost": submit.get("cost")},
-            )
 
     if submit.get("status") == "complete":
         refined = refine_with_llm(submit)
@@ -815,6 +809,7 @@ def main():
         unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or len(keywords)),
         unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
+        research_job_id=job_id,
         metadata={"job_id": job_id, "keywords": len(keywords), "cost": submit.get("cost")},
     )
     started_at = time.time()

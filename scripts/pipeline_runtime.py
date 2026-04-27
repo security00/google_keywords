@@ -13,7 +13,9 @@ This module intentionally has no external dependencies.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
+import re
 import time
 import urllib.request
 import uuid
@@ -21,7 +23,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-_CURRENT_RUN: dict[str, str] = {}
+_CURRENT_RUN: dict[str, object] = {}
 
 DEFAULT_STATE_DIR = Path(os.environ.get("GK_PRECOMPUTE_STATE_DIR", "/root/.local/state/google_keywords"))
 DEFAULT_D1_DATABASE_ID = "b40de8a4-75e1-4df6-a84d-3ecd62b70538"
@@ -71,12 +73,69 @@ def _d1_execute(sql: str, params: list[object]) -> None:
         raise RuntimeError(f"D1 pipeline_runs write failed: {body}")
 
 
+def _stable_json(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _sha256_short(value: str, length: int = 24) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:length]
+
+
+def _normalize_key_part(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9._:-]+", "-", value.strip().lower())
+    return normalized.strip("-")
+
+
+def _pipeline_env_key(name: str, suffix: str) -> str:
+    normalized = re.sub(r"[^A-Z0-9]+", "_", name.upper()).strip("_")
+    return f"GK_{normalized}_{suffix}"
+
+
+def _env_float(*keys: str) -> float | None:
+    for key in keys:
+        value = os.environ.get(key)
+        if not value:
+            continue
+        try:
+            return float(value)
+        except ValueError:
+            print(f"⚠️ ignoring invalid float env {key}={value!r}", flush=True)
+    return None
+
+
+def _pipeline_run_key_from_env(name: str) -> str | None:
+    return os.environ.get(_pipeline_env_key(name, "RUN_KEY")) or os.environ.get("GK_PIPELINE_RUN_KEY")
+
+
+def _pipeline_budget_from_env(name: str) -> float | None:
+    return _env_float(_pipeline_env_key(name, "BUDGET_USD"), "GK_PIPELINE_BUDGET_USD")
+
+
+def _cost_event_key(
+    *,
+    run_id: str,
+    provider: str,
+    endpoint: str,
+    idempotency_key: str | None = None,
+    research_job_id: str | None = None,
+    provider_request_id: str | None = None,
+    task_id: str | None = None,
+) -> str | None:
+    basis = provider_request_id or research_job_id or idempotency_key or task_id
+    if not basis:
+        return None
+    scope = basis if provider_request_id or research_job_id else f"{run_id}:{basis}"
+    return f"cost:{_normalize_key_part(provider)}:{_normalize_key_part(endpoint)}:{_sha256_short(scope)}"
+
+
 def current_run_id() -> str | None:
-    return _CURRENT_RUN.get("run_id")
+    value = _CURRENT_RUN.get("run_id")
+    return str(value) if value else None
 
 
 def current_pipeline_name() -> str | None:
-    return _CURRENT_RUN.get("name")
+    value = _CURRENT_RUN.get("name")
+    return str(value) if value else None
 
 
 def _record_pipeline_run(
@@ -85,6 +144,8 @@ def _record_pipeline_run(
     name: str,
     status: str,
     started_at_iso: str,
+    run_key: str | None = None,
+    budget_usd: float | None = None,
     completed_at_iso: str | None = None,
     duration_seconds: float | None = None,
     error: str | None = None,
@@ -94,28 +155,63 @@ def _record_pipeline_run(
         _d1_execute(
             """
             INSERT INTO pipeline_runs
-              (run_id, pipeline, status, started_at, completed_at, duration_seconds, error, metadata_json, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+              (run_id, run_key, pipeline, status, started_at, completed_at, duration_seconds,
+               budget_usd, error, metadata_json, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
             ON CONFLICT(run_id) DO UPDATE SET
+              run_key = COALESCE(excluded.run_key, pipeline_runs.run_key),
               status = excluded.status,
               completed_at = excluded.completed_at,
               duration_seconds = excluded.duration_seconds,
+              budget_usd = COALESCE(excluded.budget_usd, pipeline_runs.budget_usd),
               error = excluded.error,
               metadata_json = excluded.metadata_json,
               updated_at = datetime('now')
             """,
             [
                 run_id,
+                run_key,
                 name,
                 status,
                 started_at_iso,
                 completed_at_iso,
                 duration_seconds,
+                budget_usd,
                 error,
                 json.dumps(metadata or {}, ensure_ascii=False, sort_keys=True),
             ],
         )
     except Exception as exc:
+        if any(token in str(exc).lower() for token in ("no such column", "has no column named")):
+            try:
+                _d1_execute(
+                    """
+                    INSERT INTO pipeline_runs
+                      (run_id, pipeline, status, started_at, completed_at, duration_seconds, error, metadata_json, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(run_id) DO UPDATE SET
+                      status = excluded.status,
+                      completed_at = excluded.completed_at,
+                      duration_seconds = excluded.duration_seconds,
+                      error = excluded.error,
+                      metadata_json = excluded.metadata_json,
+                      updated_at = datetime('now')
+                    """,
+                    [
+                        run_id,
+                        name,
+                        status,
+                        started_at_iso,
+                        completed_at_iso,
+                        duration_seconds,
+                        error,
+                        json.dumps(metadata or {}, ensure_ascii=False, sort_keys=True),
+                    ],
+                )
+                return
+            except Exception as fallback_exc:
+                print(f"⚠️ pipeline_runs D1 write skipped: {fallback_exc}", flush=True)
+                return
         # D1 run logging must never break the actual pipeline.
         print(f"⚠️ pipeline_runs D1 write skipped: {exc}", flush=True)
 
@@ -125,6 +221,7 @@ def update_pipeline_run(
     checked_count: int | None = None,
     saved_count: int | None = None,
     estimated_cost_usd: float | None = None,
+    budget_usd: float | None = None,
     metadata: dict | None = None,
 ) -> None:
     """Best-effort update of aggregate counters for the active run."""
@@ -142,6 +239,9 @@ def update_pipeline_run(
     if estimated_cost_usd is not None:
         sets.append("estimated_cost_usd = ?")
         params.append(round(float(estimated_cost_usd), 6))
+    if budget_usd is not None:
+        sets.append("budget_usd = ?")
+        params.append(round(float(budget_usd), 6))
     if metadata is not None:
         sets.append("metadata_json = ?")
         params.append(json.dumps(metadata, ensure_ascii=False, sort_keys=True))
@@ -164,6 +264,11 @@ def record_cost_event(
     unit_price_usd: float | None = None,
     estimated_cost_usd: float | None = None,
     actual_cost_usd: float | None = None,
+    task_id: str | None = None,
+    research_job_id: str | None = None,
+    event_key: str | None = None,
+    provider_request_id: str | None = None,
+    idempotency_key: str | None = None,
     metadata: dict | None = None,
 ) -> None:
     """Best-effort insert of one paid/cost-related event for the active run."""
@@ -175,13 +280,24 @@ def record_cost_event(
         estimated_cost_usd = int(unit_count) * float(unit_price_usd)
     if actual_cost_usd is not None:
         actual_cost_usd = round(float(actual_cost_usd), 6)
+    if event_key is None:
+        event_key = _cost_event_key(
+            run_id=run_id,
+            provider=provider,
+            endpoint=endpoint,
+            idempotency_key=idempotency_key,
+            research_job_id=research_job_id,
+            provider_request_id=provider_request_id,
+            task_id=task_id,
+        )
     try:
         _d1_execute(
             """
-            INSERT INTO pipeline_cost_events
+            INSERT OR IGNORE INTO pipeline_cost_events
               (run_id, pipeline, provider, endpoint, unit_type, unit_count, unit_price_usd,
-               estimated_cost_usd, actual_cost_usd, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               estimated_cost_usd, actual_cost_usd, task_id, research_job_id, event_key,
+               provider_request_id, idempotency_key, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 run_id,
@@ -193,10 +309,41 @@ def record_cost_event(
                 unit_price_usd,
                 round(float(estimated_cost_usd), 6) if estimated_cost_usd is not None else None,
                 actual_cost_usd,
-                json.dumps(metadata or {}, ensure_ascii=False, sort_keys=True),
+                task_id,
+                research_job_id,
+                event_key,
+                provider_request_id,
+                idempotency_key,
+                _stable_json(metadata or {}),
             ],
         )
     except Exception as exc:
+        if any(token in str(exc).lower() for token in ("no such column", "has no column named")):
+            try:
+                _d1_execute(
+                    """
+                    INSERT INTO pipeline_cost_events
+                      (run_id, pipeline, provider, endpoint, unit_type, unit_count, unit_price_usd,
+                       estimated_cost_usd, actual_cost_usd, metadata_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        run_id,
+                        pipeline,
+                        provider,
+                        endpoint,
+                        unit_type,
+                        int(unit_count),
+                        unit_price_usd,
+                        round(float(estimated_cost_usd), 6) if estimated_cost_usd is not None else None,
+                        actual_cost_usd,
+                        _stable_json(metadata or {}),
+                    ],
+                )
+                return
+            except Exception as fallback_exc:
+                print(f"⚠️ pipeline cost event skipped: {fallback_exc}", flush=True)
+                return
         print(f"⚠️ pipeline cost event skipped: {exc}", flush=True)
 
 
@@ -206,6 +353,8 @@ def pipeline_run(
     *,
     state_dir: Path | None = None,
     stale_after_seconds: int = 6 * 60 * 60,
+    run_key: str | None = None,
+    budget_usd: float | None = None,
 ) -> Iterator[str]:
     """Guard a pipeline with a simple lock file and emit start/end records.
 
@@ -216,6 +365,8 @@ def pipeline_run(
     root = state_dir or DEFAULT_STATE_DIR
     root.mkdir(parents=True, exist_ok=True)
     run_id = new_run_id(name)
+    resolved_run_key = run_key or _pipeline_run_key_from_env(name)
+    resolved_budget_usd = budget_usd if budget_usd is not None else _pipeline_budget_from_env(name)
     lock_path = root / f"{name}.lock"
     log_path = root / "pipeline_runs.jsonl"
     started_at = time.time()
@@ -238,6 +389,8 @@ def pipeline_run(
             {
                 "name": name,
                 "run_id": run_id,
+                "run_key": resolved_run_key,
+                "budget_usd": resolved_budget_usd,
                 "locked_at": started_at,
                 "locked_at_iso": started_at_iso,
                 "pid": os.getpid(),
@@ -248,10 +401,24 @@ def pipeline_run(
         encoding="utf-8",
     )
     _append_jsonl(log_path, {"event": "start", "name": name, "run_id": run_id, "ts": started_at_iso, "pid": os.getpid()})
-    _record_pipeline_run(run_id=run_id, name=name, status="running", started_at_iso=started_at_iso)
+    _record_pipeline_run(
+        run_id=run_id,
+        run_key=resolved_run_key,
+        name=name,
+        status="running",
+        started_at_iso=started_at_iso,
+        budget_usd=resolved_budget_usd,
+    )
     previous_run = dict(_CURRENT_RUN)
     _CURRENT_RUN.clear()
-    _CURRENT_RUN.update({"name": name, "run_id": run_id})
+    _CURRENT_RUN.update(
+        {
+            "name": name,
+            "run_id": run_id,
+            "run_key": resolved_run_key,
+            "budget_usd": resolved_budget_usd,
+        }
+    )
 
     try:
         yield run_id
@@ -271,9 +438,11 @@ def pipeline_run(
         )
         _record_pipeline_run(
             run_id=run_id,
+            run_key=resolved_run_key,
             name=name,
             status="failed",
             started_at_iso=started_at_iso,
+            budget_usd=resolved_budget_usd,
             completed_at_iso=completed_at_iso,
             duration_seconds=duration,
             error=str(exc),
@@ -294,9 +463,11 @@ def pipeline_run(
         )
         _record_pipeline_run(
             run_id=run_id,
+            run_key=resolved_run_key,
             name=name,
             status="success",
             started_at_iso=started_at_iso,
+            budget_usd=resolved_budget_usd,
             completed_at_iso=completed_at_iso,
             duration_seconds=duration,
         )

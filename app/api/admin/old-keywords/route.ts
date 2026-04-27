@@ -52,15 +52,54 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);
   const minScore = parseInt(url.searchParams.get("minScore") || "0");
+  const scanDate = (url.searchParams.get("scanDate") || "").trim();
+
+  const aliasedDateFilterSql = scanDate
+    ? "o.scan_date = ?"
+    : "o.scan_date = (SELECT MAX(scan_date) FROM old_keyword_opportunities)";
+  const aliasedReliableKdSql = "NOT (o.kd <= 0 AND (o.volume >= 10000 OR o.competition != 'LOW'))";
+  const params: Array<string | number> = scanDate ? [minScore, scanDate, limit] : [minScore, limit];
 
   const { rows } = await d1Query<Record<string, unknown>>(
-    `SELECT keyword, source_seed, volume, cpc, kd, competition, intent, toolable, score, scan_date, trend_series
-     FROM old_keyword_opportunities
-     WHERE score >= ?
-     ORDER BY score DESC
+    `SELECT o.keyword, o.source_seed, o.volume, o.cpc, o.kd, o.competition, o.intent,
+            o.toolable, o.score, o.scan_date, o.trend_series,
+            e.real_score, e.base_score, e.serp_score, e.brand_safety_score,
+            e.intent_score, e.content_feasibility_score, e.serp_organic, e.serp_auth,
+            e.serp_featured, e.serp_ai_overview, e.top_domains_json, e.signals_json,
+            e.evaluated_at
+     FROM old_keyword_opportunities o
+     LEFT JOIN old_keyword_evaluations e
+      ON e.keyword_normalized = lower(trim(o.keyword))
+     AND e.scan_date = o.scan_date
+     AND e.evaluation_version = 'serp-v1'
+     WHERE o.score >= ? AND ${aliasedDateFilterSql} AND ${aliasedReliableKdSql}
+     ORDER BY e.real_score IS NULL, e.real_score DESC, o.score DESC
      LIMIT ?`,
-    [minScore, limit]
+    params
   );
 
-  return NextResponse.json({ keywords: rows });
+  const { rows: dateRows } = await d1Query<{ scan_date: string; total: number }>(
+    `SELECT scan_date, COUNT(*) as total
+     FROM old_keyword_opportunities
+     GROUP BY scan_date
+     ORDER BY scan_date DESC`
+  );
+
+  return NextResponse.json({
+    keywords: rows.map((row) => ({
+      ...row,
+      top_domains: typeof row.top_domains_json === "string" ? safeParseJson(row.top_domains_json) : null,
+      signals: typeof row.signals_json === "string" ? safeParseJson(row.signals_json) : null,
+    })),
+    scanDate: scanDate || dateRows[0]?.scan_date || null,
+    availableDates: dateRows,
+  });
+}
+
+function safeParseJson(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }

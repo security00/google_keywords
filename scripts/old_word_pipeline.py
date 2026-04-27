@@ -60,6 +60,7 @@ BRAND_WORDS = {
     "chatgpt", "openai", "claude", "gemini", "deepseek", "copilot", "canva", "adobe",
     "grammarly", "quillbot", "midjourney", "perplexity", "cursor", "bolt", "lovable",
     "replit", "github", "notion", "figma", "capcut", "pixelcut", "character ai",
+    "copyleaks", "scribbr", "synthesia", "topaz", "walter",
 }
 
 INFORMATIONAL_WORDS = {"what is", "how to", "guide", "tutorial", "faq", "example", "sample"}
@@ -108,6 +109,14 @@ def is_noise(keyword: str) -> bool:
     if any(w in k for w in ("reddit", "discord", "youtube", "twitter", "download apk")):
         return True
     return False
+
+
+def has_low_confidence_kd(item: dict) -> bool:
+    """Treat suspicious KD=0 rows as unknown, not as a free opportunity."""
+    kd = int(item.get("kd") or 0)
+    volume = int(item.get("volume") or 0)
+    competition = str(item.get("competition") or "").upper()
+    return kd <= 0 and (volume >= 10000 or competition not in ("", "LOW"))
 
 
 def opportunity_score(volume: int, kd: int, cpc: float) -> float:
@@ -177,6 +186,7 @@ def main():
                 unit_count=1,
                 unit_price_usd=0.013,
                 actual_cost_usd=actual_cost_from_response(resp),
+                idempotency_key=f"keyword-suggestions:{query}:{LIMIT_PER_SEED}",
                 metadata={"seed": seed, "query": query, "limit": LIMIT_PER_SEED, "cost": resp.get("cost")},
             )
             items = resp.get("items", [])
@@ -184,6 +194,8 @@ def main():
             for item in items:
                 kw = normalize_keyword(item.get("keyword", ""))
                 if not kw or is_noise(kw):
+                    continue
+                if has_low_confidence_kd(item):
                     continue
                 intent = classify_intent(kw)
                 toolable = is_toolable(kw)
@@ -210,6 +222,7 @@ def main():
         and item.get("volume", 0) >= MIN_VOLUME
         and item.get("cpc", 0) > 0
         and item.get("kd", 0) <= MAX_KD
+        and not has_low_confidence_kd(item)
         and item.get("competition", "") in ("LOW", "MEDIUM", "")
         and item["toolable"]
     ]
@@ -235,6 +248,7 @@ def main():
                     unit_count=1,
                     unit_price_usd=0.00225,
                     actual_cost_usd=actual_cost_from_response(resp),
+                    idempotency_key=f"trends-quick-12m:{kw}",
                     metadata={"keyword": kw, "months": 12, "cost": resp.get("cost")},
                 )
                 series = resp.get("series", [])

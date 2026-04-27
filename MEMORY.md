@@ -36,6 +36,21 @@
 - Admin health dashboard work is partially implemented but not fully closed.
 - User management page should have visible pagination with page size `20`.
 
+## Paused TODO: SaaS Foundation
+
+- Paused on `2026-04-27` to prioritize online production issues.
+- Resume the SaaS foundation work after production is stable.
+- Current completed slice:
+  - D1 migration `0005_pipeline_idempotency.sql` applied to production.
+  - `pipeline_tasks`, `pipeline_artifacts`, `pipeline_cost_events.event_key`, `pipeline_runs.run_key`, and `pipeline_runs.budget_usd` are live.
+  - `migrations/baseline/0000_current_production_schema.sql` was refreshed and remote schema check passed.
+  - TypeScript pipeline base exists under `lib/pipelines/`.
+  - Python `pipeline_runtime.py` and the three cron scripts have first-pass cost event idempotency support.
+- Next resume slice:
+  - Wire one low-risk pipeline, preferably `old-word-pipeline`, into `pipeline_tasks` while keeping cron as the driver.
+  - Observe one real cron run and confirm cost events dedupe by `event_key`.
+  - Only after that, design the Cloudflare Queues consumer adapter.
+
 ## More Detail
 
 - Detailed session handoff:

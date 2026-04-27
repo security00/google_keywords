@@ -200,6 +200,7 @@ Do not commit:
 
 - Keep paid API calls in background jobs or cached server flows whenever possible.
 - Keep student-facing requests fast and cache-first.
+- Run `npm run check:student-paid-guards` after changing research API routes; it statically checks that student API keys cannot reach paid DataForSEO submission paths.
 - When adding/removing team or admin workflows, update admin pages, scripts, docs, and CI checks together.
 - If Clarity/GA behavior needs verification, inspect built client chunks; analytics scripts are injected client-side.
 - If the site appears stale after a push, check GitHub Actions and Cloudflare deployment before assuming CDN cache issues.

@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
   const { rows: withTrend } = await d1Query<Record<string, unknown>>(
     `SELECT keyword, volume, cpc, kd, competition, intent, score, trend_series
      FROM old_keyword_opportunities
-     WHERE trend_series IS NOT NULL AND cpc > 0
+     WHERE trend_series IS NOT NULL
+       AND cpc > 0
+       AND scan_date = (SELECT MAX(scan_date) FROM old_keyword_opportunities)
+       AND NOT (kd <= 0 AND (volume >= 10000 OR competition != 'LOW'))
      ORDER BY score DESC
      LIMIT 200`
   );
