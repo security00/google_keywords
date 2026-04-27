@@ -26,9 +26,23 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
-    from scripts.pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
+    from scripts.pipeline_runtime import (
+        fail_pipeline_task,
+        pipeline_run,
+        record_cost_event,
+        start_pipeline_task,
+        succeed_pipeline_task,
+        update_pipeline_run,
+    )
 except ModuleNotFoundError:
-    from pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
+    from pipeline_runtime import (
+        fail_pipeline_task,
+        pipeline_run,
+        record_cost_event,
+        start_pipeline_task,
+        succeed_pipeline_task,
+        update_pipeline_run,
+    )
 
 GK_SITE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
 GK_API_KEY = os.environ.get("GK_API_KEY", "")
@@ -175,6 +189,12 @@ def main():
     for idx, seed in enumerate(seeds, start=1):
         query = seed if seed.lower().startswith("ai ") else f"ai {seed}"
         print(f"[{idx}/{len(seeds)}] {query}", end=" ", file=sys.stderr)
+        task_id = start_pipeline_task(
+            stage="old-word.seed",
+            idempotency_key=f"keyword-suggestions:{query}:{LIMIT_PER_SEED}",
+            payload={"seed": seed, "query": query, "limit": LIMIT_PER_SEED},
+            metadata={"index": idx, "total": len(seeds)},
+        )
         try:
             resp = curl_json("POST", "/api/research/keyword-suggestions",
                            {"keyword": query, "limit": LIMIT_PER_SEED}, timeout=60)
@@ -186,11 +206,13 @@ def main():
                 unit_count=1,
                 unit_price_usd=0.013,
                 actual_cost_usd=actual_cost_from_response(resp),
+                task_id=task_id,
                 idempotency_key=f"keyword-suggestions:{query}:{LIMIT_PER_SEED}",
                 metadata={"seed": seed, "query": query, "limit": LIMIT_PER_SEED, "cost": resp.get("cost")},
             )
             items = resp.get("items", [])
             print(f"→ {len(items)} suggestions", file=sys.stderr)
+            kept_for_seed = 0
             for item in items:
                 kw = normalize_keyword(item.get("keyword", ""))
                 if not kw or is_noise(kw):
@@ -210,8 +232,19 @@ def main():
                 existing = all_keywords.get(kw)
                 if not existing or score > existing.get("score", 0):
                     all_keywords[kw] = enriched
+                    kept_for_seed += 1
+            succeed_pipeline_task(
+                task_id,
+                result={"items": len(items), "kept": kept_for_seed},
+                metadata={"seed": seed, "query": query},
+            )
         except Exception as e:
             errors += 1
+            fail_pipeline_task(
+                task_id,
+                error=str(e),
+                metadata={"seed": seed, "query": query},
+            )
             print(f"✗ {e}", file=sys.stderr)
         time.sleep(SLEEP_SECONDS)
 
@@ -237,6 +270,12 @@ def main():
         for idx, item in enumerate(filtered[:TRENDS_TOP_N], start=1):
             kw = item['keyword']
             print(f"  [{idx}/{min(TRENDS_TOP_N, len(filtered))}] {kw}", end=" ", file=sys.stderr)
+            task_id = start_pipeline_task(
+                stage="old-word.trends",
+                idempotency_key=f"trends-quick-12m:{kw}",
+                payload={"keyword": kw, "months": 12},
+                metadata={"index": idx, "total": min(TRENDS_TOP_N, len(filtered))},
+            )
             try:
                 resp = curl_json("POST", "/api/research/trends-quick",
                                {"keyword": kw, "months": 12}, timeout=30)
@@ -248,6 +287,7 @@ def main():
                     unit_count=1,
                     unit_price_usd=0.00225,
                     actual_cost_usd=actual_cost_from_response(resp),
+                    task_id=task_id,
                     idempotency_key=f"trends-quick-12m:{kw}",
                     metadata={"keyword": kw, "months": 12, "cost": resp.get("cost")},
                 )
@@ -259,22 +299,55 @@ def main():
                     item["trend_series"] = json.dumps(merged)
                 else:
                     item["trend_series"] = None
+                succeed_pipeline_task(
+                    task_id,
+                    result={"points": len(series), "benchmark_points": len(bm_series)},
+                    metadata={"keyword": kw, "months": 12},
+                )
                 print(f"→ {len(series)} pts (bm: {len(bm_series)})", file=sys.stderr)
             except Exception as e:
                 item["trend_series"] = None
+                fail_pipeline_task(
+                    task_id,
+                    error=str(e),
+                    metadata={"keyword": kw, "months": 12},
+                )
                 print(f"✗ {e}", file=sys.stderr)
             time.sleep(0.5)
 
     # Save to D1
     saved_count = 0
+    finalize_task_id = start_pipeline_task(
+        stage="old-word.finalize",
+        idempotency_key=f"save:{date}",
+        payload={"date": date, "keywords": len(filtered)},
+        metadata={"filtered_total": len(filtered)},
+    )
     if filtered:
         try:
             resp = curl_json("POST", "/api/admin/old-keywords",
                            {"keywords": filtered}, timeout=60)
             saved_count = int(resp.get('saved', 0) or 0)
+            succeed_pipeline_task(
+                finalize_task_id,
+                result={"saved": saved_count, "submitted": len(filtered)},
+                metadata={"date": date},
+            )
             print(f"  Saved to D1: {saved_count}", file=sys.stderr)
         except Exception as e:
+            fail_pipeline_task(
+                finalize_task_id,
+                error=str(e),
+                metadata={"date": date, "submitted": len(filtered)},
+            )
             print(f"  ⚠️ Save failed: {e}", file=sys.stderr)
+    else:
+        succeed_pipeline_task(
+            finalize_task_id,
+            status="skipped",
+            result={"saved": 0, "submitted": 0},
+            metadata={"date": date},
+        )
 
     estimated_cost = keyword_suggestion_calls * 0.013 + trends_quick_calls * 0.005
     update_pipeline_run(

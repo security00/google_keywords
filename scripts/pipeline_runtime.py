@@ -128,6 +128,16 @@ def _cost_event_key(
     return f"cost:{_normalize_key_part(provider)}:{_normalize_key_part(endpoint)}:{_sha256_short(scope)}"
 
 
+def _pipeline_task_key(
+    *,
+    run_id: str,
+    stage: str,
+    idempotency_key: str,
+) -> str:
+    scope = f"{run_id}:{stage}:{idempotency_key}"
+    return f"task-{_sha256_short(scope, 32)}"
+
+
 def current_run_id() -> str | None:
     value = _CURRENT_RUN.get("run_id")
     return str(value) if value else None
@@ -253,6 +263,120 @@ def update_pipeline_run(
         _d1_execute(f"UPDATE pipeline_runs SET {', '.join(sets)} WHERE run_id = ?", params)
     except Exception as exc:
         print(f"⚠️ pipeline_runs aggregate update skipped: {exc}", flush=True)
+
+
+def start_pipeline_task(
+    *,
+    stage: str,
+    idempotency_key: str,
+    payload: dict | None = None,
+    metadata: dict | None = None,
+    max_attempts: int = 3,
+) -> str | None:
+    """Best-effort insert of a running task for the active run."""
+    run_id = current_run_id()
+    pipeline = current_pipeline_name()
+    if not run_id or not pipeline:
+        return None
+    scoped_idempotency_key = f"{run_id}:{stage}:{idempotency_key}"
+    task_id = _pipeline_task_key(
+        run_id=run_id,
+        stage=stage,
+        idempotency_key=idempotency_key,
+    )
+    now = _now_iso()
+    try:
+        _d1_execute(
+            """
+            INSERT OR IGNORE INTO pipeline_tasks
+              (task_id, run_id, pipeline, stage, status, idempotency_key,
+               payload_json, attempt_count, max_attempts, started_at, metadata_json,
+               created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'running', ?, ?, 1, ?, ?, ?, datetime('now'), datetime('now'))
+            """,
+            [
+                task_id,
+                run_id,
+                pipeline,
+                stage,
+                scoped_idempotency_key,
+                _stable_json(payload or {}),
+                int(max_attempts),
+                now,
+                _stable_json(metadata or {}),
+            ],
+        )
+        return task_id
+    except Exception as exc:
+        print(f"⚠️ pipeline task start skipped: {exc}", flush=True)
+        return None
+
+
+def succeed_pipeline_task(
+    task_id: str | None,
+    *,
+    status: str = "succeeded",
+    result: dict | None = None,
+    metadata: dict | None = None,
+    output_ref: str | None = None,
+) -> None:
+    """Best-effort mark of a task as succeeded/skipped/warned."""
+    if not task_id:
+        return
+    try:
+        _d1_execute(
+            """
+            UPDATE pipeline_tasks
+            SET status = ?,
+                output_ref = COALESCE(?, output_ref),
+                result_json = COALESCE(?, result_json),
+                metadata_json = COALESCE(?, metadata_json),
+                completed_at = ?,
+                updated_at = datetime('now')
+            WHERE task_id = ?
+            """,
+            [
+                status,
+                output_ref,
+                _stable_json(result) if result is not None else None,
+                _stable_json(metadata) if metadata is not None else None,
+                _now_iso(),
+                task_id,
+            ],
+        )
+    except Exception as exc:
+        print(f"⚠️ pipeline task success skipped: {exc}", flush=True)
+
+
+def fail_pipeline_task(
+    task_id: str | None,
+    *,
+    error: str,
+    metadata: dict | None = None,
+) -> None:
+    """Best-effort mark of a task as failed."""
+    if not task_id:
+        return
+    try:
+        _d1_execute(
+            """
+            UPDATE pipeline_tasks
+            SET status = 'failed',
+                error = ?,
+                metadata_json = COALESCE(?, metadata_json),
+                completed_at = ?,
+                updated_at = datetime('now')
+            WHERE task_id = ?
+            """,
+            [
+                error,
+                _stable_json(metadata) if metadata is not None else None,
+                _now_iso(),
+                task_id,
+            ],
+        )
+    except Exception as exc:
+        print(f"⚠️ pipeline task failure skipped: {exc}", flush=True)
 
 
 def record_cost_event(
