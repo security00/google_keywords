@@ -285,7 +285,7 @@ def main():
                     endpoint="trends_quick_12m",
                     unit_type="call",
                     unit_count=1,
-                    unit_price_usd=0.00225,
+                    unit_price_usd=0.009,
                     actual_cost_usd=actual_cost_from_response(resp),
                     task_id=task_id,
                     idempotency_key=f"trends-quick-12m:{kw}",
@@ -349,7 +349,7 @@ def main():
             metadata={"date": date},
         )
 
-    estimated_cost = keyword_suggestion_calls * 0.013 + trends_quick_calls * 0.005
+    estimated_cost = keyword_suggestion_calls * 0.013 + trends_quick_calls * 0.009
     update_pipeline_run(
         checked_count=len(seeds),
         saved_count=saved_count,
