@@ -35,6 +35,7 @@ const recIcon: Record<string, React.ReactNode> = {
 export default function StudentGamesPage() {
   const [items, setItems] = useState<GameKeyword[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,15 +44,22 @@ export default function StudentGamesPage() {
 
   async function load() {
     setLoading(true);
+    setError("");
     try {
       const r = await fetch("/api/game-keywords");
       const d = await r.json();
+      if (!r.ok) {
+        setItems([]);
+        setError(typeof d?.error === "string" ? d.error : "加载失败");
+        return;
+      }
       const list = d.keywords || [];
       setItems(list);
       // Auto-expand first
       if (list.length > 0) setExpandedKey(list[0].keyword);
     } catch {
-      console.error("load failed");
+      setItems([]);
+      setError("加载失败");
     } finally {
       setLoading(false);
     }
@@ -92,8 +100,8 @@ export default function StudentGamesPage() {
       ) : items.length === 0 ? (
         <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
           <Gamepad2 className="mx-auto mb-3 h-10 w-10 opacity-30" />
-          <p>暂无推荐游戏关键词</p>
-          <p className="text-xs mt-1">系统每日自动扫描，请稍后再来查看</p>
+          <p>{error || "暂无推荐游戏关键词"}</p>
+          {!error && <p className="text-xs mt-1">系统每日自动扫描，请稍后再来查看</p>}
         </div>
       ) : (
         <div className="space-y-3">

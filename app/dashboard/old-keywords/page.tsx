@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Search, TrendingUp, ExternalLink } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -65,8 +65,10 @@ export default function OldKeywordsPage() {
     (async () => {
       try {
         const res = await fetch("/api/old-keywords");
-        if (!res.ok) throw new Error("加载失败");
         const data = await res.json();
+        if (!res.ok) {
+          throw new Error(typeof data?.error === "string" ? data.error : "加载失败");
+        }
         setKeywords(data.keywords || []);
       } catch (e) {
         setError(e instanceof Error ? e.message : "未知错误");
@@ -113,7 +115,7 @@ export default function OldKeywordsPage() {
       </div>
 
       <div className="space-y-4">
-        {keywords.map((kw, idx) => (
+        {keywords.map((kw) => (
           <div key={kw.keyword} className="border rounded-xl p-5 bg-card">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
