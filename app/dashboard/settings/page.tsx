@@ -336,8 +336,7 @@ export default function SettingsPage() {
             </code>
           </li>
           <li>2. 推荐使用 Authorization Header；URL 参数方式仅适合临时测试。</li>
-          <li>3. 系统会优先复用缓存结果，减少重复请求成本。</li>
-          <li>4. 账号需处于开通期内；试用期为 90 天，到期后需续费。</li>
+          <li>3. 账号需处于开通期内；试用期为 90 天，到期后需续费。</li>
         </ul>
       </div>
 
