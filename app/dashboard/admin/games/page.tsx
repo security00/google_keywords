@@ -85,7 +85,7 @@ export default function GameKeywordsPage() {
           <div>
             <h1 className="text-2xl font-bold">新游发现</h1>
             <p className="text-sm text-muted-foreground">
-              每日自动扫描 Steam + CrazyGames 新游戏，对比趋势与 SERP 竞争
+              定期从多来源新游候选中筛选关键词，结合趋势、历史基线与 SERP 竞争评估机会
             </p>
           </div>
         </div>
