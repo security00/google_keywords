@@ -76,8 +76,18 @@ def main() -> int:
         "if (!isCronAuthorized(request))",
         "const taskSubmission = await submitSerpTasksWithCost",
     )
+    assert_order(
+        "app/api/game-keywords/route.ts",
+        "const access = await checkStudentAccess",
+        "FROM game_keyword_pipeline",
+    )
+    assert_order(
+        "app/api/old-keywords/route.ts",
+        "const access = await checkStudentAccess",
+        "FROM old_keyword_opportunities",
+    )
 
-    print("student paid API guards OK")
+    print("student access and paid API guards OK")
     return 0
 
 

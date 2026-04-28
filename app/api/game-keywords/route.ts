@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticate } from "@/lib/auth_middleware";
+import { checkStudentAccess } from "@/lib/usage";
 import { d1Query } from "@/lib/d1";
 import { GAME_KEYWORDS_PER_USER } from "@/config/business-rules";
 
@@ -16,6 +17,14 @@ export async function GET(req: NextRequest) {
   const auth = await authenticate(req);
   if (!auth.authenticated) {
     return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+  }
+
+  const access = await checkStudentAccess(auth.userId!);
+  if (!access.allowed) {
+    return NextResponse.json(
+      { error: access.reason, code: access.code },
+      { status: access.code === "trial_expired" ? 403 : 429 }
+    );
   }
 
   const userId = auth.userId!;
