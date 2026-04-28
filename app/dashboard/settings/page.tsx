@@ -320,22 +320,12 @@ export default function SettingsPage() {
 
       {/* 使用说明 */}
       <div className="rounded-xl border border-border/70 bg-muted/35 p-5 shadow-sm shadow-black/5 dark:shadow-black/20">
-        <h3 className="mb-2 font-semibold">使用说明</h3>
+        <h3 className="mb-2 font-semibold">Agent 使用说明</h3>
         <ul className="space-y-1 text-sm text-muted-foreground">
           <li>
-            1. 生成 API Key 后，用以下方式调用接口：
+            1. 生成 API Key 后，将它配置到 <code className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-xs">keyword-research-agent</code> skill 中使用。
           </li>
-          <li className="ml-4">
-            <code className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-xs">
-              Authorization: Bearer gk_live_xxxx
-            </code>
-          </li>
-          <li className="ml-4">
-            <code className="rounded-md border border-border/60 bg-background/70 px-1.5 py-0.5 text-xs">
-              ?api_key=gk_live_xxxx
-            </code>
-          </li>
-          <li>2. 推荐使用 Authorization Header；URL 参数方式仅适合临时测试。</li>
+          <li>2. API Key 代表你的账号权限，请妥善保存，不要公开分享。</li>
           <li>3. 账号需处于开通期内；试用期为 90 天，到期后需续费。</li>
         </ul>
       </div>
