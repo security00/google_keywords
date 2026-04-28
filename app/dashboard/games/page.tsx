@@ -15,7 +15,7 @@ type TrendSeries = {
 
 type GameKeyword = {
   keyword: string;
-  source_site: string;
+  source: string;
   trend_ratio: number;
   trend_slope: number;
   trend_verdict: string;
@@ -73,7 +73,7 @@ export default function StudentGamesPage() {
           <div>
             <h1 className="text-2xl font-bold">🎮 新游发现</h1>
             <p className="text-sm text-muted-foreground">
-              每日自动扫描 Steam + CrazyGames 新游戏，发现流量机会
+              定期筛选近期上架或正在上升的游戏关键词，发现流量机会
             </p>
           </div>
         </div>
@@ -107,7 +107,7 @@ export default function StudentGamesPage() {
         <div className="space-y-3">
           {items.map((item) => (
             <GameCard
-              key={item.keyword + item.source_site}
+              key={item.keyword + item.source}
               item={item}
               expanded={expandedKey === item.keyword}
               onToggle={() => setExpandedKey(expandedKey === item.keyword ? null : item.keyword)}
@@ -118,8 +118,7 @@ export default function StudentGamesPage() {
 
       {/* Info */}
       <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground">
-        💡 数据来源：Steam 新品 + CrazyGames 新游，每日 UTC 10:00 自动更新。
-        趋势对比基准为 &quot;GPTs&quot; 关键词。14天趋势窗口。
+        💡 系统会从多个新游来源筛选候选关键词，并结合搜索热度、趋势变化和竞争情况综合判断。
       </div>
     </div>
   );
@@ -147,7 +146,7 @@ function GameCard({ item, expanded, onToggle }: { item: GameKeyword; expanded: b
           <div className="flex items-center gap-2">
             <span className="font-semibold">{item.keyword}</span>
             <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-              {item.source_site || "Steam/CrazyGames"}
+              {item.source || "多来源"}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.reason}</p>
@@ -193,7 +192,7 @@ function TrendChart({ keyword, series }: { keyword: string; series: TrendSeries 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">趋势对比（紫色 = {keyword}，绿色虚线 = GPTs 基准）</h3>
+        <h3 className="text-sm font-medium">趋势走势（紫色 = {keyword}，绿色虚线 = 参考基准）</h3>
         <span className="text-xs text-muted-foreground">{series.timestamps.length} 天</span>
       </div>
       <ResponsiveContainer width="100%" height={200}>
