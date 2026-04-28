@@ -8,6 +8,7 @@ reuse the same stages and idempotency keys instead of inventing a second model.
 ## Current Driver
 
 - `scripts/old_word_pipeline.py` still runs sequentially under cron.
+- `scripts/game_trend_scanner.py` still runs sequentially under cron.
 - `scripts/pipeline_runtime.py` owns best-effort writes to:
   - `pipeline_runs`
   - `pipeline_tasks`
@@ -21,6 +22,15 @@ reuse the same stages and idempotency keys instead of inventing a second model.
 | `old-word.seed` | one seed suggestion request | `keyword-suggestions:{query}:{limit}` | `dataforseo / keyword_suggestions` |
 | `old-word.trends` | one 12-month trend request | `trends-quick-12m:{keyword}` | `dataforseo / trends_quick_12m` |
 | `old-word.finalize` | one D1 save step | `save:{date}` | none |
+
+## Game Trend Stages
+
+| Stage | Unit | Idempotency key | Paid events |
+| --- | --- | --- | --- |
+| `game.trends-14d` | one 14-day trends batch | `trends-14d:{keyword_csv}` | `dataforseo / trends_14d` |
+| `game.history-90d` | one 90-day historical baseline batch | `history-90d:{keyword_csv}` | `dataforseo / trends_history_90d` |
+| `game.serp` | one SERP batch | `serp:{keyword_csv}` | `dataforseo / serp_organic` |
+| `game.classify` | one final classification pass | `classify:{keyword_csv}` | none |
 
 Cost events should include `task_id` whenever a paid call happens inside a task.
 This makes run-level cost reporting, task-level debugging, and future retry

@@ -36,9 +36,25 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 try:
-    from scripts.pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
+    from scripts.pipeline_runtime import (
+        fail_pipeline_task,
+        current_run_id,
+        pipeline_run,
+        record_cost_event,
+        start_pipeline_task,
+        succeed_pipeline_task,
+        update_pipeline_run,
+    )
 except ModuleNotFoundError:
-    from pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
+    from pipeline_runtime import (
+        fail_pipeline_task,
+        current_run_id,
+        pipeline_run,
+        record_cost_event,
+        start_pipeline_task,
+        succeed_pipeline_task,
+        update_pipeline_run,
+    )
 
 # ─── Config ───────────────────────────────────────────────────────────
 D1_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
@@ -135,6 +151,61 @@ def d1_execute(sql, params=None):
     except Exception as e:
         print(f"  ⚠️ D1 execute failed: {e}", file=sys.stderr)
         return False
+
+
+def current_run_cost_summary():
+    """Return aggregate cost summary for the active pipeline run."""
+    run_id = current_run_id()
+    if not run_id:
+        return {
+            "event_count": 0,
+            "estimated_cost_usd": 0.0,
+            "actual_cost_usd": 0.0,
+        }
+    rows = d1_query(
+        """
+        SELECT
+          COUNT(*) AS event_count,
+          COALESCE(SUM(estimated_cost_usd), 0) AS estimated_cost_usd,
+          COALESCE(SUM(actual_cost_usd), 0) AS actual_cost_usd
+        FROM pipeline_cost_events
+        WHERE run_id = ?
+        """,
+        [run_id],
+    )
+    if not rows:
+        return {
+            "event_count": 0,
+            "estimated_cost_usd": 0.0,
+            "actual_cost_usd": 0.0,
+        }
+    row = rows[0]
+    return {
+        "event_count": int(row.get("event_count") or 0),
+        "estimated_cost_usd": round(float(row.get("estimated_cost_usd") or 0), 6),
+        "actual_cost_usd": round(float(row.get("actual_cost_usd") or 0), 6),
+    }
+
+
+def record_trends_cost(endpoint_label, keywords, task_count, actual_cost, task_id, research_job_id=None, cost_payload=None):
+    """Record a trends cost event when the request is known or likely to be billable."""
+    if actual_cost is None and not research_job_id:
+        return
+    record_cost_event(
+        provider="dataforseo",
+        endpoint=endpoint_label,
+        unit_type="task",
+        unit_count=task_count,
+        unit_price_usd=0.00225,
+        actual_cost_usd=actual_cost,
+        task_id=task_id,
+        research_job_id=research_job_id,
+        metadata={
+            "keywords": keywords,
+            "days": TREND_DAYS if endpoint_label == "trends_14d" else HISTORY_DAYS,
+            "cost": cost_payload,
+        },
+    )
 
 
 # ─── Sitemap Discovery (reuse discovery_scan.py logic) ───────────────
@@ -482,7 +553,7 @@ def fetch_crazygames_new():
 
 # ─── Trends API ───────────────────────────────────────────────────────
 
-def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
+def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d", task_id=None):
     """Call /api/research/trends with keywords (async with polling).
     
     1. POST /api/research/trends → get jobId (or cached results)
@@ -516,6 +587,15 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
         
         # Cache hit — return immediately
         if resp.get("results") is not None:
+            record_trends_cost(
+                endpoint_label,
+                keywords,
+                task_count,
+                actual_cost,
+                task_id,
+                research_job_id=resp.get("jobId"),
+                cost_payload=resp.get("cost"),
+            )
             print(f"    📦 trends cache hit", flush=True)
             return resp
         
@@ -549,15 +629,14 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
             poll_resp = json.loads(poll_result.stdout)
             
             if poll_resp.get("status") == "complete":
-                record_cost_event(
-                    provider="dataforseo",
-                    endpoint=endpoint_label,
-                    unit_type="task",
-                    unit_count=task_count,
-                    unit_price_usd=0.00225,
-                    actual_cost_usd=actual_cost,
+                record_trends_cost(
+                    endpoint_label,
+                    keywords,
+                    task_count,
+                    actual_cost,
+                    task_id,
                     research_job_id=job_id,
-                    metadata={"keywords": keywords, "days": TREND_DAYS if endpoint_label == "trends_14d" else HISTORY_DAYS, "cost": resp.get("cost")},
+                    cost_payload=resp.get("cost"),
                 )
                 return poll_resp
             elif poll_resp.get("status") == "processing":
@@ -571,6 +650,15 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d"):
             else:
                 # Might be cached result returned directly
                 if poll_resp.get("results") is not None:
+                    record_trends_cost(
+                        endpoint_label,
+                        keywords,
+                        task_count,
+                        actual_cost,
+                        task_id,
+                        research_job_id=job_id,
+                        cost_payload=resp.get("cost"),
+                    )
                     return poll_resp
                 continue
         except Exception:
@@ -597,7 +685,7 @@ def save_result(keyword, source_site, ratio, slope, verdict, status="done",
     )
 
 
-def call_serp_api(keywords):
+def call_serp_api(keywords, task_id=None):
     """Call /api/research/serp with keywords, return results."""
     import subprocess
     url = f"{API_URL}/api/research/serp"
@@ -623,6 +711,7 @@ def call_serp_api(keywords):
                 unit_count=int(response.get("total") or len(keywords)),
                 unit_price_usd=0.0006,
                 actual_cost_usd=cost.get("actualCostUsd"),
+                task_id=task_id,
                 idempotency_key=f"serp-organic:{','.join(keywords)}",
                 metadata={"keywords": keywords, "cost": response.get("cost")},
             )
@@ -844,6 +933,41 @@ def is_game_name_valid(name):
     return True
 
 
+def apply_history_baseline(hist_results, hist_baseline):
+    """Attach 90-day baseline signals to hist_baseline and return count."""
+    baseline_count = 0
+    for item in hist_results:
+        kw = item.get("keyword", "").lower()
+        series = item.get("series", {})
+        vals = series.get("values", [])
+        bench = series.get("benchmarkValues", [])
+
+        if len(vals) >= 75:
+            first75 = vals[:75]
+            last15 = vals[75:]
+            bench75 = bench[:75] if len(bench) >= 75 else bench
+
+            avg75 = sum(first75) / len(first75)
+            avg15 = sum(last15) / len(last15) if last15 else 0
+            avg_bench75 = sum(bench75) / len(bench75) if bench75 else 0.01
+
+            hist_vs_bench = avg75 / avg_bench75 if avg_bench75 > 0 else 999
+            surge = avg15 / avg75 if avg75 > 0 else 999
+
+            hist_baseline[kw] = {
+                "hist_vs_bench": hist_vs_bench,
+                "surge": surge,
+                "hist_avg": avg75,
+            }
+            baseline_count += 1
+
+            status = "🔴 OLD" if hist_vs_bench >= 5.0 or avg75 >= 30 or (hist_vs_bench >= 2.0 and surge < 1.2) else "🟢 NEW"
+            print(f"  {status} {kw}: hist75d={avg75:.1f} vs_bench={hist_vs_bench:.1f}x surge={surge:.1f}x", flush=True)
+        else:
+            print(f"  ⚠️ {kw}: only {len(vals)} data points (need 75)", flush=True)
+    return baseline_count
+
+
 # ─── Main ─────────────────────────────────────────────────────────────
 
 def main():
@@ -921,14 +1045,30 @@ def main():
         total_batches = (len(to_check) + BATCH_SIZE - 1) // BATCH_SIZE
         print(f"\n📈 Batch {batch_num}/{total_batches}: {keywords}", flush=True)
 
-        resp = call_trends_api(keywords)
+        task_id = start_pipeline_task(
+            stage="game.trends-14d",
+            idempotency_key=f"trends-14d:{','.join(keywords)}",
+            payload={"keywords": keywords, "days": TREND_DAYS, "benchmark": TREND_BENCHMARK},
+            metadata={"batch": batch_num, "total_batches": total_batches},
+        )
+        resp = call_trends_api(keywords, task_id=task_id)
         if not resp:
+            fail_pipeline_task(
+                task_id,
+                error="trends_14d API call failed",
+                metadata={"keywords": keywords, "batch": batch_num},
+            )
             print("  ❌ API call failed, skipping batch", flush=True)
             continue
 
         from_cache = resp.get("fromCache", False)
         batch_results = resp.get("results", [])
         print(f"  Got {len(batch_results)} results (cache={from_cache})", flush=True)
+        succeed_pipeline_task(
+            task_id,
+            result={"results": len(batch_results), "fromCache": from_cache},
+            metadata={"keywords": keywords, "batch": batch_num},
+        )
 
         for r in batch_results:
             kw = r.get("keyword", "")
@@ -966,6 +1106,12 @@ def main():
     if hist_candidates:
         hist_kws = [r["keyword"] for r in hist_candidates]
         print(f"\n📜 Phase 3.5: Historical baseline check for {len(hist_kws)} keywords (90-day window)...", flush=True)
+        hist_task_id = start_pipeline_task(
+            stage="game.history-90d",
+            idempotency_key=f"history-90d:{','.join(hist_kws)}",
+            payload={"keywords": hist_kws, "days": HISTORY_DAYS, "benchmark": TREND_BENCHMARK},
+            metadata={"keyword_count": len(hist_kws)},
+        )
         
         # Call trends API with 90-day window
         hist_payload = json.dumps({"keywords": hist_kws, "days": HISTORY_DAYS, "benchmark": TREND_BENCHMARK})
@@ -984,6 +1130,15 @@ def main():
             timed_out = False
             if not hist_job_id and hist_data.get("status") == "complete":
                 hist_results = hist_data.get("results", [])
+                record_trends_cost(
+                    "trends_history_90d",
+                    hist_kws,
+                    hist_task_count,
+                    hist_cost.get("actualCostUsd"),
+                    hist_task_id,
+                    research_job_id=hist_job_id,
+                    cost_payload=hist_data.get("cost"),
+                )
             elif hist_job_id:
                 for attempt in range(80):
                     time.sleep(3)
@@ -996,53 +1151,46 @@ def main():
                     poll_d = json.loads(poll_r.stdout)
                     if poll_d.get("status") == "complete":
                         hist_results = poll_d.get("results", [])
-                        record_cost_event(
-                            provider="dataforseo",
-                            endpoint="trends_history_90d",
-                            unit_type="task",
-                            unit_count=hist_task_count,
-                            unit_price_usd=0.00225,
-                            actual_cost_usd=hist_cost.get("actualCostUsd"),
+                        record_trends_cost(
+                            "trends_history_90d",
+                            hist_kws,
+                            hist_task_count,
+                            hist_cost.get("actualCostUsd"),
+                            hist_task_id,
                             research_job_id=hist_job_id,
-                            metadata={"keywords": hist_kws, "days": HISTORY_DAYS, "cost": hist_data.get("cost")}, 
+                            cost_payload=hist_data.get("cost"),
                         )
                         break
                     elif poll_d.get("status") == "failed":
                         break
                 else:
                     timed_out = True
-                for item in hist_results:
-                    kw = item.get("keyword", "").lower()
-                    series = item.get("series", {})
-                    vals = series.get("values", [])
-                    bench = series.get("benchmarkValues", [])
-                    
-                    if len(vals) >= 75:
-                        first75 = vals[:75]
-                        last15 = vals[75:]
-                        bench75 = bench[:75] if len(bench) >= 75 else bench
-                        
-                        avg75 = sum(first75) / len(first75)
-                        avg15 = sum(last15) / len(last15) if last15 else 0
-                        avg_bench75 = sum(bench75) / len(bench75) if bench75 else 0.01
-                        
-                        hist_vs_bench = avg75 / avg_bench75 if avg_bench75 > 0 else 999
-                        surge = avg15 / avg75 if avg75 > 0 else 999
-                        
-                        hist_baseline[kw] = {
-                            "hist_vs_bench": hist_vs_bench,
-                            "surge": surge,
-                            "hist_avg": avg75,
-                        }
-                        
-                        status = "🔴 OLD" if hist_vs_bench >= 5.0 or avg75 >= 30 or (hist_vs_bench >= 2.0 and surge < 1.2) else "🟢 NEW"
-                        print(f"  {status} {kw}: hist75d={avg75:.1f} vs_bench={hist_vs_bench:.1f}x surge={surge:.1f}x", flush=True)
-                    else:
-                        print(f"  ⚠️ {kw}: only {len(vals)} data points (need 75)", flush=True)
-            else:
+
+            if hist_results is None:
                 reason = "timed out after 240s" if timed_out else "API returned no data"
+                fail_pipeline_task(
+                    hist_task_id,
+                    error=f"Historical baseline {reason}",
+                    metadata={"keywords": hist_kws, "jobId": hist_job_id},
+                )
                 print(f"  ❌ Historical baseline {reason} (jobId={hist_job_id})", file=sys.stderr, flush=True)
+            else:
+                baseline_count = apply_history_baseline(hist_results, hist_baseline)
+                succeed_pipeline_task(
+                    hist_task_id,
+                    result={
+                        "results": len(hist_results),
+                        "baseline": baseline_count,
+                        "fromCache": not bool(hist_job_id),
+                    },
+                    metadata={"keywords": hist_kws, "jobId": hist_job_id},
+                )
         except Exception as e:
+            fail_pipeline_task(
+                hist_task_id,
+                error=str(e),
+                metadata={"keywords": hist_kws},
+            )
             print(f"  ❌ Historical baseline error: {e}", file=sys.stderr, flush=True)
     
     # Attach historical data to results
@@ -1059,21 +1207,37 @@ def main():
     if serp_candidates:
         print(f"\n🔎 Phase 4: SERP competition check for {len(serp_candidates)} keywords", flush=True)
         serp_kws = [r["keyword"] for r in serp_candidates]
+        serp_candidate_by_keyword = {r["keyword"].lower(): r for r in serp_candidates}
         
         SERP_BATCH = 10
         for i in range(0, len(serp_kws), SERP_BATCH):
             batch = serp_kws[i:i + SERP_BATCH]
             print(f"  SERP batch: {batch}", flush=True)
 
-            serp_resp = call_serp_api(batch)
+            task_id = start_pipeline_task(
+                stage="game.serp",
+                idempotency_key=f"serp:{','.join(batch)}",
+                payload={"keywords": batch},
+                metadata={"batch": i // SERP_BATCH + 1},
+            )
+            serp_resp = call_serp_api(batch, task_id=task_id)
             if not serp_resp:
+                fail_pipeline_task(
+                    task_id,
+                    error="SERP API call failed",
+                    metadata={"keywords": batch},
+                )
                 print("  ❌ SERP API failed", flush=True)
                 continue
             
             serp_results = serp_resp.get("results", {})
-            for r in serp_candidates:
-                kw = r["keyword"].lower()
-                kw_data = serp_results.get(kw) or serp_results.get(r["keyword"])
+            matched = 0
+            for keyword in batch:
+                kw = keyword.lower()
+                r = serp_candidate_by_keyword.get(kw)
+                if not r:
+                    continue
+                kw_data = serp_results.get(kw) or serp_results.get(keyword)
                 if not kw_data:
                     r["serp_organic"] = 0
                     r["serp_auth"] = 0
@@ -1084,15 +1248,27 @@ def main():
                 r["serp_organic"] = organic
                 r["serp_auth"] = auth
                 r["serp_featured"] = featured
+                matched += 1
                 
                 status_str = "🟢" if is_low else "🔴"
                 print(f"  {status_str} {r['keyword']}: organic={organic}, auth={auth}, featured={featured}", flush=True)
+            succeed_pipeline_task(
+                task_id,
+                result={"results": len(serp_results), "matched": matched, "fromCache": bool(serp_resp.get("fromCache"))},
+                metadata={"keywords": batch},
+            )
             
             time.sleep(1)
     
     # ── Phase 5: Final classification with SERP data ──
     print(f"\n🏷️ Phase 5: Final classification", flush=True)
     categorized = {"🔥 hot": [], "📈 rising": [], "🎯 niche": [], "⏭️ skip": []}
+    classify_task_id = start_pipeline_task(
+        stage="game.classify",
+        idempotency_key=f"classify:{','.join(r['keyword'] for r in results)}",
+        payload={"keywords": [r["keyword"] for r in results]},
+        metadata={"result_count": len(results), "dry_run": args.dry_run},
+    )
     
     for r in results:
         ratio = r.get("ratio", 0)
@@ -1125,6 +1301,18 @@ def main():
             )
 
     recommended = [r for r in results if r.get("recommendation") != "⏭️ skip"]
+    succeed_pipeline_task(
+        classify_task_id,
+        result={
+            "results": len(results),
+            "recommended": len(recommended),
+            "hot": len(categorized["🔥 hot"]),
+            "rising": len(categorized["📈 rising"]),
+            "niche": len(categorized["🎯 niche"]),
+            "skip": len(categorized["⏭️ skip"]),
+        },
+        metadata={"dry_run": args.dry_run},
+    )
     
     print(f"\n{'='*60}")
     print(f"📊 SUMMARY — {ts}")
@@ -1151,9 +1339,11 @@ def main():
         print(f"\n__RECOMMENDED_JSON__")
         print(json.dumps(recommended, ensure_ascii=False))
 
+    cost_summary = current_run_cost_summary()
     update_pipeline_run(
         checked_count=len(to_check),
         saved_count=0 if args.dry_run else len(results),
+        estimated_cost_usd=cost_summary["estimated_cost_usd"],
         metadata={
             "total_candidates": len(all_games),
             "trend_checked": len(results),
@@ -1163,6 +1353,7 @@ def main():
             "niche": len(categorized["🎯 niche"]),
             "skip": len(categorized["⏭️ skip"]),
             "dry_run": args.dry_run,
+            "cost": cost_summary,
         },
     )
 
