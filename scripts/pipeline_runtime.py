@@ -110,7 +110,7 @@ def _sum_run_cost(run_id: str) -> float | None:
         return None
     account_id, api_token, database_id = env
     payload = json.dumps({
-        "sql": "SELECT COALESCE(SUM(estimated_cost_usd), 0) AS total FROM pipeline_cost_events WHERE run_id = ?",
+        "sql": "SELECT COALESCE(SUM(COALESCE(actual_cost_usd, estimated_cost_usd)), 0) AS total FROM pipeline_cost_events WHERE run_id = ?",
         "params": [run_id],
     }).encode("utf-8")
     try:
