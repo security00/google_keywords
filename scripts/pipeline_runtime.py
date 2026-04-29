@@ -103,6 +103,37 @@ def _env_float(*keys: str) -> float | None:
     return None
 
 
+def _sum_run_cost(run_id: str) -> float | None:
+    """Aggregate all cost events for a run and return total estimated_cost_usd."""
+    env = _d1_env()
+    if not env:
+        return None
+    account_id, api_token, database_id = env
+    payload = json.dumps({
+        "sql": "SELECT COALESCE(SUM(estimated_cost_usd), 0) AS total FROM pipeline_cost_events WHERE run_id = ?",
+        "params": [run_id],
+    }).encode("utf-8")
+    try:
+        request = urllib.request.Request(
+            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/d1/database/{database_id}/query",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_token}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=15) as response:
+            body = json.loads(response.read().decode("utf-8"))
+        if body.get("success"):
+            rows = (body.get("result") or [{}])[0].get("results") or []
+            total = rows[0].get("total", 0) if rows else 0
+            return round(float(total), 6) if total else 0.0
+    except Exception:
+        pass
+    return None
+
+
 def _pipeline_run_key_from_env(name: str) -> str | None:
     return os.environ.get(_pipeline_env_key(name, "RUN_KEY")) or os.environ.get("GK_PIPELINE_RUN_KEY")
 
@@ -571,6 +602,9 @@ def pipeline_run(
             duration_seconds=duration,
             error=str(exc),
         )
+        total_cost = _sum_run_cost(run_id)
+        if total_cost is not None and total_cost > 0:
+            update_pipeline_run(estimated_cost_usd=total_cost)
         raise
     else:
         duration = round(time.time() - started_at, 3)
@@ -595,6 +629,9 @@ def pipeline_run(
             completed_at_iso=completed_at_iso,
             duration_seconds=duration,
         )
+        total_cost = _sum_run_cost(run_id)
+        if total_cost is not None and total_cost > 0:
+            update_pipeline_run(estimated_cost_usd=total_cost)
     finally:
         _CURRENT_RUN.clear()
         _CURRENT_RUN.update(previous_run)
