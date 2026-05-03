@@ -41,7 +41,8 @@ export async function handleExpandPost(request: Request, userId: string, isStude
       : undefined;
 
   const requestedKeywords = normalizeKeywords(keywordsInput);
-  const keywords = isStudent ? DEFAULT_SHARED_KEYWORDS : requestedKeywords;
+  const forceSharedDefaults = !allowCreateSharedJob;
+  const keywords = forceSharedDefaults ? DEFAULT_SHARED_KEYWORDS : requestedKeywords;
   if (keywords.length === 0) {
     if (debug) {
       console.log("[api/expand] invalid request: keywords missing");
@@ -69,7 +70,8 @@ export async function handleExpandPost(request: Request, userId: string, isStude
       keywordsCount: keywords.length,
       keywordsSample: keywords.slice(0, 5),
       requestedKeywordsCount: requestedKeywords.length,
-      studentSharedDefaults: isStudent,
+      forceSharedDefaults,
+      isStudent,
       useCache,
       useFilter,
       includeTop,
