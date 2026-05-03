@@ -11,6 +11,7 @@ import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 import { createJob, getJob } from "@/lib/research-jobs";
 
 import {
+  DEFAULT_SHARED_KEYWORDS,
   isCronAuthorized,
   parseResponseLimit,
   isDefaultSharedKeywordRequest,
@@ -39,7 +40,8 @@ export async function handleExpandPost(request: Request, userId: string, isStude
       ? body.filterTerms.split(/[,;\n]+/)
       : undefined;
 
-  const keywords = normalizeKeywords(keywordsInput);
+  const requestedKeywords = normalizeKeywords(keywordsInput);
+  const keywords = isStudent ? DEFAULT_SHARED_KEYWORDS : requestedKeywords;
   if (keywords.length === 0) {
     if (debug) {
       console.log("[api/expand] invalid request: keywords missing");
@@ -66,6 +68,8 @@ export async function handleExpandPost(request: Request, userId: string, isStude
     console.log("[api/expand] start", {
       keywordsCount: keywords.length,
       keywordsSample: keywords.slice(0, 5),
+      requestedKeywordsCount: requestedKeywords.length,
+      studentSharedDefaults: isStudent,
       useCache,
       useFilter,
       includeTop,
