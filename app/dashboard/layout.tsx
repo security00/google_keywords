@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit } from "lucide-react";
+import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -53,6 +53,7 @@ function Navigation({
     { href: "/dashboard/admin/users", label: "用户管理", icon: Users, active: pathname.includes("/admin/users") },
     { href: "/dashboard/admin/admins", label: "管理员管理", icon: Shield, active: pathname.includes("/admin/admins") },
     { href: "/dashboard/admin/games", label: "新游发现", icon: Gamepad2, active: pathname.includes("/admin/games") },
+    { href: "/dashboard/admin/game-opportunities", label: "新游机会", icon: Lightbulb, active: pathname.includes("/admin/game-opportunities") },
     { href: "/dashboard/admin/source-quality", label: "信号源质量", icon: Signal, active: pathname.includes("/admin/source-quality") },
     { href: "/dashboard/admin/semantic-dedupe", label: "语义去重", icon: BrainCircuit, active: pathname.includes("/admin/semantic-dedupe") },
     { href: "/dashboard/admin/old-keywords", label: "老词挖掘", icon: Search, active: pathname.includes("/admin/old-keywords") },
