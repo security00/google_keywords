@@ -3,6 +3,37 @@
 > Human-readable change log for major system changes.  
 > This file records why a change was made, what changed, how it was verified, and rollback notes when relevant.
 
+## 2026-05-08 — New-game opportunity feedback and source scoring
+
+### Source weight suggestion layer
+
+**Why**
+
+Manual feedback and Source Score are useful only if they can later inform source-priority decisions safely. The first step is a transparent suggestion layer, not automatic weighting.
+
+**Changed**
+
+- Added read-only source weight suggestions:
+  - `/api/admin/source-weight-suggestions`
+  - `/dashboard/admin/source-weight-suggestions`
+- Rule v1:
+  - feedback count `< 5` → continue watching
+  - feedback count `>= 5` and worth rate `>= 70%` → suggest boost
+  - feedback count `>= 5` and not-worth rate `>= 60%` → suggest downrank
+- Suggestions are observational only:
+  - no source weight writes
+  - no model training
+  - no recommendation-result changes
+  - no student-flow changes
+  - no paid API calls
+
+**Verification**
+
+- Source suggestion unit test passed.
+- Related regression tests, build, and paid/student guards passed before deployment.
+
+---
+
 ## 2026-04-25 — SaaS Foundation Hardening
 
 ### 1. Paid API permission boundary centralized

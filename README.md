@@ -51,6 +51,11 @@ Admin pages live under `/dashboard/admin`:
 - `/dashboard/admin/codes` — invite codes
 - `/dashboard/admin/health` — system/precompute health
 - `/dashboard/admin/games` — game discovery operations
+- `/dashboard/admin/game-opportunities` — read-only new-game opportunity enrichment with manual feedback
+- `/dashboard/admin/game-opportunity-report` — read-only new-game opportunity report
+- `/dashboard/admin/source-quality` — read-only signal-source quality stats
+- `/dashboard/admin/source-score` — read-only source score combining SNR, recommendation volume, and manual feedback
+- `/dashboard/admin/source-weight-suggestions` — read-only source weight suggestions; does not apply weights automatically
 - `/dashboard/admin/old-keywords` — old keyword pipeline
 - `/dashboard/admin/pipeline-runs` — pipeline run and cost visibility
 
