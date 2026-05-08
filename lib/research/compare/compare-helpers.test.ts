@@ -74,5 +74,14 @@ describe("compare semantic dedupe preview", () => {
     ]);
     expect(mockD1Query).toHaveBeenCalledTimes(1);
     expect(String(mockD1Query.mock.calls[0][0])).toMatch(/^\s*SELECT /);
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("dk.user_id = ?");
+  });
+
+  it("can preview a global admin candidate pool without filtering by admin user id", async () => {
+    mockD1Query.mockResolvedValue({ rows });
+
+    await previewSemanticDedupCandidates(null, "priority", 10);
+
+    expect(String(mockD1Query.mock.calls[0][0])).not.toContain("dk.user_id = ?");
   });
 });

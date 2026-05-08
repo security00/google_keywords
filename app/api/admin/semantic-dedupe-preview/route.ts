@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     );
 
     const preview = await previewSemanticDedupCandidates(
-      principal.userId,
+      null,
       autoStrategy,
       maxItems
     );

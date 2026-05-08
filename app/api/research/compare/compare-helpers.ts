@@ -303,7 +303,7 @@ export const normalizeKeywordIdList = (raw: unknown) => {
 };
 
 export const fetchCandidateRows = async (
-  userId: string,
+  userId: string | null,
   windowHours: number | undefined,
   limit: number
 ) => {
@@ -311,9 +311,14 @@ export const fetchCandidateRows = async (
     SELECT dk.id, dk.keyword, dk.url, dk.extracted_at, dk.source_id, s.name as source_name
     FROM discovered_keywords dk
     LEFT JOIN sitemap_sources s ON s.id = dk.source_id
-    WHERE dk.user_id = ? AND dk.status = 'new'
+    WHERE dk.status = 'new'
   `;
-  const params: unknown[] = [userId];
+  const params: unknown[] = [];
+
+  if (userId) {
+    sql += " AND dk.user_id = ?";
+    params.push(userId);
+  }
 
   if (windowHours && windowHours > 0) {
     const cutoff = new Date(Date.now() - windowHours * 60 * 60 * 1000).toISOString();
@@ -380,7 +385,7 @@ const scoreCandidate = (item: DiscoveredKeywordRow, nowMs: number) => {
 };
 
 const getRankedCandidateRows = async (
-  userId: string,
+  userId: string | null,
   strategy: Exclude<CompareStrategy, "manual">,
   maxItems: number
 ) => {
@@ -458,7 +463,7 @@ export const selectCandidatesForCompare = async (
 };
 
 export const previewSemanticDedupCandidates = async (
-  userId: string,
+  userId: string | null,
   strategy: Exclude<CompareStrategy, "manual">,
   maxItems: number
 ): Promise<SemanticDedupPreview> => {
