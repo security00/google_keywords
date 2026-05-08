@@ -45,6 +45,24 @@ const SAFE_TRAILING_GAME_MODIFIERS = new Set([
   "free",
 ]);
 
+const PROTECTED_INTENT_MODIFIERS = new Set([
+  "answer",
+  "answers",
+  "apk",
+  "build",
+  "codes",
+  "code",
+  "download",
+  "guide",
+  "hack",
+  "mod",
+  "mods",
+  "skin",
+  "skins",
+  "tier",
+  "wiki",
+]);
+
 export type SemanticKeywordKey = {
   key: string;
   confidence: "high" | "medium";
@@ -84,11 +102,21 @@ export const buildSemanticKeywordKey = (keyword: string): SemanticKeywordKey => 
     words.pop();
   }
 
-  const key = words.join(" ");
+  const protectedIntent = words.some((word) => PROTECTED_INTENT_MODIFIERS.has(word));
+  let key = words.join(" ");
+  let reason = key === normalized ? "punctuation/case normalized" : "safe trailing game modifier removed";
+  let confidence: SemanticKeywordKey["confidence"] = key === normalized ? "medium" : "high";
+
+  if (!protectedIntent && words.length >= 3 && /^\d+$/.test(words[words.length - 1])) {
+    key = words.slice(0, -1).join(" ");
+    reason = "numeric sequel/version suffix removed";
+    confidence = "medium";
+  }
+
   return {
     key,
-    confidence: key === normalized ? "medium" : "high",
-    reason: key === normalized ? "punctuation/case normalized" : "safe trailing game modifier removed",
+    confidence,
+    reason,
   };
 };
 

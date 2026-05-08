@@ -25,6 +25,13 @@ describe("keyword utils", () => {
     expect(buildSemanticKeywordKey("minecraft skins").key).toBe("minecraft skins");
     expect(buildSemanticKeywordKey("wordle").key).toBe("wordle");
     expect(buildSemanticKeywordKey("wordle answer").key).toBe("wordle answer");
+    expect(buildSemanticKeywordKey("planet clicker 2 codes").key).toBe("planet clicker 2 codes");
+  });
+
+  it("groups numeric game sequel variants while keeping protected intents separate", () => {
+    expect(buildSemanticKeywordKey("planet clicker").key).toBe("planet clicker");
+    expect(buildSemanticKeywordKey("planet clicker 2").key).toBe("planet clicker");
+    expect(buildSemanticKeywordKey("temple run 2 frozen shadows").key).toBe("temple run 2 frozen shadows");
   });
 
   it("groups semantic variants with a stable representative and keeps singleton groups out", () => {
@@ -33,15 +40,24 @@ describe("keyword utils", () => {
       { id: "best", keyword: "Roblox Clicker", score: 95, extractedAt: "2026-05-08T09:00:00.000Z" },
       { id: "danger", keyword: "Roblox Clicker codes", score: 100, extractedAt: "2026-05-08T11:00:00.000Z" },
       { id: "punct", keyword: "roblox-clicker", score: 70, extractedAt: "2026-05-08T08:00:00.000Z" },
+      { id: "sequel", keyword: "Planet Clicker 2", score: 65, extractedAt: "2026-05-08T08:00:00.000Z" },
+      { id: "base", keyword: "Planet Clicker", score: 60, extractedAt: "2026-05-08T08:00:00.000Z" },
     ]);
 
-    expect(groups).toHaveLength(1);
-    expect(groups[0]).toMatchObject({
+    expect(groups).toHaveLength(2);
+    const planetGroup = groups.find((group) => group.semanticKey === "planet clicker");
+    const robloxGroup = groups.find((group) => group.semanticKey === "roblox clicker");
+    expect(planetGroup).toMatchObject({
+      semanticKey: "planet clicker",
+      representative: { id: "sequel", keyword: "Planet Clicker 2" },
+      confidence: "medium",
+    });
+    expect(robloxGroup).toMatchObject({
       semanticKey: "roblox clicker",
       representative: { id: "best", keyword: "Roblox Clicker" },
       confidence: "high",
     });
-    expect(groups[0].variants.map((item) => item.keyword)).toEqual([
+    expect(robloxGroup?.variants.map((item) => item.keyword)).toEqual([
       "Roblox Clicker",
       "Roblox Clicker Online",
       "roblox-clicker",
