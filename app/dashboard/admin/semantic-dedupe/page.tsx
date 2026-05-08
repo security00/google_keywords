@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BrainCircuit, RefreshCw } from "lucide-react";
 
 type Variant = {
@@ -51,7 +51,7 @@ export default function SemanticDedupePage() {
   const [feedbackByKey, setFeedbackByKey] = useState<Record<string, Feedback>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -71,12 +71,11 @@ export default function SemanticDedupePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [strategy, maxItems]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [load]);
 
   const saveFeedback = async (group: SemanticGroup, verdict: "merge" | "separate") => {
     setSavingKey(group.semanticKey);
