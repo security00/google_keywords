@@ -30,6 +30,15 @@ type PreviewPayload = {
   groups: SemanticGroup[];
 };
 
+type Feedback = {
+  semanticKey: string;
+  verdict: "merge" | "separate";
+  representativeKeyword: string;
+  variants: string[];
+  note: string | null;
+  updatedAt: string;
+};
+
 const date = (value: string) => value ? new Date(value).toLocaleString("zh-CN") : "-";
 const num = (value: number) => Number.isFinite(value) ? value.toFixed(1) : "-";
 
@@ -38,6 +47,8 @@ export default function SemanticDedupePage() {
   const [strategy, setStrategy] = useState<"recent" | "priority">("priority");
   const [maxItems, setMaxItems] = useState(120);
   const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [feedbackByKey, setFeedbackByKey] = useState<Record<string, Feedback>>({});
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
@@ -45,10 +56,16 @@ export default function SemanticDedupePage() {
     setError(null);
     try {
       const params = new URLSearchParams({ strategy, maxItems: String(maxItems) });
-      const res = await fetch(`/api/admin/semantic-dedupe-preview?${params.toString()}`, { cache: "no-store" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "加载失败");
+      const [previewRes, feedbackRes] = await Promise.all([
+        fetch(`/api/admin/semantic-dedupe-preview?${params.toString()}`, { cache: "no-store" }),
+        fetch("/api/admin/semantic-dedupe-feedback", { cache: "no-store" }),
+      ]);
+      const data = await previewRes.json();
+      const feedbackData = await feedbackRes.json();
+      if (!previewRes.ok) throw new Error(data?.error || "加载失败");
+      if (!feedbackRes.ok) throw new Error(feedbackData?.error || "反馈加载失败");
       setPayload(data);
+      setFeedbackByKey(Object.fromEntries((feedbackData.feedback || []).map((item: Feedback) => [item.semanticKey, item])));
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -60,6 +77,40 @@ export default function SemanticDedupePage() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const saveFeedback = async (group: SemanticGroup, verdict: "merge" | "separate") => {
+    setSavingKey(group.semanticKey);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/semantic-dedupe-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          semanticKey: group.semanticKey,
+          verdict,
+          representativeKeyword: group.representative.keyword,
+          variants: group.variants.map((item) => item.keyword),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "保存失败");
+      setFeedbackByKey((current) => ({
+        ...current,
+        [group.semanticKey]: {
+          semanticKey: group.semanticKey,
+          verdict,
+          representativeKeyword: group.representative.keyword,
+          variants: group.variants.map((item) => item.keyword),
+          note: null,
+          updatedAt: new Date().toISOString(),
+        },
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存失败");
+    } finally {
+      setSavingKey(null);
+    }
+  };
 
   const summary = payload?.summary;
 
@@ -128,9 +179,18 @@ export default function SemanticDedupePage() {
               {loading ? (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
               ) : payload?.groups.length ? (
-                payload.groups.map((group) => (
+                payload.groups.map((group) => {
+                  const feedback = feedbackByKey[group.semanticKey];
+                  return (
                   <tr key={group.semanticKey} className="border-t align-top hover:bg-muted/30">
-                    <Td className="font-mono text-xs">{group.semanticKey}</Td>
+                    <Td className="font-mono text-xs">
+                      <div>{group.semanticKey}</div>
+                      {feedback && (
+                        <div className={`mt-2 inline-flex rounded px-2 py-0.5 text-[11px] ${feedback.verdict === "merge" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          {feedback.verdict === "merge" ? "已标记：合并合理" : "已标记：不该合并"}
+                        </div>
+                      )}
+                    </Td>
                     <Td>
                       <div className="font-medium">{group.representative.keyword}</div>
                       <div className="text-xs text-muted-foreground">score {num(group.representative.score)} · {date(group.representative.extractedAt)}</div>
@@ -138,17 +198,38 @@ export default function SemanticDedupePage() {
                     <Td align="right">{group.variants.length}</Td>
                     <Td>{group.confidence === "high" ? "高" : "中"}</Td>
                     <Td>
-                      <div className="space-y-1">
-                        {group.variants.map((variant) => (
-                          <div key={variant.id} className="rounded bg-muted/40 px-2 py-1">
-                            <span className="font-medium">{variant.keyword}</span>
-                            <span className="ml-2 text-xs text-muted-foreground">score {num(variant.score)} · {date(variant.extractedAt)}</span>
-                          </div>
-                        ))}
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          {group.variants.map((variant) => (
+                            <div key={variant.id} className="rounded bg-muted/40 px-2 py-1">
+                              <span className="font-medium">{variant.keyword}</span>
+                              <span className="ml-2 text-xs text-muted-foreground">score {num(variant.score)} · {date(variant.extractedAt)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => saveFeedback(group, "merge")}
+                            disabled={savingKey === group.semanticKey}
+                            className="rounded border border-green-200 px-2 py-1 text-xs text-green-700 hover:bg-green-50 disabled:opacity-50"
+                          >
+                            ✅ 合并合理
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => saveFeedback(group, "separate")}
+                            disabled={savingKey === group.semanticKey}
+                            className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            ❌ 不该合并
+                          </button>
+                        </div>
                       </div>
                     </Td>
                   </tr>
-                ))
+                  );
+                })
               ) : (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">当前候选池没有发现可折叠语义重复组</td></tr>
               )}
