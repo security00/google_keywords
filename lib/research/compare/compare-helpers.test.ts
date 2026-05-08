@@ -90,4 +90,18 @@ describe("compare semantic dedupe preview", () => {
     expect(result.summary.semanticGroupCount).toBe(1);
     expect(result.groups.map((group) => group.semanticKey)).toEqual(["planet clicker"]);
   });
+
+  it("falls back to historical rows only for the global admin preview when the lookback window is empty", async () => {
+    mockD1Query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows });
+
+    const result = await previewSemanticDedupCandidates(null, "priority", 10);
+
+    expect(result.summary.availableCount).toBe(3);
+    expect(result.summary.semanticGroupCount).toBe(1);
+    expect(mockD1Query).toHaveBeenCalledTimes(2);
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("dk.extracted_at >= ?");
+    expect(String(mockD1Query.mock.calls[1][0])).not.toContain("dk.extracted_at >= ?");
+  });
 });

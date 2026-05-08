@@ -387,7 +387,8 @@ const scoreCandidate = (item: DiscoveredKeywordRow, nowMs: number) => {
 const getRankedCandidateRows = async (
   userId: string | null,
   strategy: Exclude<CompareStrategy, "manual">,
-  maxItems: number
+  maxItems: number,
+  options: { allowHistoricalFallback?: boolean } = {}
 ) => {
   const nowMs = Date.now();
   const baseLimit = Math.max(maxItems * AUTO_COMPARE_POOL_MULTIPLIER, 80);
@@ -417,6 +418,11 @@ const getRankedCandidateRows = async (
     );
     availableCount = rows.length;
     allRows = rows;
+  }
+
+  if (options.allowHistoricalFallback && allRows.length === 0) {
+    allRows = await fetchCandidateRows(userId, undefined, maxCandidateLimit);
+    availableCount = allRows.length;
   }
 
   const ranked = allRows
@@ -467,7 +473,9 @@ export const previewSemanticDedupCandidates = async (
   strategy: Exclude<CompareStrategy, "manual">,
   maxItems: number
 ): Promise<SemanticDedupPreview> => {
-  const { ranked, availableCount } = await getRankedCandidateRows(userId, strategy, maxItems);
+  const { ranked, availableCount } = await getRankedCandidateRows(userId, strategy, maxItems, {
+    allowHistoricalFallback: userId === null,
+  });
   const exactDeduped = new Map<string, (typeof ranked)[number]>();
 
   for (const item of ranked) {
