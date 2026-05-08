@@ -471,7 +471,6 @@ export const previewSemanticDedupCandidates = async (
   const exactDeduped = new Map<string, (typeof ranked)[number]>();
 
   for (const item of ranked) {
-    if (exactDeduped.size >= maxItems) break;
     if (exactDeduped.has(item.normalized)) continue;
     exactDeduped.set(item.normalized, item);
   }
@@ -483,7 +482,7 @@ export const previewSemanticDedupCandidates = async (
       score: item.score,
       extractedAt: item.row.extracted_at,
     }))
-  ).map((group) => ({
+  ).slice(0, maxItems).map((group) => ({
     ...group,
     representative: {
       id: group.representative.id,
