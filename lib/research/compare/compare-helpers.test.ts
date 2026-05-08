@@ -127,4 +127,24 @@ describe("compare semantic dedupe preview", () => {
     expect(String(mockD1Query.mock.calls[0][0])).toContain("FROM game_keyword_pipeline");
     expect(String(mockD1Query.mock.calls[0][0])).not.toContain("discovered_keywords");
   });
+
+  it("keeps pipeline candidates visible even when no semantic groups exist", async () => {
+    mockD1Query.mockResolvedValue({
+      rows: [
+        { id: 1, keyword: "So I Mine", source_site: "itchio", trend_ratio: 0.63, discovered_at: "2026-04-26T10:07:23.000Z" },
+        { id: 2, keyword: "We Dont Know", source_site: "itchio", trend_ratio: 0.98, discovered_at: "2026-04-26T10:07:21.000Z" },
+        { id: 3, keyword: "The Freak Circus", source_site: "itchio-free", trend_ratio: 4.53, discovered_at: "2026-04-25T09:47:21.000Z" },
+      ],
+    });
+
+    const result = await previewPipelineSemanticDedupCandidates(10);
+
+    expect(result.summary.availableCount).toBe(3);
+    expect(result.summary.semanticGroupCount).toBe(0);
+    expect(result.candidates?.map((item) => item.keyword)).toEqual([
+      "So I Mine",
+      "We Dont Know",
+      "The Freak Circus",
+    ]);
+  });
 });

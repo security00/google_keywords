@@ -37,6 +37,12 @@ export type SemanticDedupPreview = {
     semanticGroupCount: number;
     estimatedFoldedCount: number;
   };
+  candidates?: Array<{
+    id: string;
+    keyword: string;
+    score: number;
+    extractedAt: string;
+  }>;
   groups: Array<{
     semanticKey: string;
     representative: {
@@ -481,7 +487,8 @@ export const selectCandidatesForCompare = async (
 const buildSemanticPreviewFromItems = (
   items: Array<{ id: string; keyword: string; score: number; extractedAt: string }>,
   availableCount: number,
-  maxItems: number
+  maxItems: number,
+  options: { includeCandidates?: boolean } = {}
 ): SemanticDedupPreview => {
   const exactDeduped = new Map<string, (typeof items)[number]>();
 
@@ -516,6 +523,7 @@ const buildSemanticPreviewFromItems = (
       semanticGroupCount: groups.length,
       estimatedFoldedCount: groups.reduce((total, group) => total + group.variants.length - 1, 0),
     },
+    candidates: options.includeCandidates ? Array.from(exactDeduped.values()).slice(0, maxItems) : undefined,
     groups,
   };
 };
@@ -564,6 +572,7 @@ export const previewPipelineSemanticDedupCandidates = async (
       extractedAt: row.trend_checked_at || row.discovered_at || row.created_at || "",
     })),
     rows.length,
-    maxItems
+    maxItems,
+    { includeCandidates: true }
   );
 };

@@ -28,6 +28,7 @@ type PreviewPayload = {
     semanticGroupCount: number;
     estimatedFoldedCount: number;
   };
+  candidates?: Variant[];
   groups: SemanticGroup[];
 };
 
@@ -175,6 +176,23 @@ export default function SemanticDedupePage() {
         <StatCard label="语义重复组" value={summary?.semanticGroupCount ?? 0} />
         <StatCard label="预计可折叠" value={summary?.estimatedFoldedCount ?? 0} />
       </div>
+
+      {source === "pipeline" && payload?.candidates?.length ? (
+        <section className="rounded-lg border bg-card">
+          <div className="border-b px-4 py-3">
+            <h2 className="font-semibold">推荐管道候选</h2>
+            <p className="text-xs text-muted-foreground">当前 pipeline 候选本身会展示在这里；如果没有重复组，说明现有规则下暂无可折叠项。</p>
+          </div>
+          <div className="grid gap-2 p-4 md:grid-cols-3">
+            {payload.candidates.map((candidate) => (
+              <div key={candidate.id} className="rounded bg-muted/40 px-3 py-2 text-sm">
+                <div className="font-medium">{candidate.keyword}</div>
+                <div className="text-xs text-muted-foreground">score {num(candidate.score)} · {date(candidate.extractedAt)}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
