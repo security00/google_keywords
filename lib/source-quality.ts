@@ -2,6 +2,12 @@ import "server-only";
 
 import { d1Query } from "@/lib/d1";
 
+export type GameSourceStatus = {
+  label: string;
+  tone: "active" | "muted";
+  note: string | null;
+};
+
 export type GameSourceQualityRow = {
   source_site: string;
   total_checked: number;
@@ -15,6 +21,7 @@ export type GameSourceQualityRow = {
   avg_serp_auth: number | null;
   snr: number;
   last_checked_at: string | null;
+  status: GameSourceStatus;
 };
 
 export type SitemapSourceQualityRow = {
@@ -45,6 +52,18 @@ export type SourceQualityStats = {
 export const calculateSnr = (recommended: number, total: number) => {
   if (!Number.isFinite(recommended) || !Number.isFinite(total) || total <= 0) return 0;
   return recommended / total;
+};
+
+export const getGameSourceStatus = (sourceSite: string): GameSourceStatus => {
+  if (sourceSite.toLowerCase() === "steam") {
+    return {
+      label: "已停用历史源",
+      tone: "muted",
+      note: "Steam 曾接入过，但因付费游戏较多、对网页流量站价值低，已被 Poki/Addicting Games/itch.io 等来源替代。",
+    };
+  }
+
+  return { label: "当前来源", tone: "active", note: null };
 };
 
 export const buildSourceQualitySummary = (gameSources: GameSourceQualityRow[]): SourceQualitySummary => {
@@ -115,6 +134,7 @@ export async function getSourceQualityStats(): Promise<SourceQualityStats> {
     avg_trend_slope: row.avg_trend_slope === null ? null : Number(row.avg_trend_slope),
     avg_serp_auth: row.avg_serp_auth === null ? null : Number(row.avg_serp_auth),
     snr: Number(row.snr || 0),
+    status: getGameSourceStatus(row.source_site),
   }));
 
   const normalizedSitemapSources = sitemapSources.map((row) => ({

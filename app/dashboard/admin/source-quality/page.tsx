@@ -16,6 +16,11 @@ type GameSourceQualityRow = {
   avg_serp_auth: number | null;
   snr: number;
   last_checked_at: string | null;
+  status: {
+    label: string;
+    tone: "active" | "muted";
+    note: string | null;
+  };
 };
 
 type SitemapSourceQualityRow = {
@@ -101,7 +106,7 @@ export default function SourceQualityPage() {
       <section className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
           <h2 className="font-semibold">游戏信号源质量</h2>
-          <p className="text-xs text-muted-foreground">SNR = 推荐数 / 已扫描数。推荐包含 🔥 hot、📈 rising、🎯 niche。</p>
+          <p className="text-xs text-muted-foreground">SNR = 推荐数 / 已扫描数。推荐包含 🔥 hot、📈 rising、🎯 niche。已停用历史源仅作历史参考，不代表当前采集链路异常。</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -127,7 +132,17 @@ export default function SourceQualityPage() {
               ) : stats?.gameSources.length ? (
                 stats.gameSources.map((row) => (
                   <tr key={row.source_site} className="border-t hover:bg-muted/30">
-                    <Td className="font-medium">{row.source_site}</Td>
+                    <Td className="font-medium">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span>{row.source_site}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] ${row.status.tone === "muted" ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"}`}>
+                            {row.status.label}
+                          </span>
+                        </div>
+                        {row.status.note && <span className="max-w-[360px] text-xs font-normal text-muted-foreground">{row.status.note}</span>}
+                      </div>
+                    </Td>
                     <Td align="right">{row.total_checked}</Td>
                     <Td align="right">{row.recommended_count}</Td>
                     <Td align="right"><span className="font-mono">{pct(row.snr)}</span></Td>

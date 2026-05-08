@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import { buildSourceQualitySummary, calculateSnr, type GameSourceQualityRow } from "./source-quality";
+import {
+  buildSourceQualitySummary,
+  calculateSnr,
+  getGameSourceStatus,
+  type GameSourceQualityRow,
+} from "./source-quality";
 
 const source = (overrides: Partial<GameSourceQualityRow>): GameSourceQualityRow => ({
   source_site: "example",
@@ -15,6 +20,7 @@ const source = (overrides: Partial<GameSourceQualityRow>): GameSourceQualityRow 
   avg_serp_auth: null,
   snr: 0,
   last_checked_at: null,
+  status: { label: "当前来源", tone: "active", note: null },
   ...overrides,
 });
 
@@ -26,6 +32,20 @@ describe("calculateSnr", () => {
 
   test("returns recommended divided by total", () => {
     expect(calculateSnr(3, 10)).toBe(0.3);
+  });
+});
+
+describe("getGameSourceStatus", () => {
+  test("marks Steam as a disabled historical source", () => {
+    expect(getGameSourceStatus("steam")).toEqual({
+      label: "已停用历史源",
+      tone: "muted",
+      note: "Steam 曾接入过，但因付费游戏较多、对网页流量站价值低，已被 Poki/Addicting Games/itch.io 等来源替代。",
+    });
+  });
+
+  test("marks active scanner sources as active", () => {
+    expect(getGameSourceStatus("itchio")).toEqual({ label: "当前来源", tone: "active", note: null });
   });
 });
 
