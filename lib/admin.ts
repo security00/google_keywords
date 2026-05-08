@@ -1,6 +1,8 @@
 import { d1Query } from "@/lib/d1";
 import { getAuthUser } from "@/lib/auth";
 
+export const FOUNDING_ADMIN_EMAIL = "xiangqiling5204@gmail.com";
+
 // ── Types ──
 
 export type AdminUser = {
@@ -178,6 +180,33 @@ export async function listAllUsers(): Promise<AdminUser[]> {
   return rows;
 }
 
+export async function listAdminUsers(): Promise<AdminUser[]> {
+  const { rows } = await d1Query<AdminUser>(
+    `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
+     FROM auth_users_v2 WHERE role = 'admin' ORDER BY created_at DESC`
+  );
+  return rows;
+}
+
+export async function promoteUserToAdminByEmail(email: string): Promise<{ error?: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return { error: "Email is required" };
+
+  const { rows } = await d1Query<{ id: string }>(
+    `SELECT id FROM auth_users_v2 WHERE lower(email) = ? LIMIT 1`,
+    [normalizedEmail]
+  );
+  if (!rows.length) return { error: "User not found" };
+
+  await d1Query(
+    `UPDATE auth_users_v2
+     SET role = 'admin', trial_started_at = COALESCE(trial_started_at, datetime('now')), trial_expires_at = NULL, updated_at = datetime('now')
+     WHERE id = ?`,
+    [rows[0].id]
+  );
+  return {};
+}
+
 export async function activateUserTrials(
   userIds: string[],
   trialDays = 90
@@ -269,6 +298,15 @@ export async function updateUserRole(operatorId: string, targetId: string, role:
 
   // Check remaining admins if demoting an admin
   if (role !== "admin") {
+    const { rows: targetRows } = await d1Query<{ email: string }>(
+      `SELECT email FROM auth_users_v2 WHERE id = ? LIMIT 1`,
+      [targetId]
+    );
+    const targetEmail = targetRows[0]?.email?.toLowerCase();
+    if (targetEmail === FOUNDING_ADMIN_EMAIL) {
+      return { error: "Cannot remove the founding admin" };
+    }
+
     const { rows } = await d1Query<{ cnt: number }>(
       `SELECT COUNT(*) as cnt FROM auth_users_v2 WHERE role = 'admin' AND id != ?`,
       [targetId]
@@ -278,6 +316,6 @@ export async function updateUserRole(operatorId: string, targetId: string, role:
     }
   }
 
-  await d1Query(`UPDATE auth_users_v2 SET role = ? WHERE id = ?`, [role, targetId]);
+  await d1Query(`UPDATE auth_users_v2 SET role = ?, updated_at = datetime('now') WHERE id = ?`, [role, targetId]);
   return {};
 }
