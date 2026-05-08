@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb, FileText } from "lucide-react";
+import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb, FileText, Gauge } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -56,6 +56,7 @@ function Navigation({
     { href: "/dashboard/admin/game-opportunities", label: "新游机会", icon: Lightbulb, active: pathname.includes("/admin/game-opportunities") },
     { href: "/dashboard/admin/game-opportunity-report", label: "机会日报", icon: FileText, active: pathname.includes("/admin/game-opportunity-report") },
     { href: "/dashboard/admin/source-quality", label: "信号源质量", icon: Signal, active: pathname.includes("/admin/source-quality") },
+    { href: "/dashboard/admin/source-score", label: "来源评分", icon: Gauge, active: pathname.includes("/admin/source-score") },
     { href: "/dashboard/admin/semantic-dedupe", label: "语义去重", icon: BrainCircuit, active: pathname.includes("/admin/semantic-dedupe") },
     { href: "/dashboard/admin/old-keywords", label: "老词挖掘", icon: Search, active: pathname.includes("/admin/old-keywords") },
     { href: "/dashboard/admin/pipeline-runs", label: "管线运行", icon: ListChecks, active: pathname.includes("/admin/pipeline-runs") },
