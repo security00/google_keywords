@@ -523,6 +523,7 @@ scripts/fetch_community_signals.py
 | `/dashboard/admin/users` | 用户管理（全部/待激活 Tab） |
 | `/dashboard/admin/users/[id]` | 用户详情 |
 | `/dashboard/admin/games` | 游戏关键词管理 |
+| `/dashboard/admin/source-quality` | 信号源质量统计（只读聚合，不触发外部计费调用） |
 | `/dashboard/admin/old-keywords` | 老词管理（趋势图 + 评分 + 分页） |
 | `/dashboard/admin/codes` | 邀请码管理 |
 
@@ -581,6 +582,7 @@ scripts/fetch_community_signals.py
 | `/api/admin/users/[id]` | GET/PATCH | admin only |
 | `/api/admin/health` | GET | admin only |
 | `/api/admin/precompute-health` | GET/POST | admin / cron-secret |
+| `/api/admin/source-quality` | GET | admin only，只读聚合 game/sitemap source quality |
 | `/api/admin/invite-codes` | GET | admin only |
 
 ---
@@ -629,6 +631,7 @@ scripts/fetch_community_signals.py
 | 表名 | 用途 |
 |---|---|
 | `game_keyword_pipeline` | 游戏关键词（含趋势/SERP/评分/趋势序列/LLM意图） |
+| `sitemap_sources` / `discovered_keywords` | sitemap 信号源与发现候选；管理员信号源质量页会只读聚合其产出量 |
 
 ---
 
@@ -648,6 +651,7 @@ lib/
 ├── compare.ts                   ← Compare/Freshness
 │   └─ submitComparisonTasks / addFreshnessToComparisonResults
 ├── ai-intent.ts                 ← LLM 意图识别
+├── source-quality.ts            ← 管理端信号源质量统计（只读聚合）
 ├── keyword-utils.ts             ← normalizeKeywords / createBatches
 ├── auth.ts                      ← 认证核心（getAuthUser, createUser, etc.）
 ├── auth_middleware.ts           ← 三合一认证（authenticate）
