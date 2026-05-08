@@ -1,5 +1,6 @@
 import type { CompareResponse, ComparisonSignalConfig } from "@/lib/types";
 import { d1Query } from "@/lib/d1";
+import { groupSemanticKeywordCandidates } from "@/lib/keyword-utils";
 
 export type CompareStrategy = "manual" | "recent" | "priority";
 
@@ -17,6 +18,32 @@ export type SelectionResult = {
   keywordIds: string[];
   selectedCount: number;
   availableCount: number;
+};
+
+export type SemanticDedupPreview = {
+  summary: {
+    availableCount: number;
+    exactDedupedCount: number;
+    semanticGroupCount: number;
+    estimatedFoldedCount: number;
+  };
+  groups: Array<{
+    semanticKey: string;
+    representative: {
+      id: string;
+      keyword: string;
+      score: number;
+      extractedAt: string;
+    };
+    variants: Array<{
+      id: string;
+      keyword: string;
+      score: number;
+      extractedAt: string;
+    }>;
+    confidence: "high" | "medium";
+    reason: string;
+  }>;
 };
 
 export const DEFAULT_COMPARE_MAX_ITEMS = 120;
@@ -352,11 +379,11 @@ const scoreCandidate = (item: DiscoveredKeywordRow, nowMs: number) => {
   return baseKeywordScore(item.keyword) + recencyScore;
 };
 
-export const selectCandidatesForCompare = async (
+const getRankedCandidateRows = async (
   userId: string,
   strategy: Exclude<CompareStrategy, "manual">,
   maxItems: number
-): Promise<SelectionResult> => {
+) => {
   const nowMs = Date.now();
   const baseLimit = Math.max(maxItems * AUTO_COMPARE_POOL_MULTIPLIER, 80);
   const maxCandidateLimit = Math.max(baseLimit, 5000);
@@ -403,6 +430,16 @@ export const selectCandidatesForCompare = async (
       return b.score - a.score;
     });
 
+  return { ranked, availableCount };
+};
+
+export const selectCandidatesForCompare = async (
+  userId: string,
+  strategy: Exclude<CompareStrategy, "manual">,
+  maxItems: number
+): Promise<SelectionResult> => {
+  const { ranked, availableCount } = await getRankedCandidateRows(userId, strategy, maxItems);
+
   const pickedRows: DiscoveredKeywordRow[] = [];
   const seen = new Set<string>();
   for (const item of ranked) {
@@ -417,5 +454,53 @@ export const selectCandidatesForCompare = async (
     keywordIds: pickedRows.map((row) => row.id),
     selectedCount: pickedRows.length,
     availableCount,
+  };
+};
+
+export const previewSemanticDedupCandidates = async (
+  userId: string,
+  strategy: Exclude<CompareStrategy, "manual">,
+  maxItems: number
+): Promise<SemanticDedupPreview> => {
+  const { ranked, availableCount } = await getRankedCandidateRows(userId, strategy, maxItems);
+  const exactDeduped = new Map<string, (typeof ranked)[number]>();
+
+  for (const item of ranked) {
+    if (exactDeduped.size >= maxItems) break;
+    if (exactDeduped.has(item.normalized)) continue;
+    exactDeduped.set(item.normalized, item);
+  }
+
+  const groups = groupSemanticKeywordCandidates(
+    Array.from(exactDeduped.values()).map((item) => ({
+      id: item.row.id,
+      keyword: item.row.keyword,
+      score: item.score,
+      extractedAt: item.row.extracted_at,
+    }))
+  ).map((group) => ({
+    ...group,
+    representative: {
+      id: group.representative.id,
+      keyword: group.representative.keyword,
+      score: group.representative.score ?? 0,
+      extractedAt: group.representative.extractedAt ?? "",
+    },
+    variants: group.variants.map((variant) => ({
+      id: variant.id,
+      keyword: variant.keyword,
+      score: variant.score ?? 0,
+      extractedAt: variant.extractedAt ?? "",
+    })),
+  }));
+
+  return {
+    summary: {
+      availableCount,
+      exactDedupedCount: exactDeduped.size,
+      semanticGroupCount: groups.length,
+      estimatedFoldedCount: groups.reduce((total, group) => total + group.variants.length - 1, 0),
+    },
+    groups,
   };
 };
