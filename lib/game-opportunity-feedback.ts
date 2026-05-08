@@ -38,6 +38,12 @@ export const listGameOpportunityFeedback = async (
   }));
 };
 
+const normalizeOpportunityId = (value: string) => {
+  const opportunityId = value.trim();
+  if (!opportunityId) throw new Error("opportunityId is required");
+  return opportunityId;
+};
+
 export const upsertGameOpportunityFeedback = async (
   userId: string,
   input: {
@@ -47,8 +53,7 @@ export const upsertGameOpportunityFeedback = async (
     note?: string | null;
   }
 ) => {
-  const opportunityId = input.opportunityId.trim();
-  if (!opportunityId) throw new Error("opportunityId is required");
+  const opportunityId = normalizeOpportunityId(input.opportunityId);
 
   const keyword = input.keyword.trim();
   if (!keyword) throw new Error("keyword is required");
@@ -69,5 +74,17 @@ export const upsertGameOpportunityFeedback = async (
        note = excluded.note,
        updated_at = datetime('now')`,
     [userId, opportunityId, keyword, input.verdict, note]
+  );
+};
+
+export const deleteGameOpportunityFeedback = async (
+  userId: string,
+  opportunityIdInput: string
+) => {
+  const opportunityId = normalizeOpportunityId(opportunityIdInput);
+  await d1Query(
+    `DELETE FROM game_opportunity_feedback
+     WHERE user_id = ? AND opportunity_id = ?`,
+    [userId, opportunityId]
   );
 };

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { isAuthzError, requireAdminRequest } from "@/lib/authz";
 import {
+  deleteGameOpportunityFeedback,
   listGameOpportunityFeedback,
   upsertGameOpportunityFeedback,
 } from "@/lib/game-opportunity-feedback";
@@ -46,6 +47,24 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Save failed";
     const status = message.includes("required") || message.includes("Invalid") ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const principal = await requireAdminRequest(request);
+  if (isAuthzError(principal)) return principal;
+  if (!principal.userId) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    await deleteGameOpportunityFeedback(principal.userId, searchParams.get("opportunityId") || "");
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Delete failed";
+    const status = message.includes("required") ? 400 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

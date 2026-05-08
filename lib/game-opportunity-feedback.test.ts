@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listGameOpportunityFeedback, upsertGameOpportunityFeedback } from "./game-opportunity-feedback";
+import { deleteGameOpportunityFeedback, listGameOpportunityFeedback, upsertGameOpportunityFeedback } from "./game-opportunity-feedback";
 import { d1Query } from "./d1";
 
 vi.mock("./d1", () => ({
@@ -59,6 +59,16 @@ describe("game opportunity feedback", () => {
       "not_worth_doing",
       "too generic".repeat(80).slice(0, 500),
     ]);
+  });
+
+  it("deletes a feedback record for the current admin only", async () => {
+    mockD1Query.mockResolvedValue({ rows: [] });
+
+    await deleteGameOpportunityFeedback("admin-1", "42");
+
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("DELETE FROM game_opportunity_feedback");
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("WHERE user_id = ? AND opportunity_id = ?");
+    expect(mockD1Query.mock.calls[0][1]).toEqual(["admin-1", "42"]);
   });
 
   it("rejects invalid verdicts and empty inputs", async () => {

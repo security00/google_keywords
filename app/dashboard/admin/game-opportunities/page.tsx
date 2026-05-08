@@ -106,6 +106,28 @@ export default function GameOpportunitiesPage() {
     }
   };
 
+  const deleteFeedback = async (item: OpportunityItem) => {
+    setSavingId(item.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/game-opportunity-feedback?opportunityId=${encodeURIComponent(item.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "撤销失败");
+      setFeedbackById((current) => {
+        const next = { ...current };
+        delete next[item.id];
+        return next;
+      });
+      setNoteDraftById((current) => ({ ...current, [item.id]: "" }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "撤销失败");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   useEffect(() => {
     load();
   }, [load]);
@@ -209,6 +231,15 @@ export default function GameOpportunitiesPage() {
                     >
                       ❌ 不值得
                     </button>
+                    {feedback && (
+                      <button
+                        onClick={() => deleteFeedback(item)}
+                        disabled={savingId === item.id}
+                        className="rounded border border-slate-200 px-2 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        撤销标记
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>
