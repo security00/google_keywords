@@ -359,26 +359,29 @@ GET /api/old-keywords
 | 数据源 | 端点 | 频率 | 数量 | 说明 |
 |---|---|---|---|---|
 | CrazyGames | `/new` | 每日 | ~68个 | 最大源，需 curl subprocess（Python urllib 被 CF 拦截） |
+| Steam | `featuredcategories/new_releases` | 每日 | ~20个 | 已重新启用；仅进入现有趋势/SERP/分类管线，不单独放宽阈值 |
 | Poki | JSON-LD `/new` | 每日 | ~20个 | 页面内嵌结构化数据 |
-| Addicting Games | `/new-games` | 每周 | ~2个 | 14天内新游戏 |
+| Addicting Games | `/new-games` | 每日 | ~2个 | 14天内新游戏 |
+| itch.io | newest/free game pages | 每日 | 变动 | 独立游戏补充源 |
 
-**已移除的数据源：**
-- ~~Steam~~ — 付费游戏，搜索意图不匹配
-- ~~Sitemap Discovery~~ — 噪音大，老游戏多，已停更
+**已移除/废弃的数据源：**
+- ~~Sitemap Discovery~~ — 噪音大，老游戏多，已停更；仅作为历史样本/规则练习，不作为正式新游机会来源
 
 ### 7.2 扫描流程
 
 ```
-每日 UTC 10:00 触发
+每日 UTC 10:00 触发（OpenClaw cron `game-trend-scanner`，当前命令 `--max-sources 5`）
        │
        ▼
 scripts/game_trend_scanner.py
        │
        ├─ Phase 1: 数据采集
        │   ├─ CrazyGames /new → ~68 游戏
+       │   ├─ Steam new releases → ~20 游戏
        │   ├─ Poki /new (JSON-LD) → ~20 游戏
        │   ├─ Addicting Games /new-games → ~2 游戏 (14天内)
-       │   └─ 合并去重 → ~90 个候选
+       │   ├─ itch.io newest/free → 独立游戏补充
+       │   └─ 合并去重 → 多源候选
        │
        ├─ Phase 2: 去重
        │   └─ 排除 D1 中已 trend_checked 的词
@@ -524,6 +527,12 @@ scripts/fetch_community_signals.py
 | `/dashboard/admin/users/[id]` | 用户详情 |
 | `/dashboard/admin/games` | 游戏关键词管理 |
 | `/dashboard/admin/source-quality` | 信号源质量统计（只读聚合，不触发外部计费调用） |
+| `/dashboard/admin/game-opportunities` | 新游机会富集预览 + 人工反馈（只写独立反馈侧表，不改推荐） |
+| `/dashboard/admin/game-opportunity-report` | 新游机会日报（只读聚合 Top N、反馈、来源质量） |
+| `/dashboard/admin/source-score` | 来源评分（SNR + 推荐量 + 人工反馈，只读观察） |
+| `/dashboard/admin/source-weight-suggestions` | 来源调权建议（只读建议，不自动写权重） |
+| `/dashboard/admin/semantic-dedupe` | 语义去重预览 + 人工反馈（默认看 game_keyword_pipeline；历史 discovered 仅作样本） |
+| `/dashboard/admin/admins` | 管理员管理（创始管理员不可移除） |
 | `/dashboard/admin/old-keywords` | 老词管理（趋势图 + 评分 + 分页） |
 | `/dashboard/admin/codes` | 邀请码管理 |
 
@@ -561,6 +570,13 @@ scripts/fetch_community_signals.py
 |---|---|---|---|
 | `/api/game-keywords` | GET | authenticate | 学员端：千人千面 3 词 |
 | `/api/admin/game-keywords` | GET | admin only | 管理端：全量 + 分页 + 过滤 |
+| `/api/admin/game-opportunity-enrichment` | GET | admin only | 新游机会 Top N 富集预览；只读、不调用外部付费 API |
+| `/api/admin/game-opportunity-feedback` | GET/POST/DELETE | admin only | 新游机会人工反馈侧表：值得做/不值得做/备注/撤销 |
+| `/api/admin/game-opportunity-report` | GET | admin only | 新游机会日报聚合 |
+| `/api/admin/semantic-dedupe-preview` | GET | admin only | 语义去重预览，支持 pipeline/discovered 来源 |
+| `/api/admin/semantic-dedupe-feedback` | GET/POST | admin only | 语义去重人工反馈侧表 |
+| `/api/admin/source-score` | GET | admin only | 来源评分只读聚合 |
+| `/api/admin/source-weight-suggestions` | GET | admin only | 来源调权建议只读聚合 |
 
 ### 用户/角色类
 
@@ -583,6 +599,7 @@ scripts/fetch_community_signals.py
 | `/api/admin/health` | GET | admin only |
 | `/api/admin/precompute-health` | GET/POST | admin / cron-secret |
 | `/api/admin/source-quality` | GET | admin only，只读聚合 game/sitemap source quality |
+| `/api/admin/admins` | GET/POST/DELETE | admin only，管理员列表/新增/移除（创始管理员保护） |
 | `/api/admin/invite-codes` | GET | admin only |
 
 ---
@@ -631,7 +648,9 @@ scripts/fetch_community_signals.py
 | 表名 | 用途 |
 |---|---|
 | `game_keyword_pipeline` | 游戏关键词（含趋势/SERP/评分/趋势序列/LLM意图） |
-| `sitemap_sources` / `discovered_keywords` | sitemap 信号源与发现候选；管理员信号源质量页会只读聚合其产出量 |
+| `game_opportunity_feedback` | 新游机会人工反馈侧表（per-admin，worth/not-worth/note/undo） |
+| `semantic_dedupe_feedback` | 语义去重人工反馈侧表 |
+| `sitemap_sources` / `discovered_keywords` | 已废弃 sitemap 信号源与历史候选；仅作只读质量统计/规则样本，不作为正式新游来源 |
 
 ---
 
@@ -652,7 +671,13 @@ lib/
 │   └─ submitComparisonTasks / addFreshnessToComparisonResults
 ├── ai-intent.ts                 ← LLM 意图识别
 ├── source-quality.ts            ← 管理端信号源质量统计（只读聚合）
-├── keyword-utils.ts             ← normalizeKeywords / createBatches
+├── source-score.ts              ← 来源评分（SNR + 推荐量 + 人工反馈）
+├── source-weight-suggestions.ts ← 来源调权建议（只读，不自动应用）
+├── game-opportunity-enrichment.ts ← 新游机会富集预览（只读 Top N）
+├── game-opportunity-feedback.ts ← 新游机会人工反馈侧表读写
+├── game-opportunity-report.ts   ← 新游机会日报聚合
+├── semantic-dedupe-feedback.ts  ← 语义去重人工反馈侧表读写
+├── keyword-utils.ts             ← normalizeKeywords / semantic dedupe helpers / createBatches
 ├── auth.ts                      ← 认证核心（getAuthUser, createUser, etc.）
 ├── auth_middleware.ts           ← 三合一认证（authenticate）
 ├── admin.ts                     ← requireAdmin()
@@ -747,7 +772,7 @@ lib/
 │   └── rule-engine.ts                        ← 规则引擎
 ├── scripts/
 │   ├── precompute_shared_expand.py            ← 每日预计算
-│   ├── game_trend_scanner.py                  ← 游戏扫描 (3源)
+│   ├── game_trend_scanner.py                  ← 游戏扫描（CrazyGames/Steam/Poki/Addicting Games/itch.io）
 │   ├── old_word_pipeline.py                   ← 老词管线
 │   ├── fetch_community_signals.py             ← 社区信号
 │   └── run_precompute_with_retry.sh           ← 预计算启动脚本
@@ -811,8 +836,10 @@ npm run deploy
 |---|---|---|---|
 | 1 | `api_keys.user_id` 类型不一致 | 低 | INTEGER vs TEXT，SQLite 弱类型暂无影响 |
 | 2 | VPS curl 依赖 | 中 | CrazyGames 需 curl subprocess，Python urllib 被 CF 拦截 |
-| 3 | Discovery Scan 已废弃 | 低 | sitemap 爬虫已停更，代码保留 |
+| 3 | Discovery Scan 已废弃 | 低 | sitemap 爬虫已停更，代码保留；不要重新作为正式新游来源 |
 | 4 | 管理员健康面板 auth 未收口 | 中 | 管理后台健康面板同步到线上的 auth 还没完成 |
+| 5 | GitHub Actions Node 20 deprecation | 低 | checkout/setup-node v4 后续需升级，当前不阻断部署 |
+| 6 | Next middleware / 多 lockfile warning | 低 | build 通过，后续可整理 workspace root 与 proxy 迁移 |
 
 ---
 
