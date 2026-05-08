@@ -106,7 +106,7 @@ export default function SourceQualityPage() {
       <section className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
           <h2 className="font-semibold">游戏信号源质量</h2>
-          <p className="text-xs text-muted-foreground">SNR = 推荐数 / 已扫描数。推荐包含 🔥 hot、📈 rising、🎯 niche。已停用历史源仅作历史参考，不代表当前采集链路异常。</p>
+          <p className="text-xs text-muted-foreground">SNR = 推荐数 / 已扫描数。推荐包含 🔥 hot、📈 rising、🎯 niche。</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

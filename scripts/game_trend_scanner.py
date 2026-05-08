@@ -2,15 +2,16 @@
 """
 Game Trend Scanner — 从所有 sitemap 源发现新游戏，对比 GPTS 趋势，存入 D1。
 
-三种发现模式并行：
+多种发现模式并行：
 1. CrazyGames /new 页面 — 通过 __NEXT_DATA__ JSON 获取最新上架游戏（~70个/页）
-2. Poki /new 页面 — 获取最新上架游戏
-3. Addicting Games /new-games — 获取最新上架游戏
-4. itch.io /games/newest — 独立游戏新品
-5. itch.io /games/free — 免费独立游戏
+2. Steam API new_releases — 获取 Steam 新发行游戏
+3. Poki /new 页面 — 获取最新上架游戏
+4. Addicting Games /new-games — 获取最新上架游戏
+5. itch.io /games/newest — 独立游戏新品
+6. itch.io /games/free — 免费独立游戏
 
 流程：
-1. 从 CrazyGames /new + Steam new_releases 收集新游戏名
+1. 从 CrazyGames /new + Steam new_releases + 其他新游源收集新游戏名
 2. 过滤：排除已在 game_keyword_pipeline 中处理过的
 3. 分批调 /api/research/trends 对比 GPTS (14天窗口)
 4. 对 ratio >= 0.3 的词做 90 天历史基线检查（排除老游戏）
@@ -366,6 +367,53 @@ def discover_new_from_sitemaps(max_sources=5):
         time.sleep(1)
 
     return all_new_keywords
+
+
+# ─── Steam New Releases ─────────────────────────────────────────
+
+def fetch_steam_new_releases():
+    """Fetch new releases from Steam API (no auth needed)."""
+    print("\n🎮 Phase 1b: Steam New Releases", flush=True)
+
+    try:
+        req = urllib.request.Request(
+            "https://store.steampowered.com/api/featuredcategories",
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+
+        new_releases = data.get("new_releases", [])
+        if isinstance(new_releases, dict) and "items" in new_releases:
+            new_releases = new_releases["items"]
+        elif isinstance(new_releases, list) and len(new_releases) >= 3 and isinstance(new_releases[2], list):
+            new_releases = new_releases[2]
+
+        games = []
+        seen = set()
+        for item in new_releases:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name", "").strip()
+            name_lower = name.lower()
+            if any(token in name_lower for token in [
+                "hentai", "🔞", "nsfw", "18+", "sex", "porn", "futanari", "oneeshota",
+                "waifu", "adult", "nude", "erotic", "bdsm",
+            ]):
+                continue
+            if not is_game_name_valid(name):
+                continue
+            key = name_lower
+            if key in seen:
+                continue
+            seen.add(key)
+            games.append({"name": name, "source": "steam", "steam_id": item.get("id")})
+
+        print(f"  Found {len(games)} new Steam releases", flush=True)
+        return games
+    except Exception as e:
+        print(f"  ❌ Steam fetch failed: {e}", flush=True)
+        return []
 
 
 # ─── Poki /new Page ─────────────────────────────────────────────
@@ -997,28 +1045,41 @@ def main():
     # ── Phase 1: CrazyGames /new (latest games by publish date) ──
     crazygames_new = fetch_crazygames_new()
 
-    # ── Phase 1b: Poki new games ──
-    poki_new = fetch_poki_new()
+    # In cron mode, --max-sources 0 means this scanner must only use the
+    # primary CrazyGames /new feed and skip all auxiliary discovery sources.
+    if args.max_sources == 0:
+        steam_new = []
+        poki_new = []
+        ag_new = []
+        itchio_new = []
+        itchio_free = []
+    else:
+        # ── Phase 1b: Steam new releases ──
+        steam_new = fetch_steam_new_releases()
 
-    # ── Phase 1c: Addicting Games new releases ──
-    ag_new = fetch_addicting_games_new()
+        # ── Phase 1c: Poki new games ──
+        poki_new = fetch_poki_new()
 
-    # ── Phase 1d: itch.io new games ──
-    itchio_new = fetch_itchio_new()
+        # ── Phase 1d: Addicting Games new releases ──
+        ag_new = fetch_addicting_games_new()
 
-    # ── Phase 1e: itch.io free games ──
-    itchio_free = fetch_itchio_free()
+        # ── Phase 1e: itch.io new games ──
+        itchio_new = fetch_itchio_new()
+
+        # ── Phase 1f: itch.io free games ──
+        itchio_free = fetch_itchio_free()
 
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in crazygames_new + poki_new + ag_new + itchio_new + itchio_free:
+    for g in crazygames_new + steam_new + poki_new + ag_new + itchio_new + itchio_free:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
             all_games.append(g)
 
-    print(f"\n📋 Combined: {len(all_games)} unique new games (CrazyGames + Poki + Addicting Games + itch.io)", flush=True)
+    source_label = "CrazyGames /new" if args.max_sources == 0 else "CrazyGames + Steam + Poki + Addicting Games + itch.io"
+    print(f"\n📋 Combined: {len(all_games)} unique new games ({source_label})", flush=True)
 
     # ── Filter out already trend-checked ──
     pipeline_names = {r["keyword"].lower() for r in d1_query(
@@ -1316,7 +1377,7 @@ def main():
     
     print(f"\n{'='*60}")
     print(f"📊 SUMMARY — {ts}")
-    print(f"   Data source: CrazyGames /new + Poki /new + Addicting Games")
+    print(f"   Data source: {source_label}")
     print(f"   Total new games found: {len(all_games)}")
     print(f"   Trend-checked: {len(results)}")
     print(f"   🔥 Hot:     {len(categorized['🔥 hot'])}")

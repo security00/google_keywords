@@ -54,15 +54,7 @@ export const calculateSnr = (recommended: number, total: number) => {
   return recommended / total;
 };
 
-export const getGameSourceStatus = (sourceSite: string): GameSourceStatus => {
-  if (sourceSite.toLowerCase() === "steam") {
-    return {
-      label: "已停用历史源",
-      tone: "muted",
-      note: "Steam 曾接入过，但因付费游戏较多、对网页流量站价值低，已被 Poki/Addicting Games/itch.io 等来源替代。",
-    };
-  }
-
+export const getGameSourceStatus = (_sourceSite: string): GameSourceStatus => {
   return { label: "当前来源", tone: "active", note: null };
 };
 
