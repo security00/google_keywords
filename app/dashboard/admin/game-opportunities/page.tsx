@@ -47,6 +47,7 @@ export default function GameOpportunitiesPage() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [feedbackById, setFeedbackById] = useState<Record<string, Feedback>>({});
+  const [noteDraftById, setNoteDraftById] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -61,8 +62,10 @@ export default function GameOpportunitiesPage() {
       const feedbackData = await feedbackRes.json();
       if (!previewRes.ok) throw new Error(data?.error || "加载失败");
       if (!feedbackRes.ok) throw new Error(feedbackData?.error || "反馈加载失败");
+      const feedbackList = (feedbackData.feedback || []) as Feedback[];
       setPayload(data);
-      setFeedbackById(Object.fromEntries((feedbackData.feedback || []).map((item: Feedback) => [item.opportunityId, item])));
+      setFeedbackById(Object.fromEntries(feedbackList.map((item) => [item.opportunityId, item])));
+      setNoteDraftById(Object.fromEntries(feedbackList.map((item) => [item.opportunityId, item.note || ""])));
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -81,6 +84,7 @@ export default function GameOpportunitiesPage() {
           opportunityId: item.id,
           keyword: item.keyword,
           verdict,
+          note: noteDraftById[item.id] || null,
         }),
       });
       const data = await res.json();
@@ -91,7 +95,7 @@ export default function GameOpportunitiesPage() {
           opportunityId: item.id,
           keyword: item.keyword,
           verdict,
-          note: null,
+          note: noteDraftById[item.id]?.trim() || null,
           updatedAt: new Date().toISOString(),
         },
       }));
@@ -114,7 +118,7 @@ export default function GameOpportunitiesPage() {
           <div>
             <h1 className="text-2xl font-bold">新游机会富集</h1>
             <p className="text-sm text-muted-foreground">
-              只读预览 Top N 推荐候选的内容机会：不写库、不调用外部付费 API、不改变学生端推荐结果。
+              富集预览不写 pipeline、不调用外部付费 API、不改变学生端推荐结果；人工反馈只写独立侧表。
             </p>
           </div>
         </div>
@@ -183,7 +187,14 @@ export default function GameOpportunitiesPage() {
                     trend_ratio {num(item.trendRatio)} · trend_slope {num(item.trendSlope)} · serp_auth {item.serpAuth ?? "-"}
                     {item.reason ? ` · ${item.reason}` : ""}
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+                    <input
+                      value={noteDraftById[item.id] ?? feedback?.note ?? ""}
+                      onChange={(event) => setNoteDraftById((current) => ({ ...current, [item.id]: event.target.value }))}
+                      placeholder="备注：为什么值得 / 不值得"
+                      maxLength={500}
+                      className="h-8 min-w-52 rounded border bg-background px-2 text-xs text-foreground"
+                    />
                     <button
                       onClick={() => saveFeedback(item, "worth_doing")}
                       disabled={savingId === item.id}
