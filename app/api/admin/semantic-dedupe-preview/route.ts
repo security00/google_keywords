@@ -6,6 +6,7 @@ import {
   MIN_COMPARE_MAX_ITEMS,
   normalizeIntInRange,
   normalizeStrategy,
+  previewPipelineSemanticDedupCandidates,
   previewSemanticDedupCandidates,
 } from "@/app/api/research/compare/compare-helpers";
 import { isAuthzError, requireAdminRequest } from "@/lib/authz";
@@ -30,14 +31,13 @@ export async function GET(request: Request) {
       MIN_COMPARE_MAX_ITEMS,
       MAX_COMPARE_MAX_ITEMS
     );
+    const source = searchParams.get("source") === "pipeline" ? "pipeline" : "discovered";
 
-    const preview = await previewSemanticDedupCandidates(
-      null,
-      autoStrategy,
-      maxItems
-    );
+    const preview = source === "pipeline"
+      ? await previewPipelineSemanticDedupCandidates(maxItems)
+      : await previewSemanticDedupCandidates(null, autoStrategy, maxItems);
 
-    return NextResponse.json({ strategy: autoStrategy, maxItems, ...preview });
+    return NextResponse.json({ source, strategy: autoStrategy, maxItems, ...preview });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Preview failed" },

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { previewSemanticDedupCandidates, selectCandidatesForCompare } from "@/app/api/research/compare/compare-helpers";
+import { previewPipelineSemanticDedupCandidates, previewSemanticDedupCandidates, selectCandidatesForCompare } from "@/app/api/research/compare/compare-helpers";
 import { d1Query } from "@/lib/d1";
 
 vi.mock("@/lib/d1", () => ({
@@ -103,5 +103,28 @@ describe("compare semantic dedupe preview", () => {
     expect(mockD1Query).toHaveBeenCalledTimes(2);
     expect(String(mockD1Query.mock.calls[0][0])).toContain("dk.extracted_at >= ?");
     expect(String(mockD1Query.mock.calls[1][0])).not.toContain("dk.extracted_at >= ?");
+  });
+
+  it("can preview semantic groups from the game keyword pipeline without touching discovered candidates", async () => {
+    mockD1Query.mockResolvedValue({
+      rows: [
+        { id: 1, keyword: "Planet Clicker", source_site: "steam", trend_ratio: 2.4, discovered_at: "2026-05-08T10:00:00.000Z" },
+        { id: 2, keyword: "Planet Clicker 2", source_site: "steam", trend_ratio: 2.1, discovered_at: "2026-05-08T09:00:00.000Z" },
+        { id: 3, keyword: "Planet Clicker codes", source_site: "steam", trend_ratio: 3.0, discovered_at: "2026-05-08T08:00:00.000Z" },
+      ],
+    });
+
+    const result = await previewPipelineSemanticDedupCandidates(10);
+
+    expect(result.summary.availableCount).toBe(3);
+    expect(result.summary.semanticGroupCount).toBe(1);
+    expect(result.groups[0].semanticKey).toBe("planet clicker");
+    expect(result.groups[0].variants.map((item) => item.keyword)).toEqual([
+      "Planet Clicker",
+      "Planet Clicker 2",
+    ]);
+    expect(mockD1Query).toHaveBeenCalledTimes(1);
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("FROM game_keyword_pipeline");
+    expect(String(mockD1Query.mock.calls[0][0])).not.toContain("discovered_keywords");
   });
 });

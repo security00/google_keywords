@@ -19,6 +19,7 @@ type SemanticGroup = {
 };
 
 type PreviewPayload = {
+  source: "discovered" | "pipeline";
   strategy: "recent" | "priority";
   maxItems: number;
   summary: {
@@ -44,6 +45,7 @@ const num = (value: number) => Number.isFinite(value) ? value.toFixed(1) : "-";
 
 export default function SemanticDedupePage() {
   const [payload, setPayload] = useState<PreviewPayload | null>(null);
+  const [source, setSource] = useState<"discovered" | "pipeline">("pipeline");
   const [strategy, setStrategy] = useState<"recent" | "priority">("priority");
   const [maxItems, setMaxItems] = useState(120);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function SemanticDedupePage() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ strategy, maxItems: String(maxItems) });
+      const params = new URLSearchParams({ source, strategy, maxItems: String(maxItems) });
       const [previewRes, feedbackRes] = await Promise.all([
         fetch(`/api/admin/semantic-dedupe-preview?${params.toString()}`, { cache: "no-store" }),
         fetch("/api/admin/semantic-dedupe-feedback", { cache: "no-store" }),
@@ -71,7 +73,7 @@ export default function SemanticDedupePage() {
     } finally {
       setLoading(false);
     }
-  }, [strategy, maxItems]);
+  }, [source, strategy, maxItems]);
 
   useEffect(() => {
     load();
@@ -122,15 +124,25 @@ export default function SemanticDedupePage() {
             <h1 className="text-2xl font-bold">语义去重预览</h1>
             <p className="text-sm text-muted-foreground">
               只读预览候选词中的近似重复，不写库、不改变 compare 选择结果、不影响学生端。
+              默认查看当前推荐管道；历史候选样本来自已停用的旧采集源，仅用于规则练习。
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <select
+            value={source}
+            onChange={(event) => setSource(event.target.value as "discovered" | "pipeline")}
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+          >
+            <option value="pipeline">推荐管道候选</option>
+            <option value="discovered">历史候选样本（已停用）</option>
+          </select>
+          <select
             value={strategy}
             onChange={(event) => setStrategy(event.target.value as "recent" | "priority")}
-            className="h-9 rounded-md border bg-background px-3 text-sm"
+            disabled={source === "pipeline"}
+            className="h-9 rounded-md border bg-background px-3 text-sm disabled:opacity-50"
           >
             <option value="priority">优先级池</option>
             <option value="recent">最近候选</option>
@@ -150,6 +162,12 @@ export default function SemanticDedupePage() {
       </div>
 
       {error && <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+
+      {source === "discovered" && (
+        <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          当前为历史候选样本：旧 sitemap 采集源已因噪音过多停用，不应作为实时新游机会来源。
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard label="可用候选" value={summary?.availableCount ?? 0} />

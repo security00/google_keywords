@@ -13,6 +13,16 @@ export type DiscoveredKeywordRow = {
   source_name: string | null;
 };
 
+type PipelineKeywordRow = {
+  id: number;
+  keyword: string;
+  source_site: string | null;
+  trend_ratio: number | null;
+  trend_checked_at: string | null;
+  discovered_at: string | null;
+  created_at: string | null;
+};
+
 export type SelectionResult = {
   keywords: string[];
   keywordIds: string[];
@@ -468,28 +478,21 @@ export const selectCandidatesForCompare = async (
   };
 };
 
-export const previewSemanticDedupCandidates = async (
-  userId: string | null,
-  strategy: Exclude<CompareStrategy, "manual">,
+const buildSemanticPreviewFromItems = (
+  items: Array<{ id: string; keyword: string; score: number; extractedAt: string }>,
+  availableCount: number,
   maxItems: number
-): Promise<SemanticDedupPreview> => {
-  const { ranked, availableCount } = await getRankedCandidateRows(userId, strategy, maxItems, {
-    allowHistoricalFallback: userId === null,
-  });
-  const exactDeduped = new Map<string, (typeof ranked)[number]>();
+): SemanticDedupPreview => {
+  const exactDeduped = new Map<string, (typeof items)[number]>();
 
-  for (const item of ranked) {
-    if (exactDeduped.has(item.normalized)) continue;
-    exactDeduped.set(item.normalized, item);
+  for (const item of items) {
+    const normalized = item.keyword.trim().toLowerCase();
+    if (!normalized || exactDeduped.has(normalized)) continue;
+    exactDeduped.set(normalized, item);
   }
 
   const groups = groupSemanticKeywordCandidates(
-    Array.from(exactDeduped.values()).map((item) => ({
-      id: item.row.id,
-      keyword: item.row.keyword,
-      score: item.score,
-      extractedAt: item.row.extracted_at,
-    }))
+    Array.from(exactDeduped.values())
   ).slice(0, maxItems).map((group) => ({
     ...group,
     representative: {
@@ -515,4 +518,52 @@ export const previewSemanticDedupCandidates = async (
     },
     groups,
   };
+};
+
+export const previewSemanticDedupCandidates = async (
+  userId: string | null,
+  strategy: Exclude<CompareStrategy, "manual">,
+  maxItems: number
+): Promise<SemanticDedupPreview> => {
+  const { ranked, availableCount } = await getRankedCandidateRows(userId, strategy, maxItems, {
+    allowHistoricalFallback: userId === null,
+  });
+
+  return buildSemanticPreviewFromItems(
+    ranked.map((item) => ({
+      id: item.row.id,
+      keyword: item.row.keyword,
+      score: item.score,
+      extractedAt: item.row.extracted_at,
+    })),
+    availableCount,
+    maxItems
+  );
+};
+
+export const previewPipelineSemanticDedupCandidates = async (
+  maxItems: number
+): Promise<SemanticDedupPreview> => {
+  const limit = Math.max(maxItems * AUTO_COMPARE_POOL_MULTIPLIER, 5000);
+  const { rows } = await d1Query<PipelineKeywordRow>(
+    `SELECT id, keyword, source_site, trend_ratio, trend_checked_at, discovered_at, created_at
+     FROM game_keyword_pipeline
+     WHERE keyword IS NOT NULL
+       AND keyword != ''
+       AND (recommendation IS NULL OR recommendation != '⏭️ skip')
+     ORDER BY COALESCE(trend_checked_at, discovered_at, created_at) DESC, COALESCE(trend_ratio, 0) DESC
+     LIMIT ?`,
+    [limit]
+  );
+
+  return buildSemanticPreviewFromItems(
+    rows.map((row) => ({
+      id: String(row.id),
+      keyword: row.keyword,
+      score: Number(row.trend_ratio ?? 0),
+      extractedAt: row.trend_checked_at || row.discovered_at || row.created_at || "",
+    })),
+    rows.length,
+    maxItems
+  );
 };
