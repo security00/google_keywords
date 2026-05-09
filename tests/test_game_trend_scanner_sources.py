@@ -98,6 +98,7 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
             slope=2.92,
             verdict="fail",
             serp_auth=0,
+            serp_game_relevance=1,
             hist_vs_bench=0.6,
             surge=0.5,
             hist_avg=20,
@@ -136,6 +137,61 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
         )
 
         self.assertEqual(rec, "⏭️ skip")
+
+    def test_check_serp_competition_reads_signals_and_game_relevance(self):
+        scanner = load_scanner()
+
+        serp = {
+            "signals": {"organicCount": 9, "authDomains": 0, "hasFeaturedSnippet": False, "nicheDomains": 5},
+            "topResults": [
+                {"title": "Wheel Masters: Home", "domain": "wheelmasters.com", "description": "wheel and tire performance"},
+                {"title": "WHEEL MASTER - Play Online for Free!", "domain": "poki.com", "description": "Wheel Master is a physics bike game"},
+            ],
+        }
+
+        is_low, organic, auth, featured, relevance = scanner.check_serp_competition(serp, "Wheel Master")
+
+        self.assertTrue(is_low)
+        self.assertEqual(organic, 9)
+        self.assertEqual(auth, 0)
+        self.assertFalse(featured)
+        self.assertEqual(relevance, 1)
+
+    def test_check_serp_competition_rejects_irrelevant_serp(self):
+        scanner = load_scanner()
+
+        serp = {
+            "signals": {"organicCount": 9, "authDomains": 0, "hasFeaturedSnippet": False, "nicheDomains": 5},
+            "topResults": [
+                {"title": "Between Stops Short Film", "domain": "imdb.com", "description": "A short film"},
+                {"title": "The United States needs fewer bus stops", "domain": "worksinprogress.co", "description": "transit stops"},
+            ],
+        }
+
+        is_low, organic, auth, featured, relevance = scanner.check_serp_competition(serp, "Between Stops")
+
+        self.assertFalse(is_low)
+        self.assertEqual(organic, 9)
+        self.assertGreaterEqual(auth, 0)
+        self.assertFalse(featured)
+        self.assertEqual(relevance, 0)
+
+    def test_classify_requires_serp_game_relevance_for_niche(self):
+        scanner = load_scanner()
+
+        rec, reason = scanner.classify_keyword(
+            ratio=1.24,
+            slope=11,
+            verdict="watch",
+            serp_auth=0,
+            serp_game_relevance=0,
+            hist_vs_bench=0.6,
+            surge=0.8,
+            hist_avg=28,
+        )
+
+        self.assertEqual(rec, "⏭️ skip")
+        self.assertIn("SERP首页缺少游戏相关结果", reason)
 
 
 if __name__ == "__main__":

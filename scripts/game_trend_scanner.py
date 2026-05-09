@@ -776,7 +776,7 @@ def call_serp_api(keywords, task_id=None):
 
 
 def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_featured=False,
-                        hist_vs_bench=None, surge=None, hist_avg=None, series_14d=None):
+                        serp_game_relevance=1, hist_vs_bench=None, surge=None, hist_avg=None, series_14d=None):
     """Classify a game keyword into a recommendation category.
     
     Uses 14-day trend data + 90-day historical baseline check.
@@ -820,6 +820,10 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
         serp_desc = f"谷歌前10页有{serp_auth}个权威站，竞争较大"
     
     reason = f"{traffic_desc}；{trend_desc}；{serp_desc}"
+
+    if serp_game_relevance <= 0:
+        reason += "；⚠️ SERP首页缺少游戏相关结果"
+        return "⏭️ skip", reason
     
     # ── Historical baseline check (90-day data) ──
     # If we have 90-day data, check if the game was already established
@@ -925,27 +929,51 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
         return "⏭️ skip", reason
 
 
-def check_serp_competition(serp_data):
-    """Analyze SERP result and return competition level.
-    
-    Returns: (is_low_competition, organic_count, auth_domain_count, has_featured_snippet)
-    
-    Low competition = can rank for this keyword:
-    - No authority domains in top 3 (chess.com, wikipedia, etc.)
-    - organic count < 8 (not saturated)
+GAME_SERP_DOMAINS = (
+    "poki.com", "crazygames.com", "steampowered.com", "store.steampowered.com",
+    "itch.io", "addictinggames.com", "y8.com", "kongregate.com",
+    "newgrounds.com", "miniplay.com", "silvergames.com", "armorgames.com",
+)
+
+GAME_SERP_TERMS = (
+    "game", "play", "online", "free", "walkthrough", "攻略", "游戏",
+    "physics", "platformer", "puzzle", "arcade", "simulator", "steam",
+    "poki", "crazygames", "itch.io", "unblocked",
+)
+
+def _serp_game_relevance(serp_data, keyword=""):
+    top_results = serp_data.get("topResults") or []
+    keyword_key = re.sub(r"[^a-z0-9]+", " ", keyword.lower()).strip()
+    matches = 0
+    for result in top_results[:5]:
+        domain = (result.get("domain") or "").lower()
+        text = " ".join(str(result.get(k) or "") for k in ("title", "url", "description")).lower()
+        domain_hit = any(game_domain in domain for game_domain in GAME_SERP_DOMAINS)
+        term_hit = any(term in text for term in GAME_SERP_TERMS)
+        keyword_hit = bool(keyword_key and keyword_key in re.sub(r"[^a-z0-9]+", " ", text).strip())
+        if domain_hit or (keyword_hit and term_hit):
+            matches += 1
+    return matches
+
+
+def check_serp_competition(serp_data, keyword=""):
+    """Analyze SERP competition and whether the SERP is game-relevant.
+
+    Returns: (is_low_competition, organic_count, auth_domain_count, has_featured_snippet, game_relevance)
     """
-    organic_count = serp_data.get("organicCount", 0)
-    auth_domains = serp_data.get("authDomains", 0)
-    has_featured = serp_data.get("hasFeaturedSnippet", False)
-    niche_domains = serp_data.get("nicheDomains", 0)
-    has_ai_overview = serp_data.get("hasAiOverview", False)
+    signals = serp_data.get("signals") or {}
+    organic_count = signals.get("organicCount", serp_data.get("organicCount", 0))
+    auth_domains = signals.get("authDomains", serp_data.get("authDomains", 0))
+    has_featured = signals.get("hasFeaturedSnippet", serp_data.get("hasFeaturedSnippet", False))
+    niche_domains = signals.get("nicheDomains", serp_data.get("nicheDomains", 0))
+    game_relevance = _serp_game_relevance(serp_data, keyword)
     
-    # Authority domains in top results = hard to compete
-    # We consider it low competition if auth_domains == 0
-    # OR auth_domains <= 1 AND niche_domains >= 1 (small players exist)
-    is_low = auth_domains == 0 or (auth_domains <= 1 and niche_domains >= 2)
+    # Authority domains in top results = hard to compete. But low competition
+    # only matters if the SERP is actually about the game; otherwise it is
+    # merely irrelevant, not an opportunity.
+    is_low = game_relevance > 0 and (auth_domains == 0 or (auth_domains <= 1 and niche_domains >= 2))
     
-    return is_low, organic_count, auth_domains, has_featured
+    return is_low, organic_count, auth_domains, has_featured, game_relevance
 
 
 def select_games_to_check(all_games, checked_names, max_keywords):
@@ -1368,16 +1396,18 @@ def main():
                     r["serp_organic"] = 0
                     r["serp_auth"] = 0
                     r["serp_featured"] = False
+                    r["serp_game_relevance"] = 0
                     continue
                 
-                is_low, organic, auth, featured = check_serp_competition(kw_data)
+                is_low, organic, auth, featured, game_relevance = check_serp_competition(kw_data, keyword)
                 r["serp_organic"] = organic
                 r["serp_auth"] = auth
                 r["serp_featured"] = featured
+                r["serp_game_relevance"] = game_relevance
                 matched += 1
                 
                 status_str = "🟢" if is_low else "🔴"
-                print(f"  {status_str} {r['keyword']}: organic={organic}, auth={auth}, featured={featured}", flush=True)
+                print(f"  {status_str} {r['keyword']}: organic={organic}, auth={auth}, featured={featured}, game_rel={game_relevance}", flush=True)
             succeed_pipeline_task(
                 task_id,
                 result={"results": len(serp_results), "matched": matched, "fromCache": bool(serp_resp.get("fromCache"))},
@@ -1405,6 +1435,7 @@ def main():
         featured = r.get("serp_featured", False)
         
         rec, reason = classify_keyword(ratio, slope, verdict, organic, auth, featured,
+                                       serp_game_relevance=r.get("serp_game_relevance", 1),
                                        hist_vs_bench=r.get("hist_vs_bench"),
                                        surge=r.get("surge"),
                                        hist_avg=r.get("hist_avg"),
