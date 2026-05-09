@@ -48,6 +48,18 @@ export default function GameRadarPage() {
   const [error, setError] = useState<string | null>(null);
   const [savingSource, setSavingSource] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
+  const [sourceForm, setSourceForm] = useState({
+    id: "",
+    name: "",
+    baseUrl: "",
+    sitemapUrl: "",
+    enabled: false,
+    qualityTier: 9,
+    urlIncludePatterns: "[]",
+    urlExcludePatterns: "[]",
+    keywordExtractRule: '{"type":"slug"}',
+    statusNote: "",
+  });
 
   const load = async () => {
     setLoading(true);
@@ -98,6 +110,53 @@ export default function GameRadarPage() {
     if (next !== current) updateSource(row.id, { statusNote: next });
   };
 
+  const saveSourceForm = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSavingSource(sourceForm.id || "new");
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/game-radar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sourceForm),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "保存失败");
+      setSourceForm({
+        id: "",
+        name: "",
+        baseUrl: "",
+        sitemapUrl: "",
+        enabled: false,
+        qualityTier: 9,
+        urlIncludePatterns: "[]",
+        urlExcludePatterns: "[]",
+        keywordExtractRule: '{"type":"slug"}',
+        statusNote: "",
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存失败");
+    } finally {
+      setSavingSource(null);
+    }
+  };
+
+  const editSource = (row: SourceRow) => {
+    setSourceForm({
+      id: row.id,
+      name: row.name,
+      baseUrl: row.base_url,
+      sitemapUrl: row.sitemap_url,
+      enabled: Boolean(row.enabled),
+      qualityTier: row.quality_tier,
+      urlIncludePatterns: "[]",
+      urlExcludePatterns: "[]",
+      keywordExtractRule: '{"type":"slug"}',
+      statusNote: row.status_note || "",
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -125,6 +184,38 @@ export default function GameRadarPage() {
 
       <section className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
+          <h2 className="font-semibold">新增 / 编辑精选来源</h2>
+          <p className="text-xs text-muted-foreground">先保存为停用状态，测试规则通过后再启用。</p>
+        </div>
+        <form onSubmit={saveSourceForm} className="grid gap-3 p-4 md:grid-cols-2">
+          <Input label="Source ID" value={sourceForm.id} onChange={(value) => setSourceForm((prev) => ({ ...prev, id: value }))} placeholder="y8" />
+          <Input label="名称" value={sourceForm.name} onChange={(value) => setSourceForm((prev) => ({ ...prev, name: value }))} placeholder="Y8" />
+          <Input label="Base URL" value={sourceForm.baseUrl} onChange={(value) => setSourceForm((prev) => ({ ...prev, baseUrl: value }))} placeholder="https://www.y8.com" />
+          <Input label="Sitemap URL" value={sourceForm.sitemapUrl} onChange={(value) => setSourceForm((prev) => ({ ...prev, sitemapUrl: value }))} placeholder="https://www.y8.com/sitemap.xml" />
+          <Input label="Include patterns JSON" value={sourceForm.urlIncludePatterns} onChange={(value) => setSourceForm((prev) => ({ ...prev, urlIncludePatterns: value }))} placeholder='["/games/"]' />
+          <Input label="Exclude patterns JSON" value={sourceForm.urlExcludePatterns} onChange={(value) => setSourceForm((prev) => ({ ...prev, urlExcludePatterns: value }))} placeholder='["/tags/"]' />
+          <Input label="提词规则 JSON" value={sourceForm.keywordExtractRule} onChange={(value) => setSourceForm((prev) => ({ ...prev, keywordExtractRule: value }))} placeholder='{"type":"slug"}' />
+          <label className="space-y-1 text-xs text-muted-foreground">
+            <span>质量层级</span>
+            <input className="w-full rounded-md border bg-background px-2 py-2 text-sm text-foreground" type="number" min={1} max={99} value={sourceForm.qualityTier} onChange={(event) => setSourceForm((prev) => ({ ...prev, qualityTier: Number(event.target.value) }))} />
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={sourceForm.enabled} onChange={(event) => setSourceForm((prev) => ({ ...prev, enabled: event.target.checked }))} />
+            保存后启用
+          </label>
+          <label className="space-y-1 text-xs text-muted-foreground md:col-span-2">
+            <span>策略备注</span>
+            <textarea className="min-h-[72px] w-full rounded-md border bg-background px-2 py-2 text-sm text-foreground" value={sourceForm.statusNote} onChange={(event) => setSourceForm((prev) => ({ ...prev, statusNote: event.target.value }))} />
+          </label>
+          <div className="flex gap-2 md:col-span-2">
+            <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50" disabled={!!savingSource} type="submit">保存来源</button>
+            <button className="rounded-md border px-4 py-2 text-sm" type="button" onClick={() => setSourceForm({ id: "", name: "", baseUrl: "", sitemapUrl: "", enabled: false, qualityTier: 9, urlIncludePatterns: "[]", urlExcludePatterns: "[]", keywordExtractRule: '{"type":"slug"}', statusNote: "" })}>清空</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-lg border bg-card">
+        <div className="border-b px-4 py-3">
           <h2 className="font-semibold">精选来源</h2>
           <p className="text-xs text-muted-foreground">可直接启用/停用来源，并在策略备注里记录为什么这么设置。备注失焦保存，Enter 保存。</p>
         </div>
@@ -147,7 +238,9 @@ export default function GameRadarPage() {
               ) : data?.sources.length ? (
                 data.sources.map((row) => (
                   <tr key={row.id} className="border-t hover:bg-muted/30">
-                    <Td className="font-medium">{row.name}</Td>
+                    <Td className="font-medium">
+                      <button className="text-left hover:underline" type="button" onClick={() => editSource(row)}>{row.name}</button>
+                    </Td>
                     <Td>
                       <button
                         type="button"
@@ -231,6 +324,15 @@ export default function GameRadarPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function Input({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
+  return (
+    <label className="space-y-1 text-xs text-muted-foreground">
+      <span>{label}</span>
+      <input className="w-full rounded-md border bg-background px-2 py-2 text-sm text-foreground" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+    </label>
   );
 }
 
