@@ -45,6 +45,98 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
             ],
         )
 
+    def test_select_games_to_check_gives_each_source_a_daily_floor(self):
+        scanner = load_scanner()
+
+        games = (
+            [{"name": f"Crazy {i}", "source": "crazygames"} for i in range(10)]
+            + [{"name": f"Steam {i}", "source": "steam"} for i in range(4)]
+            + [{"name": f"Poki {i}", "source": "poki"} for i in range(4)]
+        )
+
+        selected = scanner.select_games_to_check(games, checked_names=set(), max_keywords=6)
+
+        self.assertEqual(len(selected), 6)
+        self.assertEqual(
+            [game["source"] for game in selected],
+            ["crazygames", "crazygames", "steam", "steam", "poki", "poki"],
+        )
+
+    def test_select_games_to_check_fills_remaining_by_original_order(self):
+        scanner = load_scanner()
+
+        games = (
+            [{"name": f"Crazy {i}", "source": "crazygames"} for i in range(5)]
+            + [{"name": "Steam 0", "source": "steam"}]
+            + [{"name": "Poki 0", "source": "poki"}]
+        )
+
+        selected = scanner.select_games_to_check(games, checked_names=set(), max_keywords=5)
+
+        self.assertEqual(
+            [game["source"] for game in selected],
+            ["crazygames", "steam", "poki", "crazygames", "crazygames"],
+        )
+
+    def test_select_games_to_check_skips_already_checked_names(self):
+        scanner = load_scanner()
+
+        games = [
+            {"name": "Already Done", "source": "crazygames"},
+            {"name": "Fresh Steam", "source": "steam"},
+        ]
+
+        selected = scanner.select_games_to_check(games, checked_names={"already done"}, max_keywords=10)
+
+        self.assertEqual(selected, [{"name": "Fresh Steam", "source": "steam"}])
+
+    def test_classify_established_but_rising_low_competition_as_niche_opportunity(self):
+        scanner = load_scanner()
+
+        rec, reason = scanner.classify_keyword(
+            ratio=0.74,
+            slope=2.92,
+            verdict="fail",
+            serp_auth=0,
+            hist_vs_bench=0.6,
+            surge=0.5,
+            hist_avg=20,
+        )
+
+        self.assertEqual(rec, "🎯 niche")
+        self.assertIn("非纯新词", reason)
+        self.assertIn("可做机会", reason)
+
+    def test_classify_established_low_ratio_still_skips(self):
+        scanner = load_scanner()
+
+        rec, _ = scanner.classify_keyword(
+            ratio=0.21,
+            slope=5.89,
+            verdict="fail",
+            serp_auth=0,
+            hist_vs_bench=0.6,
+            surge=0.5,
+            hist_avg=20,
+        )
+
+        self.assertEqual(rec, "⏭️ skip")
+
+    def test_classify_established_low_competition_requires_strong_recent_slope(self):
+        scanner = load_scanner()
+
+        rec, _ = scanner.classify_keyword(
+            ratio=0.74,
+            slope=0.5,
+            verdict="fail",
+            serp_auth=0,
+            hist_vs_bench=0.6,
+            surge=0.5,
+            hist_avg=20,
+        )
+
+        self.assertEqual(rec, "⏭️ skip")
+
 
 if __name__ == "__main__":
     unittest.main()

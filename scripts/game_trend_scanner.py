@@ -884,13 +884,21 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
                 reason += f"；⚠️ 14天vs_bench={avg_bench_ratio:.1f}x且在下降，非新起势"
     
     if is_established:
-            # Exception: if surge is very strong (>2x), it's a re-surge of an old game
-            # We might still want to flag it, but with lower priority
+            # Exception A: if surge is very strong (>2x), it's a re-surge of an old game.
             if surge is not None and surge >= GAME_RESURGE_SURGE:
                 reason += f"（但近期有{GAME_RESURGE_SURGE}x+回春趋势，可观察）"
                 if ratio >= 2.0 and slope > 5:
                     return "📈 rising", reason
                 return "⏭️ skip", reason
+
+            # Exception B: not a pure new-game keyword, but still a student-tryable
+            # opportunity when it has meaningful demand, strong recent momentum,
+            # and weak SERP competition. This catches cases like Wheel Master:
+            # not brand-new, but current trend + playable SERP make it worth a shot.
+            if ratio >= GAME_NICHE_RATIO and slope > 2 and serp_auth == 0:
+                reason += "；✅ 非纯新词，但近期趋势回升且SERP竞争低，可做机会词给学员尝试"
+                return "🎯 niche", reason
+
             return "⏭️ skip", reason
     
     # ── Decision logic (only for keywords without history data or passing history check) ──
@@ -938,6 +946,58 @@ def check_serp_competition(serp_data):
     is_low = auth_domains == 0 or (auth_domains <= 1 and niche_domains >= 2)
     
     return is_low, organic_count, auth_domains, has_featured
+
+
+def select_games_to_check(all_games, checked_names, max_keywords):
+    """Select trend-check candidates without starving later sources.
+
+    The scanner collects sources in a fixed order. A plain global slice can let
+    CrazyGames consume the whole daily budget before Steam/Poki/itch.io get any
+    checks. New-game discovery is more valuable when every source gets at least
+    a small daily look, then remaining capacity goes to backlog order.
+    """
+    pending = [g for g in all_games if g["name"].lower() not in checked_names]
+    if max_keywords <= 0:
+        return []
+    if len(pending) <= max_keywords:
+        return pending
+
+    source_order = []
+    by_source = {}
+    for game in pending:
+        source = game.get("source", "unknown")
+        if source not in by_source:
+            source_order.append(source)
+            by_source[source] = []
+        by_source[source].append(game)
+
+    # Give each active source a floor, while preserving enough room for all
+    # sources. With the current 30/day cron budget and 6 sources this gives 5
+    # per source; smaller manual budgets still give at least one per source.
+    per_source_floor = max(1, max_keywords // max(1, len(source_order)))
+    selected = []
+    selected_names = set()
+
+    for source in source_order:
+        for game in by_source[source][:per_source_floor]:
+            if len(selected) >= max_keywords:
+                return selected
+            key = game["name"].lower()
+            selected.append(game)
+            selected_names.add(key)
+
+    # Fill remaining slots in original combined order so the freshest backlog
+    # still wins after every source got a fair chance.
+    for game in pending:
+        if len(selected) >= max_keywords:
+            break
+        key = game["name"].lower()
+        if key in selected_names:
+            continue
+        selected.append(game)
+        selected_names.add(key)
+
+    return selected
 
 
 # ─── Validation ───────────────────────────────────────────────────────
@@ -1085,16 +1145,21 @@ def main():
     pipeline_names = {r["keyword"].lower() for r in d1_query(
         "SELECT keyword FROM game_keyword_pipeline WHERE status IN ('done', 'checking', 'worth_doing')"
     )}
-    to_check = [g for g in all_games if g["name"].lower() not in pipeline_names]
+    pending = [g for g in all_games if g["name"].lower() not in pipeline_names]
 
-    print(f"🆕 Not yet trend-checked: {len(to_check)}", flush=True)
+    print(f"🆕 Not yet trend-checked: {len(pending)}", flush=True)
 
-    if not to_check:
+    if not pending:
         print("✅ All caught up, nothing new to check.", flush=True)
         return
 
-    to_check = to_check[:args.max_keywords]
-    print(f"🔍 Will check: {len(to_check)} keywords", flush=True)
+    to_check = select_games_to_check(all_games, pipeline_names, args.max_keywords)
+    source_counts = {}
+    for game in to_check:
+        source = game.get("source", "unknown")
+        source_counts[source] = source_counts.get(source, 0) + 1
+    source_summary = ", ".join(f"{source}={count}" for source, count in source_counts.items())
+    print(f"🔍 Will check: {len(to_check)} keywords ({source_summary})", flush=True)
 
     # ── Phase 3: Batch trends check ──
     results = []
