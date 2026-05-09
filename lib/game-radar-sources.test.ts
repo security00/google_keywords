@@ -5,7 +5,7 @@ vi.mock("@/lib/d1", () => ({
 }));
 
 import { d1Query } from "@/lib/d1";
-import { upsertGameRadarSource, updateGameRadarSource } from "@/lib/game-radar-sources";
+import { analyzeGameRadarSource, upsertGameRadarSource, updateGameRadarSource } from "@/lib/game-radar-sources";
 
 describe("updateGameRadarSource", () => {
   it("updates enabled state and note", async () => {
@@ -19,6 +19,25 @@ describe("updateGameRadarSource", () => {
 
   it("rejects invalid quality tier", async () => {
     await expect(updateGameRadarSource({ id: "poki", qualityTier: 0 })).rejects.toThrow("Invalid quality tier");
+  });
+
+  it("analyzes source url samples", async () => {
+    const analysis = analyzeGameRadarSource({
+      baseUrl: "https://poki.com",
+      sitemapUrl: "https://poki.com/en/sitemaps/games.xml",
+      urls: [
+        "https://poki.com/en/g/wheel-master",
+        "https://poki.com/en/g/bubble-tower",
+        "https://poki.com/en/category/action",
+        "https://poki.com/privacy",
+      ],
+      lastmodCount: 2,
+    });
+
+    expect(analysis.urlIncludePatterns).toBe('["/en/g/"]');
+    expect(analysis.urlExcludePatterns).toContain("/category/");
+    expect(analysis.keywordExtractRule).toBe('{"type":"slug","stripPrefix":"/en/g/"}');
+    expect(analysis.statusNote).toContain("lastmod");
   });
 
   it("upserts a curated source", async () => {

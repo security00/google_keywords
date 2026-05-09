@@ -47,6 +47,7 @@ export default function GameRadarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingSource, setSavingSource] = useState<string | null>(null);
+  const [analyzingSource, setAnalyzingSource] = useState(false);
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [sourceForm, setSourceForm] = useState({
     id: "",
@@ -155,6 +156,31 @@ export default function GameRadarPage() {
       keywordExtractRule: '{"type":"slug"}',
       statusNote: row.status_note || "",
     });
+  };
+
+  const analyzeSourceForm = async () => {
+    setAnalyzingSource(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/game-radar/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baseUrl: sourceForm.baseUrl, sitemapUrl: sourceForm.sitemapUrl }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "分析失败");
+      setSourceForm((prev) => ({
+        ...prev,
+        urlIncludePatterns: payload.urlIncludePatterns || prev.urlIncludePatterns,
+        urlExcludePatterns: payload.urlExcludePatterns || prev.urlExcludePatterns,
+        keywordExtractRule: payload.keywordExtractRule || prev.keywordExtractRule,
+        statusNote: payload.statusNote || prev.statusNote,
+      }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "分析失败");
+    } finally {
+      setAnalyzingSource(false);
+    }
   };
 
   return (

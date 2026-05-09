@@ -1,5 +1,8 @@
 import { d1Query } from "@/lib/d1";
 
+const GAME_PATH_HINTS = ["/g/", "/game/", "/games/", "/play/"];
+const DEFAULT_EXCLUDES = ["/category/", "/categories/", "/tag/", "/tags/", "/privacy", "/terms", "/about", "/blog", "/search"];
+
 export type GameRadarSourceUpdate = {
   id: string;
   enabled?: boolean;
@@ -18,6 +21,64 @@ export type GameRadarSourceInput = {
   urlExcludePatterns: string;
   keywordExtractRule: string;
   statusNote?: string | null;
+};
+
+export type GameRadarSourceAnalysisInput = {
+  baseUrl: string;
+  sitemapUrl: string;
+  urls: string[];
+  lastmodCount: number;
+};
+
+export type GameRadarSourceAnalysis = {
+  urlIncludePatterns: string;
+  urlExcludePatterns: string;
+  keywordExtractRule: string;
+  statusNote: string;
+  sampleCount: number;
+  gameLikeCount: number;
+};
+
+const pathOf = (url: string) => {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return "";
+  }
+};
+
+const commonGamePrefix = (paths: string[]) => {
+  const counts = new Map<string, number>();
+  for (const path of paths) {
+    const matched = GAME_PATH_HINTS.find((hint) => path.includes(hint));
+    if (!matched) continue;
+    const index = path.indexOf(matched);
+    const prefix = path.slice(0, index + matched.length);
+    counts.set(prefix, (counts.get(prefix) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+};
+
+export const analyzeGameRadarSource = (input: GameRadarSourceAnalysisInput): GameRadarSourceAnalysis => {
+  const paths = input.urls.map(pathOf).filter(Boolean);
+  const prefix = commonGamePrefix(paths);
+  const include = prefix ? [prefix] : GAME_PATH_HINTS.filter((hint) => paths.some((path) => path.includes(hint))).slice(0, 1);
+  const excludes = DEFAULT_EXCLUDES.filter((pattern) => paths.some((path) => path.includes(pattern)) || pattern.includes("privacy") || pattern.includes("terms"));
+  const gameLikeCount = prefix ? paths.filter((path) => path.includes(prefix)).length : 0;
+  const hasLastmod = input.lastmodCount > 0;
+  const noteParts = [
+    hasLastmod ? "sitemap has lastmod; suitable for newest-page radar." : "sitemap has no lastmod; verify freshness before enabling.",
+    prefix ? `Suggested game URL prefix: ${prefix}` : "No obvious game URL prefix found; keep disabled until manually reviewed.",
+  ];
+
+  return {
+    urlIncludePatterns: JSON.stringify(include),
+    urlExcludePatterns: JSON.stringify(excludes),
+    keywordExtractRule: JSON.stringify(prefix ? { type: "slug", stripPrefix: prefix } : { type: "slug" }),
+    statusNote: noteParts.join(" "),
+    sampleCount: paths.length,
+    gameLikeCount,
+  };
 };
 
 const assertJsonArray = (value: string, label: string) => {
