@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { isAuthzError, requireAdminRequest } from "@/lib/authz";
-import { analyzeGameRadarSource } from "@/lib/game-radar-sources";
+import { analyzeGameRadarSource, previewGameRadarRules } from "@/lib/game-radar-sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,16 +62,24 @@ export async function POST(request: Request) {
     const sorted = entries
       .sort((a, b) => (b.lastmod || "").localeCompare(a.lastmod || ""))
       .slice(0, 300);
+    const urls = sorted.map((entry) => entry.url);
     const analysis = analyzeGameRadarSource({
       baseUrl,
       sitemapUrl,
-      urls: sorted.map((entry) => entry.url),
+      urls,
       lastmodCount: sorted.filter((entry) => entry.lastmod).length,
+    });
+    const preview = previewGameRadarRules({
+      urlIncludePatterns: typeof body.urlIncludePatterns === "string" ? body.urlIncludePatterns : analysis.urlIncludePatterns,
+      urlExcludePatterns: typeof body.urlExcludePatterns === "string" ? body.urlExcludePatterns : analysis.urlExcludePatterns,
+      keywordExtractRule: typeof body.keywordExtractRule === "string" ? body.keywordExtractRule : analysis.keywordExtractRule,
+      urls: urls.slice(0, 50),
     });
 
     return NextResponse.json({
       ...analysis,
       samples: sorted.slice(0, 30),
+      preview,
     });
   } catch (error) {
     return NextResponse.json(

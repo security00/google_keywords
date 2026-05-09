@@ -49,6 +49,7 @@ export default function GameRadarPage() {
   const [savingSource, setSavingSource] = useState<string | null>(null);
   const [analyzingSource, setAnalyzingSource] = useState(false);
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
+  const [rulePreview, setRulePreview] = useState<Array<{ url: string; matched: boolean; excluded: boolean; keyword: string | null; rejectReason: string | null }>>([]);
   const [sourceForm, setSourceForm] = useState({
     id: "",
     name: "",
@@ -176,6 +177,7 @@ export default function GameRadarPage() {
         keywordExtractRule: payload.keywordExtractRule || prev.keywordExtractRule,
         statusNote: payload.statusNote || prev.statusNote,
       }));
+      setRulePreview(payload.preview || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "分析失败");
     } finally {
@@ -238,6 +240,33 @@ export default function GameRadarPage() {
             <button className="rounded-md border px-4 py-2 text-sm" type="button" onClick={() => setSourceForm({ id: "", name: "", baseUrl: "", sitemapUrl: "", enabled: false, qualityTier: 9, urlIncludePatterns: "[]", urlExcludePatterns: "[]", keywordExtractRule: '{"type":"slug"}', statusNote: "" })}>清空</button>
           </div>
         </form>
+        {rulePreview.length > 0 && (
+          <div className="border-t px-4 py-3">
+            <h3 className="mb-2 text-sm font-semibold">规则测试预览</h3>
+            <div className="max-h-[360px] overflow-auto rounded border">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/30">
+                  <tr>
+                    <Th>URL</Th>
+                    <Th>结果</Th>
+                    <Th>Keyword</Th>
+                    <Th>原因</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rulePreview.slice(0, 30).map((row) => (
+                    <tr key={row.url} className="border-t">
+                      <Td className="max-w-[520px] truncate" title={row.url}>{row.url}</Td>
+                      <Td>{row.excluded ? "排除" : row.matched ? "命中" : "未命中"}</Td>
+                      <Td>{row.keyword || "-"}</Td>
+                      <Td className="text-muted-foreground">{row.rejectReason || "-"}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg border bg-card">

@@ -23,6 +23,21 @@ export type GameRadarSourceInput = {
   statusNote?: string | null;
 };
 
+export type GameRadarRulePreviewInput = {
+  urlIncludePatterns: string;
+  urlExcludePatterns: string;
+  keywordExtractRule: string;
+  urls: string[];
+};
+
+export type GameRadarRulePreviewRow = {
+  url: string;
+  matched: boolean;
+  excluded: boolean;
+  keyword: string | null;
+  rejectReason: string | null;
+};
+
 export type GameRadarSourceAnalysisInput = {
   baseUrl: string;
   sitemapUrl: string;
@@ -37,6 +52,24 @@ export type GameRadarSourceAnalysis = {
   statusNote: string;
   sampleCount: number;
   gameLikeCount: number;
+};
+
+const parseJsonArray = (value: string) => {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+};
+
+const parseJsonObject = (value: string) => {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, string> : {};
+  } catch {
+    return {};
+  }
 };
 
 const pathOf = (url: string) => {
@@ -57,6 +90,46 @@ const commonGamePrefix = (paths: string[]) => {
     counts.set(prefix, (counts.get(prefix) || 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+};
+
+const cleanKeyword = (raw: string) => {
+  const cleaned = raw
+    .replace(/[-_]+/g, " ")
+    .replace(/\.(html?|php)$/i, "")
+    .replace(/\b(play|online|free|unblocked|game|games)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned || cleaned.length < 4 || /^\d+$/.test(cleaned)) return null;
+  return cleaned.split(" ").map((word) => word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : word).join(" ");
+};
+
+const extractKeyword = (url: string, ruleJson: string) => {
+  const path = pathOf(url).replace(/^\//, "");
+  const rule = parseJsonObject(ruleJson);
+  let raw = path.split("/").filter(Boolean).at(-1) || "";
+  const stripPrefix = String(rule.stripPrefix || "").replace(/^\//, "").replace(/\/$/, "");
+  if (stripPrefix && path.startsWith(stripPrefix)) {
+    raw = path.slice(stripPrefix.length).replace(/^\//, "").split("/")[0] || raw;
+  }
+  return cleanKeyword(raw);
+};
+
+export const previewGameRadarRules = (input: GameRadarRulePreviewInput): GameRadarRulePreviewRow[] => {
+  const includes = parseJsonArray(input.urlIncludePatterns);
+  const excludes = parseJsonArray(input.urlExcludePatterns);
+  return input.urls.map((url) => {
+    const path = pathOf(url);
+    const exclude = excludes.find((pattern) => path.includes(pattern));
+    if (exclude) {
+      return { url, matched: true, excluded: true, keyword: null, rejectReason: `excluded by ${exclude}` };
+    }
+    const includeMatched = !includes.length || includes.some((pattern) => path.includes(pattern));
+    if (!includeMatched) {
+      return { url, matched: false, excluded: false, keyword: null, rejectReason: "no include pattern matched" };
+    }
+    const keyword = extractKeyword(url, input.keywordExtractRule);
+    return { url, matched: true, excluded: false, keyword, rejectReason: keyword ? null : "keyword extraction failed" };
+  });
 };
 
 export const analyzeGameRadarSource = (input: GameRadarSourceAnalysisInput): GameRadarSourceAnalysis => {

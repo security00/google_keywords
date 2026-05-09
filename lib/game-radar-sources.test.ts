@@ -5,7 +5,7 @@ vi.mock("@/lib/d1", () => ({
 }));
 
 import { d1Query } from "@/lib/d1";
-import { analyzeGameRadarSource, upsertGameRadarSource, updateGameRadarSource } from "@/lib/game-radar-sources";
+import { analyzeGameRadarSource, previewGameRadarRules, upsertGameRadarSource, updateGameRadarSource } from "@/lib/game-radar-sources";
 
 describe("updateGameRadarSource", () => {
   it("updates enabled state and note", async () => {
@@ -38,6 +38,23 @@ describe("updateGameRadarSource", () => {
     expect(analysis.urlExcludePatterns).toContain("/category/");
     expect(analysis.keywordExtractRule).toBe('{"type":"slug","stripPrefix":"/en/g/"}');
     expect(analysis.statusNote).toContain("lastmod");
+  });
+
+  it("previews rule matches and keyword extraction", () => {
+    const preview = previewGameRadarRules({
+      urlIncludePatterns: '["/en/g/"]',
+      urlExcludePatterns: '["/category/"]',
+      keywordExtractRule: '{"type":"slug","stripPrefix":"/en/g/"}',
+      urls: [
+        "https://poki.com/en/g/wheel-master",
+        "https://poki.com/en/category/action",
+        "https://poki.com/privacy",
+      ],
+    });
+
+    expect(preview[0]).toMatchObject({ matched: true, excluded: false, keyword: "Wheel Master" });
+    expect(preview[1]).toMatchObject({ matched: true, excluded: true, rejectReason: "excluded by /category/" });
+    expect(preview[2]).toMatchObject({ matched: false, rejectReason: "no include pattern matched" });
   });
 
   it("upserts a curated source", async () => {
