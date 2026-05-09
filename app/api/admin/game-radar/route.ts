@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { isAuthzError, requireAdminRequest } from "@/lib/authz";
 import { d1Query } from "@/lib/d1";
+import { updateGameRadarSource } from "@/lib/game-radar-sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -80,5 +81,25 @@ export async function GET(request: Request) {
       { error: error instanceof Error ? error.message : "Query failed" },
       { status: 500 }
     );
+  }
+}
+
+export async function PATCH(request: Request) {
+  const principal = await requireAdminRequest(request);
+  if (isAuthzError(principal)) return principal;
+
+  try {
+    const body = await request.json().catch(() => ({}));
+    await updateGameRadarSource({
+      id: typeof body.id === "string" ? body.id : "",
+      enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
+      qualityTier: typeof body.qualityTier === "number" ? body.qualityTier : undefined,
+      statusNote: typeof body.statusNote === "string" || body.statusNote === null ? body.statusNote : undefined,
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Save failed";
+    const status = message.includes("required") || message.includes("Invalid") || message.includes("provided") ? 400 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

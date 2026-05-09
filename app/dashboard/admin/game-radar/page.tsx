@@ -46,6 +46,7 @@ export default function GameRadarPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [savingSource, setSavingSource] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -67,6 +68,25 @@ export default function GameRadarPage() {
   }, []);
 
   const totalCandidates = data?.statusCounts.reduce((sum, row) => sum + Number(row.count || 0), 0) ?? 0;
+
+  const updateSource = async (id: string, patch: { enabled?: boolean; statusNote?: string | null }) => {
+    setSavingSource(id);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/game-radar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "保存失败");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存失败");
+    } finally {
+      setSavingSource(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -118,8 +138,28 @@ export default function GameRadarPage() {
                 data.sources.map((row) => (
                   <tr key={row.id} className="border-t hover:bg-muted/30">
                     <Td className="font-medium">{row.name}</Td>
-                    <Td>{row.enabled ? "启用" : "停用"}</Td>
-                    <Td className="max-w-[360px] text-xs text-muted-foreground" title={row.status_note || undefined}>{row.status_note || "-"}</Td>
+                    <Td>
+                      <button
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${row.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
+                        disabled={savingSource === row.id}
+                        onClick={() => updateSource(row.id, { enabled: !row.enabled })}
+                      >
+                        {savingSource === row.id ? "保存中" : row.enabled ? "启用" : "停用"}
+                      </button>
+                    </Td>
+                    <Td className="min-w-[320px] max-w-[420px] text-xs text-muted-foreground" title={row.status_note || undefined}>
+                      <div className="flex items-center gap-2">
+                        <span className="line-clamp-2 flex-1">{row.status_note || "-"}</span>
+                        <button
+                          className="shrink-0 rounded border px-2 py-1 text-xs text-foreground hover:bg-muted"
+                          disabled={savingSource === row.id}
+                          onClick={() => {
+                            const next = window.prompt("编辑来源策略备注", row.status_note || "");
+                            if (next !== null) updateSource(row.id, { statusNote: next });
+                          }}
+                        >编辑</button>
+                      </div>
+                    </Td>
                     <Td align="right">{row.page_count}</Td>
                     <Td align="right">{row.candidate_count}</Td>
                     <Td>{date(row.last_checked_at)}</Td>
