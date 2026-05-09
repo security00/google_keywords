@@ -86,7 +86,7 @@ VALUES
     'poki',
     'Poki',
     'https://poki.com',
-    'https://poki.com/sitemap.xml',
+    'https://poki.com/en/sitemaps/games.xml',
     1,
     1,
     '["/en/g/"]',
@@ -97,7 +97,7 @@ VALUES
     'crazygames',
     'CrazyGames',
     'https://www.crazygames.com',
-    'https://www.crazygames.com/sitemap.xml',
+    'https://www.crazygames.com/sitemap',
     1,
     1,
     '["/game/"]',
@@ -111,7 +111,7 @@ VALUES
     'https://www.addictinggames.com/sitemap.xml',
     1,
     2,
-    '["/", "/game/"]',
+    '["/game/"]',
     '["/category/", "/tag/", "/about", "/privacy", "/terms", "/contact"]',
     '{"type":"slug"}'
   );
