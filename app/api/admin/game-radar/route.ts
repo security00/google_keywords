@@ -13,6 +13,7 @@ type SourceRow = {
   sitemap_url: string;
   enabled: number;
   quality_tier: number;
+  status_note: string | null;
   last_checked_at: string | null;
   page_count: number;
   candidate_count: number;
@@ -43,14 +44,14 @@ export async function GET(request: Request) {
   try {
     const [sources, candidates, statusCounts] = await Promise.all([
       d1Query<SourceRow>(
-        `SELECT s.id, s.name, s.base_url, s.sitemap_url, s.enabled, s.quality_tier, s.last_checked_at,
+        `SELECT s.id, s.name, s.base_url, s.sitemap_url, s.enabled, s.quality_tier, s.status_note, s.last_checked_at,
                 COUNT(DISTINCT p.id) AS page_count,
                 COUNT(DISTINCT c.id) AS candidate_count,
                 MAX(c.created_at) AS latest_candidate_at
          FROM game_radar_sources s
          LEFT JOIN game_radar_pages p ON p.source_id = s.id
          LEFT JOIN game_radar_candidates c ON c.source_id = s.id
-         GROUP BY s.id, s.name, s.base_url, s.sitemap_url, s.enabled, s.quality_tier, s.last_checked_at
+         GROUP BY s.id, s.name, s.base_url, s.sitemap_url, s.enabled, s.quality_tier, s.status_note, s.last_checked_at
          ORDER BY s.quality_tier ASC, s.id ASC`
       ),
       d1Query<CandidateRow>(

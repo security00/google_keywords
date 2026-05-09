@@ -10,6 +10,7 @@ type SourceRow = {
   sitemap_url: string;
   enabled: number;
   quality_tier: number;
+  status_note: string | null;
   last_checked_at: string | null;
   page_count: number;
   candidate_count: number;
@@ -103,6 +104,7 @@ export default function GameRadarPage() {
               <tr>
                 <Th>来源</Th>
                 <Th>状态</Th>
+                <Th>策略备注</Th>
                 <Th align="right">页面</Th>
                 <Th align="right">候选</Th>
                 <Th>最近检查</Th>
@@ -111,12 +113,13 @@ export default function GameRadarPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
               ) : data?.sources.length ? (
                 data.sources.map((row) => (
                   <tr key={row.id} className="border-t hover:bg-muted/30">
                     <Td className="font-medium">{row.name}</Td>
                     <Td>{row.enabled ? "启用" : "停用"}</Td>
+                    <Td className="max-w-[360px] text-xs text-muted-foreground" title={row.status_note || undefined}>{row.status_note || "-"}</Td>
                     <Td align="right">{row.page_count}</Td>
                     <Td align="right">{row.candidate_count}</Td>
                     <Td>{date(row.last_checked_at)}</Td>
@@ -124,7 +127,7 @@ export default function GameRadarPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">暂无来源</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">暂无来源</td></tr>
               )}
             </tbody>
           </table>
