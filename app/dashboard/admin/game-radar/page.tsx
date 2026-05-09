@@ -47,6 +47,7 @@ export default function GameRadarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingSource, setSavingSource] = useState<string | null>(null);
+  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
 
   const load = async () => {
     setLoading(true);
@@ -56,6 +57,9 @@ export default function GameRadarPage() {
       const payload = await res.json();
       if (!res.ok) throw new Error(payload?.error || "加载失败");
       setData(payload);
+      const notes: Record<string, string> = {};
+      for (const source of payload.sources || []) notes[source.id] = source.status_note || "";
+      setEditingNotes(notes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -88,6 +92,12 @@ export default function GameRadarPage() {
     }
   };
 
+  const saveNoteIfChanged = (row: SourceRow) => {
+    const current = row.status_note || "";
+    const next = editingNotes[row.id] ?? "";
+    if (next !== current) updateSource(row.id, { statusNote: next });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
@@ -116,7 +126,7 @@ export default function GameRadarPage() {
       <section className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
           <h2 className="font-semibold">精选来源</h2>
-          <p className="text-xs text-muted-foreground">先看各站 sitemap 是否可用，以及候选产出是否明显偏旧/偏噪。</p>
+          <p className="text-xs text-muted-foreground">可直接启用/停用来源，并在策略备注里记录为什么这么设置。备注失焦保存，Enter 保存。</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -140,25 +150,33 @@ export default function GameRadarPage() {
                     <Td className="font-medium">{row.name}</Td>
                     <Td>
                       <button
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${row.enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
+                        type="button"
+                        role="switch"
+                        aria-checked={Boolean(row.enabled)}
+                        className={`group inline-flex w-[86px] items-center rounded-full border p-1 transition-colors ${row.enabled ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-100 text-slate-600"}`}
                         disabled={savingSource === row.id}
                         onClick={() => updateSource(row.id, { enabled: !row.enabled })}
+                        title={row.enabled ? "点击停用" : "点击启用"}
                       >
-                        {savingSource === row.id ? "保存中" : row.enabled ? "启用" : "停用"}
+                        <span className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${row.enabled ? "translate-x-[56px]" : "translate-x-0"}`} />
+                        <span className={`ml-2 text-xs font-medium ${row.enabled ? "-translate-x-5" : ""}`}>{savingSource === row.id ? "保存" : row.enabled ? "启用" : "停用"}</span>
                       </button>
                     </Td>
-                    <Td className="min-w-[320px] max-w-[420px] text-xs text-muted-foreground" title={row.status_note || undefined}>
-                      <div className="flex items-center gap-2">
-                        <span className="line-clamp-2 flex-1">{row.status_note || "-"}</span>
-                        <button
-                          className="shrink-0 rounded border px-2 py-1 text-xs text-foreground hover:bg-muted"
-                          disabled={savingSource === row.id}
-                          onClick={() => {
-                            const next = window.prompt("编辑来源策略备注", row.status_note || "");
-                            if (next !== null) updateSource(row.id, { statusNote: next });
-                          }}
-                        >编辑</button>
-                      </div>
+                    <Td className="min-w-[360px] max-w-[520px] text-xs text-muted-foreground">
+                      <textarea
+                        className="min-h-[44px] w-full resize-y rounded-md border bg-background px-2 py-1 text-xs text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20"
+                        value={editingNotes[row.id] ?? row.status_note ?? ""}
+                        disabled={savingSource === row.id}
+                        placeholder="点击这里直接编辑来源策略备注"
+                        onChange={(event) => setEditingNotes((prev) => ({ ...prev, [row.id]: event.target.value }))}
+                        onBlur={() => saveNoteIfChanged(row)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      />
+                      <div className="mt-1 text-[11px] text-muted-foreground">失焦保存；Ctrl/⌘ + Enter 保存。</div>
                     </Td>
                     <Td align="right">{row.page_count}</Td>
                     <Td align="right">{row.candidate_count}</Td>
