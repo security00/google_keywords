@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
 
   // Format for student
   const result = picked.map((row) => {
+    const raw = row.trend_series as string | null;
     const item: Record<string, unknown> = {
       keyword: row.keyword,
       source: row.source_site,
@@ -66,10 +67,14 @@ export async function GET(req: NextRequest) {
       verdict: row.trend_verdict,
       recommendation: row.recommendation,
       reason: row.reason,
+      // Backward-compatible fields used by the student games page.
+      trend_ratio: Number(row.trend_ratio),
+      trend_slope: Number(row.trend_slope),
+      trend_verdict: row.trend_verdict,
+      trend_series: raw,
     };
 
     // Parse trend_series for chart
-    const raw = row.trend_series as string | null;
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
