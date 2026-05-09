@@ -52,6 +52,12 @@ class ExtractedKeyword:
     method: str
 
 
+@dataclass
+class SitemapEntry:
+    url: str
+    lastmod: str | None = None
+
+
 def _load_env() -> None:
     env_path = os.environ.get("ENV_FILE", "/root/.config/google_keywords/precompute.env")
     if not os.path.exists(env_path):
@@ -160,7 +166,20 @@ def extract_keyword_from_url(url: str, source: dict) -> ExtractedKeyword | None:
     return ExtractedKeyword(keyword=keyword, normalized=normalize_keyword(keyword), method=rule.get("type") or "slug")
 
 
-def fetch_sitemap_urls(sitemap_url: str, depth: int = 0, max_sitemaps: int = 20) -> list[str]:
+def parse_sitemap_entries(xml_text: str) -> list[SitemapEntry]:
+    root = ET.fromstring(xml_text)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    entries: list[SitemapEntry] = []
+    for node in root.findall(".//sm:url", ns):
+        loc = node.find("sm:loc", ns)
+        if loc is None or not loc.text:
+            continue
+        lastmod_node = node.find("sm:lastmod", ns)
+        entries.append(SitemapEntry(url=loc.text, lastmod=lastmod_node.text if lastmod_node is not None else None))
+    return sorted(entries, key=lambda entry: entry.lastmod or "", reverse=True)
+
+
+def fetch_sitemap_entries(sitemap_url: str, depth: int = 0, max_sitemaps: int = 20) -> list[SitemapEntry]:
     if depth > 2:
         return []
     req = urllib.request.Request(
@@ -173,15 +192,19 @@ def fetch_sitemap_urls(sitemap_url: str, depth: int = 0, max_sitemaps: int = 20)
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     sitemap_locs = [loc.text for loc in root.findall(".//sm:sitemap/sm:loc", ns) if loc.text]
     if sitemap_locs:
-        urls: list[str] = []
+        entries: list[SitemapEntry] = []
         for loc in sitemap_locs[:max_sitemaps]:
             try:
-                urls.extend(fetch_sitemap_urls(loc, depth + 1, max_sitemaps=max_sitemaps))
+                entries.extend(fetch_sitemap_entries(loc, depth + 1, max_sitemaps=max_sitemaps))
                 time.sleep(0.2)
             except Exception as exc:
                 print(f"  ⚠️ sitemap child failed {loc}: {exc}", flush=True)
-        return urls
-    return [loc.text for loc in root.findall(".//sm:url/sm:loc", ns) if loc.text]
+        return sorted(entries, key=lambda entry: entry.lastmod or "", reverse=True)
+    return parse_sitemap_entries(text)
+
+
+def fetch_sitemap_urls(sitemap_url: str, depth: int = 0, max_sitemaps: int = 20) -> list[str]:
+    return [entry.url for entry in fetch_sitemap_entries(sitemap_url, depth=depth, max_sitemaps=max_sitemaps)]
 
 
 class D1Client:

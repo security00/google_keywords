@@ -52,6 +52,27 @@ class GamePageRadarTest(unittest.TestCase):
         self.assertIsNone(radar.extract_keyword_from_url("https://example.com/games", source))
         self.assertIsNone(radar.extract_keyword_from_url("https://example.com/12345", source))
 
+    def test_parse_sitemap_urls_sorts_newest_lastmod_first(self):
+        radar = load_radar()
+        xml = """
+        <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">
+          <url><loc>https://example.com/game/old-game</loc><lastmod>2026-04-01</lastmod></url>
+          <url><loc>https://example.com/game/new-game</loc><lastmod>2026-05-08</lastmod></url>
+          <url><loc>https://example.com/game/no-date-game</loc></url>
+        </urlset>
+        """
+
+        entries = radar.parse_sitemap_entries(xml)
+
+        self.assertEqual(
+            [entry.url for entry in entries],
+            [
+                "https://example.com/game/new-game",
+                "https://example.com/game/old-game",
+                "https://example.com/game/no-date-game",
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
