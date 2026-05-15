@@ -1,5 +1,7 @@
 import "server-only";
 
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 type D1ApiError = {
   code?: number;
   message: string;
@@ -28,6 +30,21 @@ type D1ApiResponse<T> = {
   result?: D1ApiResult<T>[];
 };
 
+type BoundD1Result<T> = {
+  results?: T[];
+  meta?: D1ApiMeta;
+  success?: boolean;
+};
+
+type BoundD1PreparedStatement = {
+  bind: (...values: unknown[]) => BoundD1PreparedStatement;
+  all: <T = Record<string, unknown>>() => Promise<BoundD1Result<T>>;
+};
+
+type BoundD1Database = {
+  prepare: (sql: string) => BoundD1PreparedStatement;
+};
+
 const getD1Config = () => {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const databaseId = process.env.D1_DATABASE_ID;
@@ -48,9 +65,33 @@ const buildD1Url = () => {
 const normalizeParams = (params: unknown[]) =>
   params.map((value) => (value === undefined ? null : value));
 
-export const d1Query = async <T = Record<string, unknown>>(
+const getBoundD1 = (): BoundD1Database | null => {
+  try {
+    const { env } = getCloudflareContext();
+    const db = (env as { DB?: BoundD1Database }).DB;
+    return typeof db?.prepare === "function" ? db : null;
+  } catch {
+    return null;
+  }
+};
+
+const d1QueryViaBinding = async <T = Record<string, unknown>>(
+  db: BoundD1Database,
   sql: string,
-  params: unknown[] = []
+  params: unknown[]
+): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
+  const statement = db.prepare(sql).bind(...normalizeParams(params));
+  const result = await statement.all<T>();
+  if (result.success === false) {
+    throw new Error("D1 query failed");
+  }
+
+  return { rows: result.results ?? [], meta: result.meta };
+};
+
+const d1QueryViaApi = async <T = Record<string, unknown>>(
+  sql: string,
+  params: unknown[]
 ): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
   const { token } = getD1Config();
   const response = await fetch(buildD1Url(), {
@@ -79,6 +120,18 @@ export const d1Query = async <T = Record<string, unknown>>(
   }
 
   return { rows: result.results ?? [], meta: result.meta };
+};
+
+export const d1Query = async <T = Record<string, unknown>>(
+  sql: string,
+  params: unknown[] = []
+): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
+  const boundD1 = getBoundD1();
+  if (boundD1) {
+    return d1QueryViaBinding<T>(boundD1, sql, params);
+  }
+
+  return d1QueryViaApi<T>(sql, params);
 };
 
 export const d1InsertMany = async (
