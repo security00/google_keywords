@@ -65,9 +65,9 @@ const buildD1Url = () => {
 const normalizeParams = (params: unknown[]) =>
   params.map((value) => (value === undefined ? null : value));
 
-const getBoundD1 = (): BoundD1Database | null => {
+const getBoundD1 = async (): Promise<BoundD1Database | null> => {
   try {
-    const { env } = getCloudflareContext();
+    const { env } = await getCloudflareContext({ async: true });
     const db = (env as { DB?: BoundD1Database }).DB;
     return typeof db?.prepare === "function" ? db : null;
   } catch {
@@ -126,7 +126,7 @@ export const d1Query = async <T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = []
 ): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
-  const boundD1 = getBoundD1();
+  const boundD1 = await getBoundD1();
   if (boundD1) {
     return d1QueryViaBinding<T>(boundD1, sql, params);
   }
