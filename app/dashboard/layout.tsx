@@ -3,11 +3,25 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb, FileText, Gauge, SlidersHorizontal, Radar } from "lucide-react";
+import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb, FileText, Gauge, SlidersHorizontal, Radar, ChevronDown, type LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResearchProvider, useResearch } from "@/lib/context/research-context";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon?: LucideIcon;
+  active: boolean;
+};
+
+type NavGroup = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
+};
 
 function Navigation({
   isSidebarCollapsed,
@@ -19,6 +33,7 @@ function Navigation({
   const pathname = usePathname();
   const router = useRouter();
   const { user, handleSignOut } = useResearch();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const ensureSessionBeforeNavigate = async (event: React.MouseEvent<HTMLAnchorElement>) => {
     try {
@@ -37,7 +52,7 @@ function Navigation({
   };
 
   // 学员菜单
-  const studentSteps = [
+  const studentSteps: NavItem[] = [
     { href: "/dashboard/expand", label: "1. 词根扩展", active: pathname.includes("/expand") && !pathname.includes("/expand/") },
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
@@ -47,7 +62,7 @@ function Navigation({
   ];
 
   // 管理员菜单
-  const adminSteps = [
+  const adminSteps: NavItem[] = [
     { href: "/dashboard/admin/health", label: "系统健康", icon: Activity, active: pathname.includes("/admin/health") },
     { href: "/dashboard/admin/pipeline-runs", label: "成本统计", icon: ListChecks, active: pathname.includes("/admin/pipeline-runs") },
     { href: "/dashboard/admin/codes", label: "邀请码管理", icon: Key, active: pathname.includes("/admin/codes") },
@@ -71,6 +86,95 @@ function Navigation({
     return true;
   });
 
+  const researchGroups: NavGroup[] = [
+    {
+      id: "research-workflow",
+      label: "研究流程",
+      icon: Search,
+      items: visibleStudentSteps.filter((step) =>
+        ["/dashboard/expand", "/dashboard/candidates", "/dashboard/analysis"].includes(step.href)
+      ),
+    },
+    {
+      id: "research-tools",
+      label: "推荐工具",
+      icon: Gamepad2,
+      items: visibleStudentSteps.filter((step) =>
+        ["/dashboard/games", "/dashboard/old-keywords"].includes(step.href)
+      ),
+    },
+    {
+      id: "research-settings",
+      label: "账户设置",
+      icon: Settings,
+      items: visibleStudentSteps.filter((step) => step.href === "/dashboard/settings"),
+    },
+  ].filter((group) => group.items.length > 0);
+
+  const adminGroups: NavGroup[] = [
+    {
+      id: "admin-ops",
+      label: "系统运营",
+      icon: Activity,
+      items: adminSteps.filter((step) =>
+        ["/dashboard/admin/health", "/dashboard/admin/pipeline-runs"].includes(step.href)
+      ),
+    },
+    {
+      id: "admin-access",
+      label: "账号权限",
+      icon: Users,
+      items: adminSteps.filter((step) =>
+        ["/dashboard/admin/codes", "/dashboard/admin/users", "/dashboard/admin/admins"].includes(step.href)
+      ),
+    },
+    {
+      id: "admin-games",
+      label: "新游体系",
+      icon: Gamepad2,
+      items: adminSteps.filter((step) =>
+        [
+          "/dashboard/admin/games",
+          "/dashboard/admin/game-radar",
+          "/dashboard/admin/game-opportunities",
+          "/dashboard/admin/game-opportunity-report",
+        ].includes(step.href)
+      ),
+    },
+    {
+      id: "admin-sources",
+      label: "信号源治理",
+      icon: Signal,
+      items: adminSteps.filter((step) =>
+        [
+          "/dashboard/admin/source-quality",
+          "/dashboard/admin/source-score",
+          "/dashboard/admin/source-weight-suggestions",
+        ].includes(step.href)
+      ),
+    },
+    {
+      id: "admin-keywords",
+      label: "关键词治理",
+      icon: BrainCircuit,
+      items: adminSteps.filter((step) =>
+        ["/dashboard/admin/semantic-dedupe", "/dashboard/admin/old-keywords"].includes(step.href)
+      ),
+    },
+  ];
+
+  const isGroupOpen = (group: NavGroup) => {
+    if (isSidebarCollapsed) return false;
+    return openGroups[group.id] ?? group.items.some((item) => item.active);
+  };
+
+  const toggleGroup = (group: NavGroup) => {
+    setOpenGroups((current) => ({
+      ...current,
+      [group.id]: !(current[group.id] ?? group.items.some((item) => item.active)),
+    }));
+  };
+
   const renderTopNavLink = (step: (typeof studentSteps)[number]) => (
     <Link
       key={step.href}
@@ -86,7 +190,7 @@ function Navigation({
     </Link>
   );
 
-  const renderSidebarLink = (step: (typeof studentSteps)[number] | (typeof adminSteps)[number]) => (
+  const renderSidebarLink = (step: NavItem, nested = false) => (
     <Link
       key={step.href}
       href={step.href}
@@ -94,6 +198,7 @@ function Navigation({
       className={cn(
         "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
         isSidebarCollapsed && "justify-center px-2",
+        nested && !isSidebarCollapsed && "ml-3 rounded-lg py-2 pl-8 text-[13px]",
         step.active ? "bg-primary/10 text-primary shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
     >
@@ -101,6 +206,39 @@ function Navigation({
       <span className={cn(isSidebarCollapsed && "sr-only")}>{step.label}</span>
     </Link>
   );
+
+  const renderSidebarGroup = (group: NavGroup) => {
+    const active = group.items.some((item) => item.active);
+    const open = isGroupOpen(group);
+    const GroupIcon = group.icon;
+
+    if (isSidebarCollapsed) {
+      return (
+        <div key={group.id} className="space-y-1">
+          {group.items.map((item) => renderSidebarLink(item))}
+        </div>
+      );
+    }
+
+    return (
+      <div key={group.id} className="space-y-1">
+        <button
+          type="button"
+          className={cn(
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors",
+            active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+          aria-expanded={open}
+          onClick={() => toggleGroup(group)}
+        >
+          <GroupIcon className="h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">{group.label}</span>
+          <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
+        </button>
+        {open && <div className="space-y-1">{group.items.map((item) => renderSidebarLink(item, true))}</div>}
+      </div>
+    );
+  };
 
   if (isAdmin) {
     return (
@@ -135,12 +273,12 @@ function Navigation({
           <nav className="space-y-5">
             <div>
               <p className={cn("mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80", isSidebarCollapsed && "sr-only")}>研究功能</p>
-              <div className="space-y-1">{visibleStudentSteps.map(renderSidebarLink)}</div>
+              <div className="space-y-2">{researchGroups.map(renderSidebarGroup)}</div>
             </div>
 
             <div>
               <p className={cn("mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80", isSidebarCollapsed && "sr-only")}>管理后台</p>
-              <div className="space-y-1">{adminSteps.map(renderSidebarLink)}</div>
+              <div className="space-y-2">{adminGroups.map(renderSidebarGroup)}</div>
             </div>
           </nav>
         </aside>
