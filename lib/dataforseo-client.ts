@@ -36,6 +36,8 @@ export const TASKS_READY_URL =
   "https://api.dataforseo.com/v3/keywords_data/google_trends/explore/tasks_ready";
 export const TASK_GET_URL =
   "https://api.dataforseo.com/v3/keywords_data/google_trends/explore/task_get";
+export const SERP_LIVE_ADVANCED_URL =
+  "https://api.dataforseo.com/v3/serp/google/organic/live/advanced";
 export const SERP_TASK_POST_URL =
   "https://api.dataforseo.com/v3/serp/google/organic/task_post";
 export const SERP_TASKS_READY_URL =

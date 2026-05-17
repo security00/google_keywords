@@ -5,6 +5,7 @@ import { checkStudentAccess } from "@/lib/usage";
 import {
   submitSerpTasksWithCost,
   waitForSerpTasks,
+  getLiveSerpResultsWithCost,
   getSerpResults,
 } from "@/lib/keyword-research";
 import { buildCacheKey, getCached, setCache } from "@/lib/cache";
@@ -56,18 +57,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Submit SERP tasks (admin/cron only)
-    const taskSubmission = await submitSerpTasksWithCost(keywords);
-    const taskIds = taskSubmission.taskIds;
-
-    // Wait for results. Cron callers pass a shorter maxWaitMs to keep the
-    // scanner inside its own timeout budget; UI callers keep the shared default.
-    const maxWaitMs = typeof body?.maxWaitMs === "number" ? body.maxWaitMs : undefined;
-    const completed = await waitForSerpTasks(taskIds, { maxWaitMs });
-
-    // DataForSEO tasks_ready can lag behind task_get availability, so fall back
-    // to direct task_get for submitted ids before declaring a timeout.
-    const summaries = await getSerpResults(completed.length > 0 ? completed : taskIds);
+    const useLiveSerp = body?.mode === "live" || principal.authMethod === "cron";
+    const serpResponse = useLiveSerp
+      ? await (async () => {
+          const live = await getLiveSerpResultsWithCost(keywords);
+          return { summaries: live.summaries, cost: live.cost };
+        })()
+      : await (async () => {
+          const submission = await submitSerpTasksWithCost(keywords);
+          const maxWaitMs = typeof body?.maxWaitMs === "number" ? body.maxWaitMs : undefined;
+          const completed = await waitForSerpTasks(submission.taskIds, { maxWaitMs });
+          return {
+            summaries: await getSerpResults(completed.length > 0 ? completed : submission.taskIds),
+            cost: submission.cost,
+          };
+        })();
+    const { summaries } = serpResponse;
 
     if (summaries.size === 0) {
       return NextResponse.json({ error: "SERP tasks timed out" }, { status: 504 });
@@ -102,7 +107,7 @@ export async function POST(request: Request) {
     // 缓存结果
     await setCache(cacheKey, results);
 
-    return NextResponse.json({ results, cost: taskSubmission.cost, total: taskIds.length });
+    return NextResponse.json({ results, cost: serpResponse.cost, total: keywords.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: 500 });

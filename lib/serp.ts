@@ -1,4 +1,5 @@
 import {
+  SERP_LIVE_ADVANCED_URL,
   SERP_TASK_POST_URL,
   SERP_TASKS_READY_URL,
   SERP_TASK_GET_ADV_URL,
@@ -209,6 +210,37 @@ export const summarizeSerpResult = (taskResult: Record<string, unknown>): SerpSu
     itemTypeCounts,
     topResults,
   };
+};
+
+export const getLiveSerpResultsWithCost = async (keywords: string[]) => {
+  const summaries = new Map<string, SerpSummary>();
+  const costs = [];
+
+  for (const batch of createBatches(keywords, SERP_TASK_BATCH_SIZE)) {
+    const payload = batch.map((keyword) => buildSerpTask(keyword));
+    const result = await requestWithRetry("post", SERP_LIVE_ADVANCED_URL, {
+      headers: buildAuthHeaders(),
+      body: JSON.stringify(payload),
+    }, 2, 120_000);
+
+    if (result?.status_code !== 20000) {
+      throw new Error(result?.status_message || "Failed to fetch live SERP results");
+    }
+
+    costs.push(extractDataForSeoCost(result));
+
+    for (const task of result?.tasks ?? []) {
+      if (task?.status_code !== 20000) continue;
+      const taskResult = task?.result?.[0];
+      if (!taskResult) continue;
+      const summary = summarizeSerpResult(taskResult);
+      if (summary.keyword) {
+        summaries.set(summary.keyword.toLowerCase(), summary);
+      }
+    }
+  }
+
+  return { summaries, cost: mergeCostSummaries(costs) };
 };
 
 export const getSerpResults = async (taskIds: string[]) => {
