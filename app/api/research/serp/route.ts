@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { authenticate } from "@/lib/auth_middleware";
+import { getPrincipal, isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 import { checkStudentAccess } from "@/lib/usage";
-import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 import {
   submitSerpTasksWithCost,
   waitForSerpTasks,
@@ -18,17 +17,18 @@ export const dynamic = "force-dynamic";
 // Returns: { results: Record<string, SerpResult> }
 export async function POST(request: Request) {
   try {
-    const auth = await authenticate(request as any);
-    if (!auth.authenticated) {
-      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    const principal = await getPrincipal(request);
+    if (principal.authMethod === "anonymous") {
+      return NextResponse.json({ error: principal.error || "Unauthorized" }, { status: 401 });
     }
-
-    const access = await checkStudentAccess(auth.userId!);
-    if (!access.allowed) {
-      return NextResponse.json(
-        { error: access.reason, code: access.code },
-        { status: access.code === "trial_expired" ? 403 : 429 }
-      );
+    if (principal.userId) {
+      const access = await checkStudentAccess(principal.userId);
+      if (!access.allowed) {
+        return NextResponse.json(
+          { error: access.reason, code: access.code },
+          { status: access.code === "trial_expired" ? 403 : 429 }
+        );
+      }
     }
 
     const body = await request.json().catch(() => ({}));
@@ -60,8 +60,10 @@ export async function POST(request: Request) {
     const taskSubmission = await submitSerpTasksWithCost(keywords);
     const taskIds = taskSubmission.taskIds;
 
-    // Wait for results
-    const completed = await waitForSerpTasks(taskIds);
+    // Wait for results. Cron callers pass a shorter maxWaitMs to keep the
+    // scanner inside its own timeout budget; UI callers keep the shared default.
+    const maxWaitMs = typeof body?.maxWaitMs === "number" ? body.maxWaitMs : undefined;
+    const completed = await waitForSerpTasks(taskIds, { maxWaitMs });
 
     if (completed.length === 0) {
       return NextResponse.json({ error: "SERP tasks timed out" }, { status: 504 });

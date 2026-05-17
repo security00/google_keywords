@@ -737,11 +737,12 @@ def call_serp_api(keywords, task_id=None):
     """Call /api/research/serp with keywords, return results."""
     import subprocess
     url = f"{API_URL}/api/research/serp"
-    payload = json.dumps({"keywords": keywords})
+    payload = json.dumps({"keywords": keywords, "maxWaitMs": 90_000})
     cmd = [
         "curl", "-sL", "--max-time", "120", url,
         "-H", "Content-Type: application/json",
         "-H", f"Authorization: Bearer {API_KEY}",
+        "-H", f"X-Cron-Secret: {os.environ.get('GK_CRON_SECRET', '')}",
         "-d", payload,
     ]
     try:
@@ -750,6 +751,12 @@ def call_serp_api(keywords, task_id=None):
             print(f"    ⚠️ SERP curl exit {result.returncode}: {result.stderr[:200]}", file=sys.stderr)
             return None
         response = json.loads(result.stdout)
+        if response.get("error"):
+            print(f"    ⚠️ SERP API error: {response.get('error')}", file=sys.stderr)
+            return None
+        if not response.get("results"):
+            print(f"    ⚠️ SERP API returned no results: {result.stdout[:200]}", file=sys.stderr)
+            return None
         if not response.get("fromCache"):
             cost = response.get("cost") if isinstance(response.get("cost"), dict) else {}
             record_cost_event(

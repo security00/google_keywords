@@ -111,12 +111,18 @@ export const submitSerpTasks = async (
   return submission.taskIds;
 };
 
-export const waitForSerpTasks = async (taskIds: string[]) => {
+export const waitForSerpTasks = async (
+  taskIds: string[],
+  options: { maxWaitMs?: number } = {}
+) => {
   const pending = new Set(taskIds);
   const completed: string[] = [];
   const startedAt = Date.now();
+  const maxWaitMs = Number.isFinite(options.maxWaitMs) && Number(options.maxWaitMs) > 0
+    ? Math.min(Math.max(Number(options.maxWaitMs), 10_000), MAX_WAIT_MS)
+    : MAX_WAIT_MS;
 
-  while (pending.size > 0 && Date.now() - startedAt < MAX_WAIT_MS) {
+  while (pending.size > 0 && Date.now() - startedAt < maxWaitMs) {
     const result = await requestWithRetry("get", SERP_TASKS_READY_URL, {
       headers: buildAuthHeaders(),
     });
