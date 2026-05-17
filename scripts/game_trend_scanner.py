@@ -776,7 +776,7 @@ def call_serp_api(keywords, task_id=None):
 
 
 def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_featured=False,
-                        serp_game_relevance=1, hist_vs_bench=None, surge=None, hist_avg=None, series_14d=None):
+                        serp_game_relevance=0, hist_vs_bench=None, surge=None, hist_avg=None, series_14d=None):
     """Classify a game keyword into a recommendation category.
     
     Uses 14-day trend data + 90-day historical baseline check.
@@ -1381,6 +1381,14 @@ def main():
                     error="SERP API call failed",
                     metadata={"keywords": batch},
                 )
+                for keyword in batch:
+                    r = serp_candidate_by_keyword.get(keyword.lower())
+                    if r:
+                        r["serp_organic"] = 0
+                        r["serp_auth"] = 0
+                        r["serp_featured"] = False
+                        r["serp_game_relevance"] = 0
+                        r["serp_error"] = True
                 print("  ❌ SERP API failed", flush=True)
                 continue
             
@@ -1435,7 +1443,7 @@ def main():
         featured = r.get("serp_featured", False)
         
         rec, reason = classify_keyword(ratio, slope, verdict, organic, auth, featured,
-                                       serp_game_relevance=r.get("serp_game_relevance", 1),
+                                       serp_game_relevance=r.get("serp_game_relevance", 0),
                                        hist_vs_bench=r.get("hist_vs_bench"),
                                        surge=r.get("surge"),
                                        hist_avg=r.get("hist_avg"),

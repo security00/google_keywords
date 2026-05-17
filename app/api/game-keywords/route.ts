@@ -29,13 +29,18 @@ export async function GET(req: NextRequest) {
 
   const userId = auth.userId!;
 
-  // Fetch all recommended game keywords (not skip)
+  // Fetch only fully verified game keywords. Intermediate rows may carry a
+  // non-skip recommendation before SERP finishes; those must not reach students.
   const { rows } = await d1Query<Record<string, unknown>>(
     `SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict,
             serp_organic, serp_auth, serp_featured, recommendation, reason,
             trend_series
      FROM game_keyword_pipeline
-     WHERE recommendation != '⏭️ skip' AND recommendation IS NOT NULL
+     WHERE status = 'recommended'
+       AND recommendation != '⏭️ skip'
+       AND recommendation IS NOT NULL
+       AND serp_organic > 0
+       AND (reason IS NULL OR reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%')
      ORDER BY trend_ratio DESC
      LIMIT 200`
   );

@@ -193,6 +193,22 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
         self.assertEqual(rec, "⏭️ skip")
         self.assertIn("SERP首页缺少游戏相关结果", reason)
 
+    def test_classify_defaults_to_skip_without_serp_relevance(self):
+        scanner = load_scanner()
+
+        rec, reason = scanner.classify_keyword(
+            ratio=43.36,
+            slope=99,
+            verdict="watch",
+            serp_auth=0,
+            hist_vs_bench=24.5,
+            surge=0.83,
+            hist_avg=80.6,
+        )
+
+        self.assertEqual(rec, "⏭️ skip")
+        self.assertIn("SERP首页缺少游戏相关结果", reason)
+
 
 if __name__ == "__main__":
     unittest.main()
