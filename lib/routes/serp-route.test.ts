@@ -83,4 +83,19 @@ describe("POST /api/research/serp", () => {
     expect(mockWaitForSerpTasks).toHaveBeenCalledWith(["task-1"], { maxWaitMs: 90_000 });
     expect(mockSetCache).toHaveBeenCalledTimes(1);
   });
+  it("falls back to direct task_get when tasks_ready returns no completed ids", async () => {
+    mockWaitForSerpTasks.mockResolvedValue([]);
+
+    const response = await POST(
+      new Request("https://example.com/api/research/serp", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-cron-secret": "secret" },
+        body: JSON.stringify({ keywords: ["Planet Clicker"], maxWaitMs: 10_000 }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockGetSerpResults).toHaveBeenCalledWith(["task-1"]);
+  });
+
 });

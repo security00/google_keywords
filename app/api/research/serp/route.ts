@@ -65,12 +65,13 @@ export async function POST(request: Request) {
     const maxWaitMs = typeof body?.maxWaitMs === "number" ? body.maxWaitMs : undefined;
     const completed = await waitForSerpTasks(taskIds, { maxWaitMs });
 
-    if (completed.length === 0) {
+    // DataForSEO tasks_ready can lag behind task_get availability, so fall back
+    // to direct task_get for submitted ids before declaring a timeout.
+    const summaries = await getSerpResults(completed.length > 0 ? completed : taskIds);
+
+    if (summaries.size === 0) {
       return NextResponse.json({ error: "SERP tasks timed out" }, { status: 504 });
     }
-
-    // Get results
-    const summaries = await getSerpResults(completed);
 
     // Convert to serializable format
     const results: Record<string, Record<string, unknown>> = {};
