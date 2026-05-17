@@ -104,7 +104,7 @@ export default function AdminPipelineRunsPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">管线运行记录</h1>
+          <h1 className="text-2xl font-bold tracking-tight">成本统计</h1>
           <p className="mt-1 text-sm text-muted-foreground">
 查看预计算、老词、新游等后台管线的 run_id、状态、耗时和成本。成本优先展示真实支出；没有真实值时才展示估算。
           </p>

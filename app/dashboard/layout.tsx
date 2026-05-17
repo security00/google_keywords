@@ -49,6 +49,7 @@ function Navigation({
   // 管理员菜单
   const adminSteps = [
     { href: "/dashboard/admin/health", label: "系统健康", icon: Activity, active: pathname.includes("/admin/health") },
+    { href: "/dashboard/admin/pipeline-runs", label: "成本统计", icon: ListChecks, active: pathname.includes("/admin/pipeline-runs") },
     { href: "/dashboard/admin/codes", label: "邀请码管理", icon: Key, active: pathname.includes("/admin/codes") },
     { href: "/dashboard/admin/users", label: "用户管理", icon: Users, active: pathname.includes("/admin/users") },
     { href: "/dashboard/admin/admins", label: "管理员管理", icon: Shield, active: pathname.includes("/admin/admins") },
@@ -61,7 +62,6 @@ function Navigation({
     { href: "/dashboard/admin/source-weight-suggestions", label: "调权建议", icon: SlidersHorizontal, active: pathname.includes("/admin/source-weight-suggestions") },
     { href: "/dashboard/admin/semantic-dedupe", label: "语义去重", icon: BrainCircuit, active: pathname.includes("/admin/semantic-dedupe") },
     { href: "/dashboard/admin/old-keywords", label: "老词挖掘", icon: Search, active: pathname.includes("/admin/old-keywords") },
-    { href: "/dashboard/admin/pipeline-runs", label: "管线运行", icon: ListChecks, active: pathname.includes("/admin/pipeline-runs") },
   ];
 
   const isAdmin = (user as { role?: string } | null)?.role === "admin";
@@ -107,7 +107,7 @@ function Navigation({
       <>
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 hidden border-r border-border/80 bg-background/95 px-3 py-4 shadow-sm shadow-black/5 backdrop-blur-xl transition-[width] duration-200 lg:block dark:shadow-black/25",
+            "fixed inset-y-0 left-0 z-50 hidden overflow-y-auto border-r border-border/80 bg-background/95 px-3 py-4 shadow-sm shadow-black/5 backdrop-blur-xl transition-[width] duration-200 lg:block dark:shadow-black/25",
             isSidebarCollapsed ? "w-20" : "w-60"
           )}
         >
