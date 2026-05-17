@@ -85,7 +85,7 @@ export default function GameKeywordsPage() {
           <div>
             <h1 className="text-2xl font-bold">新游发现</h1>
             <p className="text-sm text-muted-foreground">
-              定期从多来源新游候选中筛选关键词，结合趋势、历史基线与 SERP 竞争评估机会
+              定期从多来源新游候选中筛选关键词；“全部扫描候选”包含已跳过/未验证项，只有“仅推荐”会发给学生
             </p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function GameKeywordsPage() {
             className="rounded-md border px-3 py-1.5 text-sm"
           >
             <option value="recommended">仅推荐</option>
-            <option value="all">全部</option>
+            <option value="all">全部扫描候选（含跳过）</option>
           </select>
           <button onClick={load} className="rounded-md border p-2 hover:bg-muted">
             <RefreshCw className="h-4 w-4" />
@@ -110,13 +110,13 @@ export default function GameKeywordsPage() {
           <span className="flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500" /> <strong>🔥 Hot</strong> — ratio ≥ 2.0，流量远超基准</span>
           <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" /> <strong>📈 Rising</strong> — ratio ≥ 0.5 且 slope{'>'} 0，有权威站竞争</span>
           <span className="flex items-center gap-1.5"><Target className="h-4 w-4 text-green-500" /> <strong>🎯 Niche</strong> — 低竞争机会（无/少权威站）</span>
-          <span className="flex items-center gap-1.5"><SkipForward className="h-4 w-4 text-gray-400" /> <strong>⏭️ Skip</strong> — 趋势太低或下滑，不推荐</span>
+          <span className="flex items-center gap-1.5"><SkipForward className="h-4 w-4 text-gray-400" /> <strong>⏭️ Skip</strong> — 未通过趋势 / SERP 游戏相关性验证，不会发给学生</span>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="总扫描" value={total} />
+        <StatCard label={filter === "all" ? "扫描候选" : "已验证推荐"} value={total} />
         <StatCard label="🔥 Hot" value={items.filter((i) => i.recommendation === "🔥 hot").length} color="text-red-500" />
         <StatCard label="📈 Rising" value={items.filter((i) => i.recommendation === "📈 rising").length} color="text-orange-500" />
         <StatCard label="🎯 Niche" value={items.filter((i) => i.recommendation === "🎯 niche").length} color="text-green-500" />
@@ -157,7 +157,7 @@ export default function GameKeywordsPage() {
                 <>
                   <tr>
                     <td colSpan={9} className="border-t bg-muted/20 px-4 py-2 text-xs font-medium text-muted-foreground">
-                      ⏭️ 跳过 ({skipped.length})
+                      ⏭️ 跳过 / 未验证（不会发给学生）({skipped.length})
                     </td>
                   </tr>
                   {skipped.map((item) => (
