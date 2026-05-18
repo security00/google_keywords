@@ -90,6 +90,14 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
 
         self.assertEqual(selected, [{"name": "Fresh Steam", "source": "steam"}])
 
+    def test_game_name_filter_rejects_generic_non_game_phrases(self):
+        scanner = load_scanner()
+
+        self.assertFalse(scanner.is_game_name_valid("Machine Learning"))
+        self.assertFalse(scanner.is_game_name_valid("Data Science"))
+        self.assertTrue(scanner.is_game_name_valid("It Reaches"))
+        self.assertTrue(scanner.is_game_name_valid("Metro 2033"))
+
     def test_classify_established_but_rising_low_competition_as_niche_opportunity(self):
         scanner = load_scanner()
 

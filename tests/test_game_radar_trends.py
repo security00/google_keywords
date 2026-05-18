@@ -40,6 +40,31 @@ class GameRadarTrendsTest(unittest.TestCase):
         self.assertEqual(decision.status, "trend_pass")
         self.assertAlmostEqual(decision.ratio, 0.35)
 
+    def test_prefilter_marks_obvious_non_game_before_api_calls(self):
+        trends = load_trends()
+
+        class FakeD1:
+            def __init__(self):
+                self.calls = []
+
+            def query(self, sql, params):
+                self.calls.append((sql, params))
+                return []
+
+        d1 = FakeD1()
+        valid = trends.prefilter_candidates(
+            d1,
+            [
+                trends.RadarCandidate("bad", "Machine Learning", "itchio-new", "new"),
+                trends.RadarCandidate("good", "It Reaches", "steam-new", "new"),
+            ],
+            dry_run=False,
+        )
+
+        self.assertEqual([item.keyword for item in valid], ["It Reaches"])
+        self.assertEqual(len(d1.calls), 1)
+        self.assertIn("not_game_name_precheck", d1.calls[0][1])
+
 
 if __name__ == "__main__":
     unittest.main()

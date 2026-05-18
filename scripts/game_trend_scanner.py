@@ -1051,6 +1051,27 @@ SEO_JUNK_PATTERNS = re.compile(
     r")"
 )
 
+
+GENERIC_NON_GAME_PHRASES = {
+    "artificial intelligence",
+    "business analytics",
+    "content marketing",
+    "data analysis",
+    "data science",
+    "deep learning",
+    "digital marketing",
+    "graphic design",
+    "machine learning",
+    "mobile development",
+    "photo editing",
+    "project management",
+    "search engine optimization",
+    "software engineering",
+    "video editing",
+    "web development",
+}
+
+
 def is_game_name_valid(name):
     """Filter out obviously bad game names and SEO junk."""
     name_lower = name.lower().strip()
@@ -1059,6 +1080,8 @@ def is_game_name_valid(name):
     if re.match(r"^[0-9\s]+$", name_lower):
         return False
     if name_lower in GENERIC_KEYWORDS or name_lower in TOO_GENERIC_GAME_NAMES:
+        return False
+    if name_lower in GENERIC_NON_GAME_PHRASES:
         return False
     words = [w for w in re.split(r"[^a-z0-9]+", name_lower) if w]
     # Multi-word generic combos (category pages, not game names)

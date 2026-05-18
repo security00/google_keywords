@@ -21,8 +21,10 @@ from datetime import datetime, timezone
 
 try:
     from scripts.game_suggest_radar import D1Client
+    from scripts.game_trend_scanner import is_game_name_valid
 except ModuleNotFoundError:
     from game_suggest_radar import D1Client
+    from game_trend_scanner import is_game_name_valid
 
 
 DEFAULT_API_URL = "https://discoverkeywords.co"
@@ -206,6 +208,27 @@ def update_candidate(d1: D1Client, candidate_id: str, decision: TrendDecision, s
     )
 
 
+def prefilter_candidates(d1: D1Client, candidates: list[RadarCandidate], *, dry_run: bool) -> list[RadarCandidate]:
+    valid: list[RadarCandidate] = []
+    for candidate in candidates:
+        if is_game_name_valid(candidate.keyword):
+            valid.append(candidate)
+            continue
+
+        decision = TrendDecision(
+            status="trend_fail",
+            ratio=0.0,
+            slope=0.0,
+            verdict="precheck",
+            reason="not_game_name_precheck",
+            reject_reason="not_game_name_precheck",
+        )
+        print(f"  {candidate.keyword}: trend_fail precheck=not_game_name", flush=True)
+        if not dry_run:
+            update_candidate(d1, candidate.id, decision, None)
+    return valid
+
+
 def validate_candidates(
     d1: D1Client,
     candidates: list[RadarCandidate],
@@ -276,6 +299,9 @@ def main() -> None:
     )
     for candidate in candidates[:20]:
         print(f"- {candidate.keyword} [{candidate.source_id}] {candidate.status}", flush=True)
+    if not candidates:
+        return
+    candidates = prefilter_candidates(d1, candidates, dry_run=not args.write)
     if not candidates:
         return
 

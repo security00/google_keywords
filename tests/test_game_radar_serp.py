@@ -57,6 +57,31 @@ class GameRadarSerpTest(unittest.TestCase):
 
         self.assertIsNotNone(matched)
 
+    def test_prefilter_marks_obvious_non_game_before_api_calls(self):
+        serp = load_serp()
+
+        class FakeD1:
+            def __init__(self):
+                self.calls = []
+
+            def query(self, sql, params):
+                self.calls.append((sql, params))
+                return []
+
+        d1 = FakeD1()
+        valid = serp.prefilter_candidates(
+            d1,
+            [
+                serp.RadarCandidate("bad", "Machine Learning", "itchio-new", "trend_pass"),
+                serp.RadarCandidate("good", "It Reaches", "steam-new", "trend_pass"),
+            ],
+            dry_run=False,
+        )
+
+        self.assertEqual([item.keyword for item in valid], ["It Reaches"])
+        self.assertEqual(len(d1.calls), 1)
+        self.assertIn("not_game_name_precheck", d1.calls[0][1])
+
 
 if __name__ == "__main__":
     unittest.main()
