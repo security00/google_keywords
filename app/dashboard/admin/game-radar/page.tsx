@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Radar, RefreshCw } from "lucide-react";
 
 type SourceRow = {
@@ -48,6 +48,7 @@ export default function GameRadarPage() {
   const [error, setError] = useState<string | null>(null);
   const [savingSource, setSavingSource] = useState<string | null>(null);
   const [analyzingSource, setAnalyzingSource] = useState(false);
+  const [candidateSourceFilter, setCandidateSourceFilter] = useState("all");
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
   const [rulePreview, setRulePreview] = useState<Array<{ url: string; matched: boolean; excluded: boolean; keyword: string | null; rejectReason: string | null }>>([]);
   const [sourceForm, setSourceForm] = useState({
@@ -86,6 +87,31 @@ export default function GameRadarPage() {
   }, []);
 
   const totalCandidates = data?.statusCounts.reduce((sum, row) => sum + Number(row.count || 0), 0) ?? 0;
+  const candidateSourceOptions = useMemo(() => {
+    const counts = new Map<string, { id: string; name: string; count: number }>();
+    for (const candidate of data?.candidates ?? []) {
+      const existing = counts.get(candidate.source_id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        counts.set(candidate.source_id, {
+          id: candidate.source_id,
+          name: candidate.source_name || candidate.source_id,
+          count: 1,
+        });
+      }
+    }
+
+    return Array.from(counts.values()).sort((a, b) => {
+      if (b.count !== a.count) return b.count - a.count;
+      return a.name.localeCompare(b.name);
+    });
+  }, [data?.candidates]);
+  const filteredCandidates = useMemo(() => {
+    if (!data?.candidates) return [];
+    if (candidateSourceFilter === "all") return data.candidates;
+    return data.candidates.filter((candidate) => candidate.source_id === candidateSourceFilter);
+  }, [candidateSourceFilter, data?.candidates]);
 
   const updateSource = async (id: string, patch: { enabled?: boolean; statusNote?: string | null }) => {
     setSavingSource(id);
@@ -342,8 +368,37 @@ export default function GameRadarPage() {
 
       <section className="rounded-lg border bg-card">
         <div className="border-b px-4 py-3">
-          <h2 className="font-semibold">最新候选</h2>
-          <p className="text-xs text-muted-foreground">这些只是 sitemap/page 提词结果，后续还必须经过 Trends 和 SERP 游戏相关性校验。</p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">最新候选</h2>
+              <p className="text-xs text-muted-foreground">这些只是 sitemap/page 提词结果，后续还必须经过 Trends 和 SERP 游戏相关性校验。</p>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              显示 {filteredCandidates.length} / {data?.candidates.length ?? 0}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${candidateSourceFilter === "all" ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              onClick={() => setCandidateSourceFilter("all")}
+            >
+              全部
+              <span className="ml-1 opacity-75">{data?.candidates.length ?? 0}</span>
+            </button>
+            {candidateSourceOptions.map((source) => (
+              <button
+                key={source.id}
+                type="button"
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${candidateSourceFilter === source.id ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                onClick={() => setCandidateSourceFilter(source.id)}
+                title={source.id}
+              >
+                {source.name}
+                <span className="ml-1 opacity-75">{source.count}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -359,8 +414,8 @@ export default function GameRadarPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
-              ) : data?.candidates.length ? (
-                data.candidates.map((row) => (
+              ) : filteredCandidates.length ? (
+                filteredCandidates.map((row) => (
                   <tr key={row.id} className="border-t hover:bg-muted/30">
                     <Td className="font-medium">{row.keyword}</Td>
                     <Td>{row.source_name}</Td>
@@ -372,7 +427,7 @@ export default function GameRadarPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">暂无候选</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{data?.candidates.length ? "当前来源暂无候选" : "暂无候选"}</td></tr>
               )}
             </tbody>
           </table>
