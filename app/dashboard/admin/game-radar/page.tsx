@@ -179,6 +179,9 @@ export default function GameRadarPage() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(payload?.error || "保存候选失败");
+      if (patch.status) {
+        setCandidateStatusFilter(patch.status);
+      }
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存候选失败");
@@ -542,6 +545,7 @@ export default function GameRadarPage() {
                           type="button"
                           className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50"
                           disabled={savingCandidate === row.id}
+                          onMouseDown={(event) => event.preventDefault()}
                           onClick={() => updateCandidate(row, { status: "approved", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
                         >
                           <Check className="h-3 w-3" /> 接受
@@ -550,6 +554,7 @@ export default function GameRadarPage() {
                           type="button"
                           className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-50"
                           disabled={savingCandidate === row.id}
+                          onMouseDown={(event) => event.preventDefault()}
                           onClick={() => updateCandidate(row, { status: "rejected", rejectReason: "operator_rejected", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
                         >
                           <X className="h-3 w-3" /> 拒绝
