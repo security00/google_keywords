@@ -60,6 +60,7 @@ const reviewStateLabel = (status: string) => {
   if (status === "trend_fail") return "趋势未通过";
   if (status === "serp_pass") return "SERP 已通过";
   if (status === "serp_fail") return "SERP 未通过";
+  if (status === "promoted") return "已推送";
   return "无需操作";
 };
 
@@ -629,7 +630,7 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
 
 function StatusBadge({ status }: { status: string }) {
   const className =
-    status === "approved" || status === "trend_pass" || status === "serp_pass"
+    status === "approved" || status === "trend_pass" || status === "serp_pass" || status === "promoted"
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
       : status === "rejected" || status === "trend_fail" || status === "serp_fail"
         ? "border-red-200 bg-red-50 text-red-700"

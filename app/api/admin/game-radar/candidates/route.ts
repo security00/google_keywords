@@ -6,7 +6,7 @@ import { d1Query } from "@/lib/d1";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const allowedStatuses = new Set(["new", "approved", "rejected", "trend_pass", "trend_fail", "serp_pass", "serp_fail"]);
+const allowedStatuses = new Set(["new", "approved", "rejected", "trend_pass", "trend_fail", "serp_pass", "serp_fail", "promoted"]);
 
 const feedbackForStatus: Record<string, "worth" | "not_worth" | undefined> = {
   approved: "worth",
@@ -15,6 +15,7 @@ const feedbackForStatus: Record<string, "worth" | "not_worth" | undefined> = {
   trend_fail: "not_worth",
   serp_pass: "worth",
   serp_fail: "not_worth",
+  promoted: "worth",
 };
 
 const stableFeedbackId = (candidateId: string, status: string, note: string) =>
