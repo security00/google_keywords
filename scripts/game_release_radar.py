@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Release-source radar for admin-only new game candidates.
 
-Collects explicit new-release feeds (Steam and itch.io newest) and writes them into
-game_radar_* tables. This is candidate discovery only: no Trends, SERP, LLM, or
-student-facing writes happen here.
+Collects explicit new-release feeds (Steam, itch.io newest, and itch.io latest
+free games) and writes them into game_radar_* tables. This is candidate
+discovery only: no Trends, SERP, LLM, or student-facing writes happen here.
 """
 
 from __future__ import annotations
@@ -49,6 +49,12 @@ SOURCES = {
         "base_url": "https://itch.io",
         "feed_url": "https://itch.io/games/newest",
         "quality_tier": 2,
+    },
+    "itchio-new-free": {
+        "name": "itch.io Latest Free",
+        "base_url": "https://itch.io",
+        "feed_url": "https://itch.io/games/newest/free",
+        "quality_tier": 3,
     },
 }
 
@@ -164,7 +170,7 @@ def collect_candidates(sources: list[str]) -> list[ReleaseCandidate]:
         try:
             if source_id == "steam-new":
                 candidates = fetch_steam_new()
-            elif source_id == "itchio-new":
+            elif source_id in {"itchio-new", "itchio-new-free"}:
                 candidates = fetch_itchio(source_id)
             else:
                 print(f"skip unknown source: {source_id}", file=sys.stderr, flush=True)
@@ -212,6 +218,12 @@ def write_candidates(d1: D1Client, candidates: list[ReleaseCandidate]) -> dict[s
         )
         if page_rows:
             inserted_pages += 1
+        else:
+            existing_pages = d1.query("SELECT id FROM game_radar_pages WHERE url_hash = ? LIMIT 1", [url_hash])
+            if existing_pages and existing_pages[0].get("id"):
+                page_id = str(existing_pages[0]["id"])
+            else:
+                continue
         d1.query("UPDATE game_radar_pages SET last_seen_at = ?, updated_at = ? WHERE id = ?", [now, now, page_id])
 
         candidate_rows = d1.query(
@@ -239,7 +251,7 @@ def main() -> None:
     parser.add_argument("--write", action="store_true", help="Write candidates to D1. Omit for dry-run.")
     args = parser.parse_args()
 
-    sources = args.source or ["steam-new", "itchio-new"]
+    sources = args.source or ["steam-new", "itchio-new", "itchio-new-free"]
     print(f"Game Release Radar - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}", flush=True)
     print(f"sources={sources} write={args.write}", flush=True)
     candidates = collect_candidates(sources)

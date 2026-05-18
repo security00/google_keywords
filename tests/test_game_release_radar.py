@@ -61,6 +61,21 @@ class GameReleaseRadarTest(unittest.TestCase):
         self.assertEqual(candidates[0].source_id, "itchio-new")
         self.assertEqual(candidates[0].url, "https://studio-one.itch.io/fresh-planet")
 
+    def test_fetch_itchio_latest_free_uses_newest_free_source(self):
+        radar = load_release_radar()
+        html = '<a href="https://studio-one.itch.io/fresh-free-planet"></a>'
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = html.encode("utf-8")
+
+        with patch.object(radar.urllib.request, "urlopen", return_value=response) as urlopen:
+            candidates = radar.fetch_itchio("itchio-new-free")
+
+        requested_url = urlopen.call_args[0][0].full_url
+        self.assertEqual(requested_url, "https://itch.io/games/newest/free")
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0].keyword, "Fresh Free Planet")
+        self.assertEqual(candidates[0].source_id, "itchio-new-free")
+
 
 if __name__ == "__main__":
     unittest.main()
