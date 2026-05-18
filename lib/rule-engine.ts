@@ -2,8 +2,6 @@
  * Enhanced rule engine for keyword pre-filtering.
  * Replaces LLM for obvious cases, reducing AI cost by 60-70%.
  */
-import { randomUUID } from "crypto";
-
 export type RuleResult = {
   action: "keep" | "block" | "demote";
   reason: string;
@@ -63,6 +61,27 @@ export function scoreKeyword(keyword: string): RuleResult {
   // Exams, answers, word games, and short-lived puzzle intent
   if (/\b(exam|result|answer key|answer|wordle|crossword|clue|hint|jamb|jee|cbse|dsssb|nta|bitsat|cutoff|reprint)\b/i.test(lower))
     return { action: "block", reason: "exam_or_puzzle", score: -90 };
+  if (
+    /\b(ap|apush|ap lang|ap lit|ap psych|ap psychology|ap csa|ap bio|ap chem|apes|sat|act|ib|gcse)\b/i.test(lower) &&
+    /\b(score calculator|calculator|score)\b/i.test(lower)
+  )
+    return { action: "block", reason: "exam_or_puzzle", score: -90 };
+  if (
+    /\b(score calculator|grade calculator|curve calculator)\b/i.test(lower) &&
+    /\b(psych|psychology|lang|literature|biology|chemistry|calculus|statistics|history|exam|test)\b/i.test(lower)
+  )
+    return { action: "block", reason: "exam_or_puzzle", score: -90 };
+
+  // Seasonal/event tools are recurring spikes, not durable new-word opportunities.
+  if (
+    /\b(snow day|march madness|super bowl|black friday|cyber monday|tax refund|tax return|election|valentine|halloween|christmas)\b/i.test(lower) &&
+    /\b(calculator|tracker|bracket|template|planner|generator|checker|countdown)\b/i.test(lower)
+  )
+    return { action: "block", reason: "seasonal_event", score: -90 };
+
+  // Mature software brands are not new product opportunities.
+  if (/\b(free download manager|internet download manager|steam achievement manager)\b/i.test(lower))
+    return { action: "block", reason: "legacy_software_brand", score: -90 };
 
   // Finance, trading, market, and commodity noise
   if (/\b(stock|stocks|equity|equities|futures|trading|forex|crypto|bitcoin|gold price|share price|dividend|ipo)\b/i.test(lower))

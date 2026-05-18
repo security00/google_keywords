@@ -202,6 +202,17 @@ export const buildFreshnessSignal = ({
   };
 };
 
+export const isOldFreshnessStatus = (freshness?: ComparisonFreshness | null) =>
+  freshness?.status === "stable_old" || freshness?.status === "old_hot";
+
+export const adjustVerdictForNewKeywordPipeline = (
+  verdict: ComparisonResult["verdict"],
+  freshness?: ComparisonFreshness | null
+): ComparisonResult["verdict"] => {
+  if (isOldFreshnessStatus(freshness)) return "fail";
+  return verdict;
+};
+
 /* ── Decay risk ─────────────────────────────────────────────── */
 
 export const computeDecayRisk = (values: number[]): "high" | "medium" | "low" => {

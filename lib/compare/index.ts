@@ -7,7 +7,7 @@ import {
   MIN_RECENT_MEAN,
 } from "../dataforseo-client";
 import { mean } from "./trend-math";
-import { buildFreshnessSignal, computeDecayRisk } from "./verdict-engine";
+import { adjustVerdictForNewKeywordPipeline, buildFreshnessSignal, computeDecayRisk } from "./verdict-engine";
 import {
   submitComparisonTasks,
   getComparisonResultsFromTasks,
@@ -25,7 +25,10 @@ export const addFreshnessToComparisonResults = (
   results: ComparisonResult[]
 ): ComparisonResult[] =>
   results.map((item) => {
-    if (item.freshness || !item.series?.values?.length) return item;
+    if (item.freshness || !item.series?.values?.length) {
+      const finalVerdict = adjustVerdictForNewKeywordPipeline(item.verdict, item.freshness);
+      return finalVerdict === item.verdict ? item : { ...item, verdict: finalVerdict };
+    }
 
     const candidateSeries = item.series.values;
     const recentWindowSize = Math.min(RECENT_POINTS, candidateSeries.length);
@@ -53,11 +56,7 @@ export const addFreshnessToComparisonResults = (
       ratioLastPoint: item.ratioLastPoint ?? 0,
       slopeDiff: item.slopeDiff,
     });
-    const verdict =
-      freshness.status === "stable_old" &&
-      (item.verdict === "strong" || item.verdict === "pass" || item.verdict === "close")
-        ? "watch"
-        : item.verdict;
+    const verdict = adjustVerdictForNewKeywordPipeline(item.verdict, freshness);
 
     const decayRisk = item.series?.values?.length
       ? computeDecayRisk(item.series.values)

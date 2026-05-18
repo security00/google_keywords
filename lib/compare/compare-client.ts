@@ -21,7 +21,7 @@ import {
 import { createBatches } from "../keyword-utils";
 import type { SerpSummary } from "../serp";
 import { mean, stdDev, linearSlope, countCrossings, nearOne, normalizeTrendTimestamp } from "./trend-math";
-import { classifyVerdict, buildFreshnessSignal, computeDecayRisk, buildVerdictExplanation, resolveFallbackIntent } from "./verdict-engine";
+import { adjustVerdictForNewKeywordPipeline, classifyVerdict, buildFreshnessSignal, buildVerdictExplanation, resolveFallbackIntent } from "./verdict-engine";
 
 export const submitComparisonTasksWithCost = async (
   keywords: string[],
@@ -320,11 +320,10 @@ export const getComparisonResultsFromTasks = async (
           ratioLastPoint,
           slopeDiff,
         });
-        const freshnessAdjustedVerdict =
-          freshness.status === "stable_old" &&
-          (verdict === "strong" || verdict === "pass" || verdict === "close")
-            ? "watch"
-            : verdict;
+        const freshnessAdjustedVerdict = adjustVerdictForNewKeywordPipeline(
+          verdict,
+          freshness
+        );
         const alignedLength = Math.min(
           timestamps.length,
           candidateSeries.length,
