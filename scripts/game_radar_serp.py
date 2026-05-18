@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -231,7 +230,6 @@ def validate_candidates(
             )
             if not dry_run:
                 update_candidate(d1, candidate.id, decision)
-        time.sleep(1)
 
     return totals
 

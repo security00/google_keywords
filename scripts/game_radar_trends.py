@@ -28,6 +28,7 @@ except ModuleNotFoundError:
 DEFAULT_API_URL = "https://discoverkeywords.co"
 DEFAULT_DAYS = 14
 DEFAULT_BENCHMARK = "gpts"
+POLL_INTERVAL_SECONDS = 5
 MIN_RATIO = 0.3
 MIN_SLOPE = 0.0
 PASS_VERDICTS = {"strong", "pass", "close", "watch"}
@@ -162,13 +163,15 @@ def call_trends_api(api_url: str, api_key: str, keywords: list[str], *, days: in
 
     deadline = time.time() + max_wait
     status_url = api_url.rstrip("/") + f"/api/research/trends/status?jobId={urllib.parse.quote(str(job_id))}"
+    print(f"  trends job {job_id}", flush=True)
     while time.time() < deadline:
-        time.sleep(10)
         status = request_json(status_url, api_key=api_key, timeout=20)
+        print(f"  trends status {status.get('status', 'unknown')}", flush=True)
         if status.get("status") == "complete" or status.get("results") is not None:
             return list(status.get("results") or [])
         if status.get("status") == "failed":
             raise RuntimeError(f"Trends job failed: {status.get('error', 'unknown')}")
+        time.sleep(POLL_INTERVAL_SECONDS)
     raise RuntimeError(f"Trends job timed out after {max_wait}s")
 
 
@@ -240,7 +243,6 @@ def validate_candidates(
             )
             if not dry_run:
                 update_candidate(d1, candidate.id, decision, result.get("series"))
-        time.sleep(1)
 
     return totals
 
