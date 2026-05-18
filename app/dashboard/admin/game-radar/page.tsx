@@ -47,6 +47,13 @@ type Payload = {
 };
 
 const date = (value: string | null) => value ? new Date(value).toLocaleString("zh-CN") : "-";
+const canReviewCandidate = (status: string) => status === "new" || status === "trend_pass";
+const reviewStateLabel = (status: string) => {
+  if (status === "approved") return "已接受";
+  if (status === "rejected") return "已拒绝";
+  if (status === "trend_fail") return "趋势未通过";
+  return "无需操作";
+};
 
 export default function GameRadarPage() {
   const [data, setData] = useState<Payload | null>(null);
@@ -135,7 +142,7 @@ export default function GameRadarPage() {
       const sourceMatch = candidateSourceFilter === "all" || candidate.source_id === candidateSourceFilter;
       const statusMatch =
         candidateStatusFilter === "all" ||
-        (candidateStatusFilter === "active" ? candidate.status !== "rejected" && candidate.status !== "trend_fail" : candidate.status === candidateStatusFilter);
+        (candidateStatusFilter === "active" ? canReviewCandidate(candidate.status) : candidate.status === candidateStatusFilter);
       return sourceMatch && statusMatch;
     });
   }, [candidateSourceFilter, candidateStatusFilter, data?.candidates]);
@@ -464,7 +471,7 @@ export default function GameRadarPage() {
               onClick={() => setCandidateStatusFilter("active")}
             >
               可处理
-              <span className="ml-1 opacity-75">{(data?.candidates ?? []).filter((row) => row.status !== "rejected" && row.status !== "trend_fail").length}</span>
+              <span className="ml-1 opacity-75">{(data?.candidates ?? []).filter((row) => canReviewCandidate(row.status)).length}</span>
             </button>
             <button
               type="button"
@@ -540,26 +547,30 @@ export default function GameRadarPage() {
                       />
                     </Td>
                     <Td className="min-w-[150px]">
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50"
-                          disabled={savingCandidate === row.id}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => updateCandidate(row, { status: "approved", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
-                        >
-                          <Check className="h-3 w-3" /> 接受
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-50"
-                          disabled={savingCandidate === row.id}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => updateCandidate(row, { status: "rejected", rejectReason: "operator_rejected", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
-                        >
-                          <X className="h-3 w-3" /> 拒绝
-                        </button>
-                      </div>
+                      {canReviewCandidate(row.status) ? (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50"
+                            disabled={savingCandidate === row.id}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => updateCandidate(row, { status: "approved", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
+                          >
+                            <Check className="h-3 w-3" /> 接受
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-50"
+                            disabled={savingCandidate === row.id}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => updateCandidate(row, { status: "rejected", rejectReason: "operator_rejected", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
+                          >
+                            <X className="h-3 w-3" /> 拒绝
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{reviewStateLabel(row.status)}</span>
+                      )}
                     </Td>
                     <Td>{date(row.created_at)}</Td>
                     <Td className="max-w-[520px] truncate text-muted-foreground" title={row.url}>
