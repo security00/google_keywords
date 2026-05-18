@@ -25,6 +25,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Run Python tests
+        run: python3 -m unittest discover tests
+
       - name: Check business rules sync
         run: node scripts/check-business-rules.mjs
 

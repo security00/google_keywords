@@ -28,12 +28,12 @@ DEFAULT_SOURCE_ID = "google-suggest"
 DEFAULT_SEEDS = [
     "new game",
     "upcoming game",
-    "game codes",
-    "game guide",
-    "roblox game",
-    "steam game",
-    "itch.io game",
-    "unblocked game",
+    "new roblox game",
+    "upcoming roblox game",
+    "new steam game",
+    "upcoming steam game",
+    "new itch.io game",
+    "upcoming indie game",
 ]
 
 ENTITY_SUFFIX_PATTERNS = [
@@ -77,6 +77,7 @@ GENERIC_REJECTS = {
 }
 
 NOISE_PATTERNS = [
+    r"^(new|upcoming|just released)\s+(roblox|steam|itch io|indie\s+)?games?(\s+(202[0-9]|today|this week|coming out|released today|releases?|for mobile|free|ps5|pc|switch|switch 2|xbox|march|february))?$",
     r"\b(best|top|free|online|unblocked)\s+(games?|roblox games?)\b",
     r"\b(games?|roblox|steam|itch io)\s+(to play|for kids|online|unblocked)\b",
     r"\b(download|apk|mod menu|script executor|hack|cheat)\b",
@@ -86,6 +87,27 @@ NOISE_PATTERNS = [
     r"\b(python|editor|engine|example|discount|comparison|qr|join)\b",
     r"\b(android|archive|booklet|books pdf|jobs|nebraska|channel|unity)\b",
 ]
+
+FRESHNESS_INTENT_PATTERNS = [
+    r"\bnew\b",
+    r"\bupcoming\b",
+    r"\bcoming soon\b",
+    r"\brelease date\b",
+    r"\bjust released\b",
+    r"\bearly access\b",
+    r"\bplaytest\b",
+    r"\bdemo\b",
+    r"\b2026\b",
+]
+
+GENERIC_ENTITY_TOKENS = {
+    "game", "games", "roblox", "steam", "itch", "io", "indie",
+    "release", "releases", "released", "coming", "out", "today", "this", "week",
+    "january", "february", "march", "april", "may", "june", "july", "august",
+    "september", "october", "november", "december",
+    "ps5", "pc", "switch", "xbox", "mobile", "free",
+    "name", "plus", "jams", "sales", "keys", "player", "count", "refund",
+}
 
 
 @dataclass(frozen=True)
@@ -140,11 +162,18 @@ def clean_suggest_keyword(suggestion: str) -> str | None:
     text = normalize_keyword(suggestion)
     if not text:
         return None
+    if not any(re.search(pattern, text, flags=re.I) for pattern in FRESHNESS_INTENT_PATTERNS):
+        return None
     if text in GENERIC_REJECTS or any(re.search(pattern, text, flags=re.I) for pattern in NOISE_PATTERNS):
         return None
 
+    text = re.sub(r"^(new|upcoming|just released|early access|demo)[ ]+", " ", text, flags=re.I)
+    text = re.sub(r"\s+", " ", text).strip()
+
     for pattern in LEADING_INTENT_PATTERNS:
         text = re.sub(pattern, " ", text, flags=re.I)
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"^games?[ ]+", " ", text, flags=re.I)
     text = re.sub(r"\s+", " ", text).strip()
 
     for pattern in ENTITY_SUFFIX_PATTERNS:
@@ -161,6 +190,8 @@ def clean_suggest_keyword(suggestion: str) -> str | None:
         return None
     words = text.split()
     if len(words) > 5:
+        return None
+    if not any(word not in GENERIC_ENTITY_TOKENS and not word.isdigit() for word in words):
         return None
     if len(words) == 1 and words[0] in {"roblox", "steam", "minecraft", "fortnite"}:
         return None

@@ -17,12 +17,18 @@ def load_radar():
 class GameSuggestRadarTest(unittest.TestCase):
     def test_cleans_game_intent_suffixes_to_entity(self):
         radar = load_radar()
-        self.assertEqual(radar.clean_suggest_keyword("silksong game guide"), "Silksong")
-        self.assertEqual(radar.clean_suggest_keyword("anime final stand codes"), "Anime Final Stand")
+        self.assertEqual(radar.clean_suggest_keyword("new silksong game guide"), "Silksong")
+        self.assertEqual(radar.clean_suggest_keyword("new anime final stand codes"), "Anime Final Stand")
         self.assertEqual(radar.clean_suggest_keyword("deltarune chapter 3 release date"), "Deltarune Chapter 3")
-        self.assertEqual(radar.clean_suggest_keyword("game guide grow a garden"), "Grow a Garden")
-        self.assertEqual(radar.clean_suggest_keyword("game codes for blockspin"), "Blockspin")
-        self.assertEqual(radar.clean_suggest_keyword("game guide fisch value"), "Fisch")
+        self.assertEqual(radar.clean_suggest_keyword("upcoming game blockspin"), "Blockspin")
+
+    def test_requires_new_or_upcoming_intent(self):
+        radar = load_radar()
+        self.assertIsNone(radar.clean_suggest_keyword("game guide grow a garden"))
+        self.assertIsNone(radar.clean_suggest_keyword("game codes for blockspin"))
+        self.assertIsNone(radar.clean_suggest_keyword("game guide fisch value"))
+        self.assertIsNone(radar.clean_suggest_keyword("game guide creatures of sonaria"))
+        self.assertIsNone(radar.clean_suggest_keyword("game guide dragon adventures"))
 
     def test_rejects_generic_game_queries(self):
         radar = load_radar()
