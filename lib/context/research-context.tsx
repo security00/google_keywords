@@ -15,6 +15,7 @@ import {
     FilterSummary,
 } from "@/lib/types";
 import sharedKeywordDefaults from "@/config/shared-keyword-defaults.json";
+import { scoreKeyword } from "@/lib/rule-engine";
 
 // --- Local Types from original component ---
 export type LogLevel = "info" | "success" | "error";
@@ -124,11 +125,15 @@ export const buildRecommendedSelection = (
     if (!expandData) return [];
 
     const picked = new Set<string>();
+    const isEligible = (item: ExpandResponse["candidates"][number]) => {
+        const latestRule = scoreKeyword(item.keyword);
+        return latestRule.action !== "block" && Number(latestRule.score) >= RECOMMENDED_MIN_SCORE;
+    };
     const addCandidates = (items: ExpandResponse["candidates"], maxCount: number) => {
         let added = 0;
         for (const item of items) {
             if (picked.size >= limit || added >= maxCount) break;
-            if (Number(item.score ?? 0) >= RECOMMENDED_MIN_SCORE) {
+            if (isEligible(item)) {
                 const before = picked.size;
                 picked.add(item.keyword);
                 if (picked.size > before) added += 1;
@@ -137,7 +142,7 @@ export const buildRecommendedSelection = (
     };
 
     const strongCandidates = expandData.flatList.filter(
-        (item) => Number(item.score ?? 0) >= RECOMMENDED_HIGH_CONFIDENCE_SCORE
+        (item) => isEligible(item) && Number(item.score ?? 0) >= RECOMMENDED_HIGH_CONFIDENCE_SCORE
     );
     for (const item of strongCandidates) {
         if (picked.size >= limit) break;
