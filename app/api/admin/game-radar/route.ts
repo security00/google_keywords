@@ -30,6 +30,12 @@ type CandidateRow = {
   url: string;
   status: string;
   reject_reason: string | null;
+  operator_note: string | null;
+  trend_ratio: number | null;
+  trend_slope: number | null;
+  trend_verdict: string | null;
+  trend_checked_at: string | null;
+  trend_reason: string | null;
   created_at: string;
 };
 
@@ -57,10 +63,12 @@ export async function GET(request: Request) {
       ),
       d1Query<CandidateRow>(
         `SELECT c.id, c.keyword, c.keyword_normalized, c.source_id, s.name AS source_name,
-                c.url, c.status, c.reject_reason, c.created_at
+                c.url, c.status, c.reject_reason, c.operator_note,
+                c.trend_ratio, c.trend_slope, c.trend_verdict, c.trend_checked_at, c.trend_reason,
+                c.created_at
          FROM game_radar_candidates c
          JOIN game_radar_sources s ON s.id = c.source_id
-         ORDER BY c.created_at DESC
+         ORDER BY CASE WHEN c.status = 'rejected' THEN 1 ELSE 0 END ASC, c.created_at DESC
          LIMIT 100`
       ),
       d1Query<StatusRow>(

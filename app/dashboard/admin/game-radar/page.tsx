@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Radar, RefreshCw } from "lucide-react";
+import { Check, Radar, RefreshCw, X } from "lucide-react";
 
 type SourceRow = {
   id: string;
@@ -26,6 +26,12 @@ type CandidateRow = {
   url: string;
   status: string;
   reject_reason: string | null;
+  operator_note: string | null;
+  trend_ratio: number | null;
+  trend_slope: number | null;
+  trend_verdict: string | null;
+  trend_checked_at: string | null;
+  trend_reason: string | null;
   created_at: string;
 };
 
@@ -49,7 +55,10 @@ export default function GameRadarPage() {
   const [savingSource, setSavingSource] = useState<string | null>(null);
   const [analyzingSource, setAnalyzingSource] = useState(false);
   const [candidateSourceFilter, setCandidateSourceFilter] = useState("all");
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState("active");
   const [editingNotes, setEditingNotes] = useState<Record<string, string>>({});
+  const [candidateNotes, setCandidateNotes] = useState<Record<string, string>>({});
+  const [savingCandidate, setSavingCandidate] = useState<string | null>(null);
   const [rulePreview, setRulePreview] = useState<Array<{ url: string; matched: boolean; excluded: boolean; keyword: string | null; rejectReason: string | null }>>([]);
   const [sourceForm, setSourceForm] = useState({
     id: "",
@@ -75,6 +84,9 @@ export default function GameRadarPage() {
       const notes: Record<string, string> = {};
       for (const source of payload.sources || []) notes[source.id] = source.status_note || "";
       setEditingNotes(notes);
+      const candidateNoteState: Record<string, string> = {};
+      for (const candidate of payload.candidates || []) candidateNoteState[candidate.id] = candidate.operator_note || "";
+      setCandidateNotes(candidateNoteState);
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -107,11 +119,26 @@ export default function GameRadarPage() {
       return a.name.localeCompare(b.name);
     });
   }, [data?.candidates]);
+  const candidateStatusOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const candidate of data?.candidates ?? []) {
+      counts.set(candidate.status, (counts.get(candidate.status) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).sort((a, b) => {
+      if (b[1] !== a[1]) return b[1] - a[1];
+      return a[0].localeCompare(b[0]);
+    });
+  }, [data?.candidates]);
   const filteredCandidates = useMemo(() => {
     if (!data?.candidates) return [];
-    if (candidateSourceFilter === "all") return data.candidates;
-    return data.candidates.filter((candidate) => candidate.source_id === candidateSourceFilter);
-  }, [candidateSourceFilter, data?.candidates]);
+    return data.candidates.filter((candidate) => {
+      const sourceMatch = candidateSourceFilter === "all" || candidate.source_id === candidateSourceFilter;
+      const statusMatch =
+        candidateStatusFilter === "all" ||
+        (candidateStatusFilter === "active" ? candidate.status !== "rejected" && candidate.status !== "trend_fail" : candidate.status === candidateStatusFilter);
+      return sourceMatch && statusMatch;
+    });
+  }, [candidateSourceFilter, candidateStatusFilter, data?.candidates]);
 
   const updateSource = async (id: string, patch: { enabled?: boolean; statusNote?: string | null }) => {
     setSavingSource(id);
@@ -136,6 +163,34 @@ export default function GameRadarPage() {
     const current = row.status_note || "";
     const next = editingNotes[row.id] ?? "";
     if (next !== current) updateSource(row.id, { statusNote: next });
+  };
+
+  const updateCandidate = async (
+    row: CandidateRow,
+    patch: { status?: string; note?: string; rejectReason?: string }
+  ) => {
+    setSavingCandidate(row.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/game-radar/candidates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: row.id, ...patch }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload?.error || "保存候选失败");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存候选失败");
+    } finally {
+      setSavingCandidate(null);
+    }
+  };
+
+  const saveCandidateNoteIfChanged = (row: CandidateRow) => {
+    const current = row.operator_note || "";
+    const next = candidateNotes[row.id] ?? "";
+    if (next !== current) updateCandidate(row, { note: next });
   };
 
   const saveSourceForm = async (event: React.FormEvent) => {
@@ -399,6 +454,35 @@ export default function GameRadarPage() {
               </button>
             ))}
           </div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${candidateStatusFilter === "active" ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              onClick={() => setCandidateStatusFilter("active")}
+            >
+              可处理
+              <span className="ml-1 opacity-75">{(data?.candidates ?? []).filter((row) => row.status !== "rejected" && row.status !== "trend_fail").length}</span>
+            </button>
+            <button
+              type="button"
+              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${candidateStatusFilter === "all" ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              onClick={() => setCandidateStatusFilter("all")}
+            >
+              全部状态
+              <span className="ml-1 opacity-75">{data?.candidates.length ?? 0}</span>
+            </button>
+            {candidateStatusOptions.map(([status, count]) => (
+              <button
+                key={status}
+                type="button"
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${candidateStatusFilter === status ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                onClick={() => setCandidateStatusFilter(status)}
+              >
+                {status}
+                <span className="ml-1 opacity-75">{count}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -407,19 +491,71 @@ export default function GameRadarPage() {
                 <Th>关键词</Th>
                 <Th>来源</Th>
                 <Th>状态</Th>
+                <Th>趋势</Th>
+                <Th>审核备注</Th>
+                <Th>操作</Th>
                 <Th>发现时间</Th>
                 <Th>URL</Th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
               ) : filteredCandidates.length ? (
                 filteredCandidates.map((row) => (
                   <tr key={row.id} className="border-t hover:bg-muted/30">
                     <Td className="font-medium">{row.keyword}</Td>
                     <Td>{row.source_name}</Td>
-                    <Td>{row.status}{row.reject_reason ? ` · ${row.reject_reason}` : ""}</Td>
+                    <Td>
+                      <StatusBadge status={row.status} />
+                      {row.reject_reason ? <div className="mt-1 text-xs text-muted-foreground">{row.reject_reason}</div> : null}
+                    </Td>
+                    <Td className="min-w-[180px] text-xs">
+                      {row.trend_checked_at ? (
+                        <div>
+                          <div className="font-medium">{row.trend_verdict || "-"} · ratio {formatTrendNumber(row.trend_ratio)}</div>
+                          <div className="text-muted-foreground">slope {formatTrendNumber(row.trend_slope)} · {date(row.trend_checked_at)}</div>
+                          {row.trend_reason ? <div className="mt-1 max-w-[260px] text-muted-foreground">{row.trend_reason}</div> : null}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">未验证</span>
+                      )}
+                    </Td>
+                    <Td className="min-w-[220px]">
+                      <textarea
+                        className="min-h-[44px] w-full resize-y rounded-md border bg-background px-2 py-1 text-xs text-foreground outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary/20"
+                        value={candidateNotes[row.id] ?? row.operator_note ?? ""}
+                        disabled={savingCandidate === row.id}
+                        placeholder="审核备注"
+                        onChange={(event) => setCandidateNotes((prev) => ({ ...prev, [row.id]: event.target.value }))}
+                        onBlur={() => saveCandidateNoteIfChanged(row)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      />
+                    </Td>
+                    <Td className="min-w-[150px]">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50"
+                          disabled={savingCandidate === row.id}
+                          onClick={() => updateCandidate(row, { status: "approved", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
+                        >
+                          <Check className="h-3 w-3" /> 接受
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-50"
+                          disabled={savingCandidate === row.id}
+                          onClick={() => updateCandidate(row, { status: "rejected", rejectReason: "operator_rejected", note: candidateNotes[row.id] ?? row.operator_note ?? "" })}
+                        >
+                          <X className="h-3 w-3" /> 拒绝
+                        </button>
+                      </div>
+                    </Td>
                     <Td>{date(row.created_at)}</Td>
                     <Td className="max-w-[520px] truncate text-muted-foreground" title={row.url}>
                       <a href={row.url} target="_blank" rel="noreferrer" className="hover:underline">{row.url}</a>
@@ -427,7 +563,7 @@ export default function GameRadarPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">{data?.candidates.length ? "当前来源暂无候选" : "暂无候选"}</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">{data?.candidates.length ? "当前筛选暂无候选" : "暂无候选"}</td></tr>
               )}
             </tbody>
           </table>
@@ -453,6 +589,21 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
       <div className="mt-1 text-2xl font-bold">{value}</div>
     </div>
   );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const className =
+    status === "approved" || status === "trend_pass"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : status === "rejected" || status === "trend_fail"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : "border-slate-200 bg-slate-50 text-slate-700";
+  return <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}>{status}</span>;
+}
+
+function formatTrendNumber(value: number | null) {
+  if (value === null || Number.isNaN(value)) return "-";
+  return Number(value).toFixed(2);
 }
 
 function Th({ children, align = "left" }: { children: React.ReactNode; align?: "left" | "right" }) {
