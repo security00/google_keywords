@@ -36,6 +36,12 @@ type CandidateRow = {
   trend_verdict: string | null;
   trend_checked_at: string | null;
   trend_reason: string | null;
+  serp_organic: number | null;
+  serp_auth: number | null;
+  serp_featured: number | null;
+  serp_game_relevance: number | null;
+  serp_checked_at: string | null;
+  serp_reason: string | null;
   created_at: string;
 };
 
@@ -65,6 +71,7 @@ export async function GET(request: Request) {
         `SELECT c.id, c.keyword, c.keyword_normalized, c.source_id, s.name AS source_name,
                 c.url, c.status, c.reject_reason, c.operator_note,
                 c.trend_ratio, c.trend_slope, c.trend_verdict, c.trend_checked_at, c.trend_reason,
+                c.serp_organic, c.serp_auth, c.serp_featured, c.serp_game_relevance, c.serp_checked_at, c.serp_reason,
                 c.created_at
          FROM game_radar_candidates c
          JOIN game_radar_sources s ON s.id = c.source_id

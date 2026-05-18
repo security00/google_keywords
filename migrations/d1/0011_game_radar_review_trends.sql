@@ -8,4 +8,9 @@ ALTER TABLE game_radar_candidates ADD COLUMN trend_verdict TEXT;
 ALTER TABLE game_radar_candidates ADD COLUMN trend_checked_at TEXT;
 ALTER TABLE game_radar_candidates ADD COLUMN trend_reason TEXT;
 ALTER TABLE game_radar_candidates ADD COLUMN trend_series TEXT;
-
+ALTER TABLE game_radar_candidates ADD COLUMN serp_organic INTEGER;
+ALTER TABLE game_radar_candidates ADD COLUMN serp_auth INTEGER;
+ALTER TABLE game_radar_candidates ADD COLUMN serp_featured INTEGER;
+ALTER TABLE game_radar_candidates ADD COLUMN serp_game_relevance INTEGER;
+ALTER TABLE game_radar_candidates ADD COLUMN serp_checked_at TEXT;
+ALTER TABLE game_radar_candidates ADD COLUMN serp_reason TEXT;

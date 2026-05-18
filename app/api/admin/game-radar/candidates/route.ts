@@ -6,13 +6,15 @@ import { d1Query } from "@/lib/d1";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const allowedStatuses = new Set(["new", "approved", "rejected", "trend_pass", "trend_fail"]);
+const allowedStatuses = new Set(["new", "approved", "rejected", "trend_pass", "trend_fail", "serp_pass", "serp_fail"]);
 
 const feedbackForStatus: Record<string, "worth" | "not_worth" | undefined> = {
   approved: "worth",
   rejected: "not_worth",
   trend_pass: "worth",
   trend_fail: "not_worth",
+  serp_pass: "worth",
+  serp_fail: "not_worth",
 };
 
 const stableFeedbackId = (candidateId: string, status: string, note: string) =>
@@ -43,7 +45,7 @@ export async function PATCH(request: Request) {
       sets.push("status = ?");
       params.push(status);
       sets.push("reject_reason = ?");
-      params.push(status === "rejected" || status === "trend_fail" ? rejectReason || "operator_rejected" : null);
+      params.push(status === "rejected" || status === "trend_fail" || status === "serp_fail" ? rejectReason || "operator_rejected" : null);
     }
     if (typeof body.note === "string") {
       sets.push("operator_note = ?");
@@ -82,4 +84,3 @@ export async function PATCH(request: Request) {
     );
   }
 }
-

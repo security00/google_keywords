@@ -32,6 +32,12 @@ type CandidateRow = {
   trend_verdict: string | null;
   trend_checked_at: string | null;
   trend_reason: string | null;
+  serp_organic: number | null;
+  serp_auth: number | null;
+  serp_featured: number | null;
+  serp_game_relevance: number | null;
+  serp_checked_at: string | null;
+  serp_reason: string | null;
   created_at: string;
 };
 
@@ -52,6 +58,8 @@ const reviewStateLabel = (status: string) => {
   if (status === "approved") return "已接受";
   if (status === "rejected") return "已拒绝";
   if (status === "trend_fail") return "趋势未通过";
+  if (status === "serp_pass") return "SERP 已通过";
+  if (status === "serp_fail") return "SERP 未通过";
   return "无需操作";
 };
 
@@ -502,6 +510,7 @@ export default function GameRadarPage() {
                 <Th>来源</Th>
                 <Th>状态</Th>
                 <Th>趋势</Th>
+                <Th>SERP</Th>
                 <Th>审核备注</Th>
                 <Th>操作</Th>
                 <Th>发现时间</Th>
@@ -510,7 +519,7 @@ export default function GameRadarPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
               ) : filteredCandidates.length ? (
                 filteredCandidates.map((row) => (
                   <tr key={row.id} className="border-t hover:bg-muted/30">
@@ -526,6 +535,17 @@ export default function GameRadarPage() {
                           <div className="font-medium">{row.trend_verdict || "-"} · ratio {formatTrendNumber(row.trend_ratio)}</div>
                           <div className="text-muted-foreground">slope {formatTrendNumber(row.trend_slope)} · {date(row.trend_checked_at)}</div>
                           {row.trend_reason ? <div className="mt-1 max-w-[260px] text-muted-foreground">{row.trend_reason}</div> : null}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">未验证</span>
+                      )}
+                    </Td>
+                    <Td className="min-w-[180px] text-xs">
+                      {row.serp_checked_at ? (
+                        <div>
+                          <div className="font-medium">organic {row.serp_organic ?? "-"} · auth {row.serp_auth ?? "-"}</div>
+                          <div className="text-muted-foreground">game {row.serp_game_relevance ?? "-"} · {date(row.serp_checked_at)}</div>
+                          {row.serp_reason ? <div className="mt-1 max-w-[260px] text-muted-foreground">{row.serp_reason}</div> : null}
                         </div>
                       ) : (
                         <span className="text-muted-foreground">未验证</span>
@@ -579,7 +599,7 @@ export default function GameRadarPage() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">{data?.candidates.length ? "当前筛选暂无候选" : "暂无候选"}</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">{data?.candidates.length ? "当前筛选暂无候选" : "暂无候选"}</td></tr>
               )}
             </tbody>
           </table>
@@ -609,9 +629,9 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
 
 function StatusBadge({ status }: { status: string }) {
   const className =
-    status === "approved" || status === "trend_pass"
+    status === "approved" || status === "trend_pass" || status === "serp_pass"
       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : status === "rejected" || status === "trend_fail"
+      : status === "rejected" || status === "trend_fail" || status === "serp_fail"
         ? "border-red-200 bg-red-50 text-red-700"
         : "border-slate-200 bg-slate-50 text-slate-700";
   return <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${className}`}>{status}</span>;
