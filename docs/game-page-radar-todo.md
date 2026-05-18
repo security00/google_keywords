@@ -133,10 +133,44 @@ Add admin feedback on candidates/pages:
 
 Use this to adjust source quality and extraction rules before increasing source count.
 
+## Phase 6 - Google Suggest candidate source
+
+Add a lightweight Game Suggest Radar source before expanding to heavier
+community crawlers.
+
+Why:
+
+- Google autocomplete is direct search intent, so it is closer to traffic than
+  generic community chatter.
+- It is cheaper and easier to calibrate than Reddit/YouTube/Discord collectors.
+- It can reuse the existing admin-only game_radar_candidates preview and
+  feedback flow.
+
+Implementation:
+
+1. Query a small seed set such as new game, game codes, game guide,
+   roblox game, steam game, itch.io game, and unblocked game.
+2. Optionally expand each seed with a through z for broader coverage.
+3. Clean suggestions into likely game entities by removing suffixes such as
+   codes, guide, wiki, tier list, and release date.
+4. Reject generic/noisy suggestions such as best games online, APK/mod/script
+   terms, and broad platform-only searches.
+5. Write candidates with source_id='google-suggest' and
+   extraction_method='google_suggest'.
+6. Keep the output admin-only until candidates pass Trends + SERP game
+   relevance checks.
+
+First script:
+
+- python3 scripts/game_suggest_radar.py
+- python3 scripts/game_suggest_radar.py --alphabet --limit 100 --write
+
+Do not expose these candidates to students directly. They are source candidates,
+not validated recommendations.
+
 ## First implementation slice
 
 - Add schema migration.
 - Add pure extraction/filter tests.
 - Add `scripts/game_page_radar.py --dry-run --max-sources 3 --max-pages-per-source 50`.
 - Add admin API/page preview only after data quality is visible.
-
