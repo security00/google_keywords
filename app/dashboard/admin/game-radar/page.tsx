@@ -53,7 +53,7 @@ type Payload = {
 };
 
 const date = (value: string | null) => value ? new Date(value).toLocaleString("zh-CN") : "-";
-const canReviewCandidate = (status: string) => status === "new" || status === "trend_pass" || status === "serp_pass";
+const canReviewCandidate = (status: string) => status === "new" || status === "trend_pass";
 const reviewStateLabel = (status: string) => {
   if (status === "approved") return "已接受";
   if (status === "rejected") return "已拒绝";
