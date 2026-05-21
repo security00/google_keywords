@@ -289,7 +289,7 @@ function Navigation({
             isSidebarCollapsed ? "lg:ml-20" : "lg:ml-60"
           )}
         >
-          <div className="container mx-auto flex min-h-14 items-center justify-between gap-3 px-4">
+          <div className="container mx-auto flex min-h-14 items-center justify-between gap-3 px-3 sm:px-4">
             <Link href="/dashboard" className="lg:hidden">
               <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-lg font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
                 关键词研究台
@@ -304,7 +304,7 @@ function Navigation({
             <div className="flex min-w-0 shrink-0 items-center gap-2">
               {user ? (
                 <>
-                  <span className="max-w-[180px] truncate text-xs text-muted-foreground sm:max-w-[260px]">
+                  <span className="max-w-[140px] truncate text-xs text-muted-foreground sm:max-w-[260px]">
                     {user.email}
                     <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">管理员</span>
                   </span>
@@ -322,7 +322,7 @@ function Navigation({
             </div>
           </div>
 
-          <nav className="flex gap-2 overflow-x-auto border-t border-border/60 px-4 py-2 lg:hidden">
+          <nav className="flex gap-2 overflow-x-auto border-t border-border/60 px-3 py-2 [-webkit-overflow-scrolling:touch] lg:hidden">
             {[...visibleStudentSteps, ...adminSteps].map(renderTopNavLink)}
           </nav>
         </header>
@@ -332,15 +332,15 @@ function Navigation({
 
   return (
     <div className="sticky top-0 z-50 w-full border-b border-border/80 bg-background/90 shadow-sm shadow-black/5 backdrop-blur-xl dark:shadow-black/25">
-      <div className="container mx-auto flex min-h-16 items-center justify-between gap-4 px-4 py-3">
-        <div className="flex min-w-0 flex-1 items-center gap-6">
+      <div className="container mx-auto flex min-h-16 flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4 md:flex-nowrap">
+        <div className="flex min-w-0 flex-1 items-center gap-3 md:gap-6">
           <Link href="/dashboard" className="hidden shrink-0 md:block">
             <h1 className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-xl font-bold tracking-tight text-transparent dark:from-indigo-400 dark:to-violet-400">
               关键词研究台
             </h1>
           </Link>
 
-          <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+          <nav className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [-webkit-overflow-scrolling:touch]">
             {visibleStudentSteps.map(renderTopNavLink)}
           </nav>
         </div>
@@ -390,7 +390,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <Navigation isSidebarCollapsed={isSidebarCollapsed} setIsSidebarCollapsed={setIsSidebarCollapsed} />
       <main
         className={cn(
-          "container mx-auto max-w-7xl px-4 py-8 transition-[padding] duration-200",
+          "container mx-auto max-w-7xl px-3 py-5 transition-[padding] duration-200 sm:px-4 sm:py-8",
           isAdmin && "lg:max-w-none lg:pr-8",
           isAdmin && (isSidebarCollapsed ? "lg:pl-[7rem]" : "lg:pl-[17rem]")
         )}

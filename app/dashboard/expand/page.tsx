@@ -100,22 +100,22 @@ export default function ExpandPage() {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-6 py-4">
+        <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-4 py-4 sm:px-6">
           {error && (
             <div className="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          <div className="flex w-full items-center justify-between">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div />
-            <div className="flex items-center gap-4">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
               {expandData?.filter && (
                 <span className="text-xs text-muted-foreground">
                   已过滤 {expandData.filter.removed} 个无效词
                 </span>
               )}
-              <Button onClick={handleExpand} disabled={loadingExpand}>
+              <Button className="w-full sm:w-auto" onClick={handleExpand} disabled={loadingExpand}>
                 {loadingExpand && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loadingExpand ? "扩展中..." : "获取候选词"}
               </Button>
@@ -153,8 +153,8 @@ export default function ExpandPage() {
           <CardContent className="space-y-2 text-sm">
             {debugLogs.slice(0, 8).map((entry) => (
               <div key={entry.id} className="rounded-md border px-3 py-2">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="font-medium">{entry.title}</span>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <span className="break-words font-medium">{entry.title}</span>
                   <span className="text-xs text-muted-foreground">{entry.at}</span>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">

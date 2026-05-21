@@ -137,7 +137,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-6">
+    <div className="mx-auto max-w-2xl space-y-6 py-2 sm:py-6">
       <h2 className="text-2xl font-bold">账号设置</h2>
 
       {/* 账号状态 */}
@@ -161,7 +161,7 @@ export default function SettingsPage() {
         </div>
       ) : (
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/8 p-5 shadow-sm shadow-emerald-950/10">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
             <div className="text-center">
               <Shield className="mx-auto mb-1 h-6 w-6 text-emerald-600 dark:text-emerald-300" />
               <div className="text-xs text-emerald-700 dark:text-emerald-300">状态</div>
@@ -216,8 +216,8 @@ export default function SettingsPage() {
             <p className="mb-2 text-sm font-medium text-amber-900 dark:text-amber-200">
               ⚠️ 请立即保存此 Key，关闭后将无法再次查看
             </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded-lg border border-amber-500/15 bg-black/[0.03] px-3 py-2 text-sm dark:bg-white/[0.04]">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <code className="flex-1 overflow-x-auto rounded-lg border border-amber-500/15 bg-black/[0.03] px-3 py-2 text-sm dark:bg-white/[0.04]">
                 {newKey}
               </code>
               <Button
@@ -253,13 +253,13 @@ export default function SettingsPage() {
             {activeKeys.map((k) => (
               <div
                 key={k.id}
-                className="flex items-center justify-between rounded-xl border border-border/70 bg-background/55 px-4 py-3 shadow-sm shadow-black/5 dark:bg-background/35 dark:shadow-black/20"
+              className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/55 px-4 py-3 shadow-sm shadow-black/5 dark:bg-background/35 dark:shadow-black/20 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{k.name}</span>
                   </div>
-                  <code className="text-xs text-muted-foreground">{k.key}</code>
+                  <code className="block break-all text-xs text-muted-foreground">{k.key}</code>
                   <div className="text-xs text-muted-foreground">
                     创建于 {new Date(k.created_at).toLocaleDateString("zh-CN")}
                   </div>
@@ -281,7 +281,7 @@ export default function SettingsPage() {
         )}
 
         {/* 生成新 key */}
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
             type="text"
             placeholder="Key 名称（可选）"
@@ -292,6 +292,7 @@ export default function SettingsPage() {
             disabled={!canManageApiKeys || actionLoading}
           />
           <Button
+            className="w-full sm:w-auto"
             onClick={handleGenerateKey}
             disabled={
               !canManageApiKeys ||

@@ -297,7 +297,7 @@ export default function UsersPage() {
 
       {/* Table */}
       <div className={`relative overflow-x-auto rounded-lg border transition-opacity ${currentLoading ? "opacity-60 pointer-events-none" : ""}`}>
-        <table className="w-full text-sm">
+        <table className="min-w-[720px] w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               {tab === "pending" && (

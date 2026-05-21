@@ -287,11 +287,11 @@ export default function GameRadarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <Radar className="h-6 w-6 text-indigo-500" />
           <div>
-            <h1 className="text-2xl font-bold">Game Page Radar</h1>
+            <h1 className="break-words text-2xl font-bold">Game Page Radar</h1>
             <p className="text-sm text-muted-foreground">
               精选游戏站 sitemap 新页面追踪。当前只做候选预览，不触发 Trends/SERP/LLM，不进学生端。
             </p>
@@ -344,7 +344,7 @@ export default function GameRadarPage() {
           <div className="border-t px-4 py-3">
             <h3 className="mb-2 text-sm font-semibold">规则测试预览</h3>
             <div className="max-h-[360px] overflow-auto rounded border">
-              <table className="w-full text-xs">
+              <table className="min-w-[760px] w-full text-xs">
                 <thead className="bg-muted/30">
                   <tr>
                     <Th>URL</Th>
@@ -375,7 +375,7 @@ export default function GameRadarPage() {
           <p className="text-xs text-muted-foreground">可直接启用/停用来源，并在策略备注里记录为什么这么设置。备注失焦保存，Enter 保存。</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="min-w-[980px] w-full text-sm">
             <thead className="bg-muted/30">
               <tr>
                 <Th>来源</Th>
@@ -504,7 +504,7 @@ export default function GameRadarPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="min-w-[1280px] w-full text-sm">
             <thead className="bg-muted/30">
               <tr>
                 <Th>关键词</Th>

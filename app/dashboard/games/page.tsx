@@ -67,11 +67,11 @@ export default function StudentGamesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
           <Gamepad2 className="h-6 w-6 text-indigo-500" />
           <div>
-            <h1 className="text-2xl font-bold">🎮 新游发现</h1>
+            <h1 className="text-2xl font-bold">新游发现</h1>
             <p className="text-sm text-muted-foreground">
               定期筛选近期上架或正在上升的游戏关键词，发现流量机会
             </p>
@@ -84,7 +84,7 @@ export default function StudentGamesPage() {
 
       {/* Legend */}
       <div className="rounded-lg border bg-card p-4">
-        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <div className="flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6">
           <span className="flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500" /> <strong>🔥 Hot</strong> — 流量远超基准，值得关注</span>
           <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" /> <strong>📈 Rising</strong> — 上升趋势，有竞争</span>
           <span className="flex items-center gap-1.5"><Target className="h-4 w-4 text-green-500" /> <strong>🎯 Niche</strong> — 低竞争蓝海机会</span>
@@ -138,20 +138,20 @@ function GameCard({ item, expanded, onToggle }: { item: GameKeyword; expanded: b
 
   return (
     <div className={`rounded-lg border bg-card transition-shadow hover:shadow-md ${expanded ? "ring-1 ring-primary/20" : ""}`}>
-      <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={onToggle}>
+      <div className="flex cursor-pointer flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center" onClick={onToggle}>
         <div className="flex items-center gap-1.5 shrink-0">
           {recIcon[item.recommendation] || null}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">{item.keyword}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="break-words font-semibold">{item.keyword}</span>
             <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
               {item.source || "多来源"}
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.reason}</p>
         </div>
-        <div className="flex items-center gap-3 shrink-0 text-sm">
+        <div className="flex shrink-0 items-center justify-between gap-3 text-sm sm:justify-start">
           <div className="text-right">
             <div className="text-xs text-muted-foreground">趋势比</div>
             <div className="font-mono font-medium">{item.trend_ratio?.toFixed(2) ?? "-"}</div>
@@ -191,8 +191,8 @@ function TrendChart({ keyword, series }: { keyword: string; series: TrendSeries 
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">趋势走势（紫色 = {keyword}，绿色虚线 = 参考基准）</h3>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="break-words text-sm font-medium">趋势走势（紫色 = {keyword}，绿色虚线 = 参考基准）</h3>
         <span className="text-xs text-muted-foreground">{series.timestamps.length} 天</span>
       </div>
       <ResponsiveContainer width="100%" height={200}>

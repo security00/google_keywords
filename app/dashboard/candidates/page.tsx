@@ -168,17 +168,17 @@ export default function CandidatesPage() {
                 共 {expandData.flatList.length} 个候选词，默认推荐 {recommendedCount} 个进入趋势对比，可手动增删。
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="default" size="sm" onClick={selectRecommended}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button className="flex-1 sm:flex-none" variant="default" size="sm" onClick={selectRecommended}>
                 推荐选择
               </Button>
-              <Button variant="outline" size="sm" onClick={() => selectTop(20)}>
+              <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={() => selectTop(20)}>
                 Top 20
               </Button>
-              <Button variant="outline" size="sm" onClick={selectAll}>
+              <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={selectAll}>
                 全选
               </Button>
-              <Button variant="outline" size="sm" onClick={clearSelection}>
+              <Button className="flex-1 sm:flex-none" variant="outline" size="sm" onClick={clearSelection}>
                 清空
               </Button>
             </div>
@@ -239,24 +239,24 @@ export default function CandidatesPage() {
                     renderItem={(item: Candidate) => (
                       <div
                         className={cn(
-                          "group relative flex cursor-pointer items-center justify-between rounded-lg border p-3 text-sm transition-all hover:bg-muted/50",
+                          "group relative flex cursor-pointer items-start justify-between gap-3 rounded-lg border p-3 text-sm transition-all hover:bg-muted/50",
                           selected.has(item.keyword)
                             ? "border-primary bg-primary/5 ring-1 ring-primary"
                             : "bg-card"
                         )}
                         onClick={() => toggleCandidate(item.keyword)}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex min-w-0 items-start gap-3">
                           <input
                             type="checkbox"
                             className="h-4 w-4 rounded border-zinc-300 text-primary focus:ring-ring"
                             checked={selected.has(item.keyword)}
                             readOnly
                           />
-                          <span className="font-medium">{item.keyword}</span>
+                          <span className="break-words font-medium leading-5">{item.keyword}</span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
                           <Badge
                             variant={item.type === "rising" ? "default" : "secondary"}
                             className="h-5 px-1.5 text-[10px]"
@@ -287,9 +287,9 @@ export default function CandidatesPage() {
                 {expandData.filteredOut.map((item) => (
                   <div
                     key={`filtered-${item.keyword}-${item.source}`}
-                    className="flex items-center justify-between rounded border border-destructive/20 bg-background px-3 py-2 text-xs opacity-70"
+                    className="flex items-start justify-between gap-2 rounded border border-destructive/20 bg-background px-3 py-2 text-xs opacity-70"
                   >
-                    <span className="line-through">{item.keyword}</span>
+                    <span className="break-words line-through">{item.keyword}</span>
                     <span>{item.value}%</span>
                   </div>
                 ))}
@@ -298,13 +298,13 @@ export default function CandidatesPage() {
           )}
         </CardContent>
 
-        <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-6 py-4">
-          <div className="flex w-full items-center justify-between">
+        <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-4 py-4 sm:px-6">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
               已选 <span className="font-medium text-foreground">{selected.size}</span> 个词，
               预计对比成本：{comparisonCost}
             </div>
-            <div className="flex gap-3">
+            <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto">
               <Link href="/dashboard/expand">
                 <Button variant="outline">上一步</Button>
               </Link>

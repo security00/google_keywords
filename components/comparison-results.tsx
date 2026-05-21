@@ -153,7 +153,7 @@ export function ComparisonResultsCard({
       <CardHeader>
         <div className="flex flex-col gap-2">
           <CardTitle>第三步：趋势对比结果</CardTitle>
-          <CardDescription className="flex items-center gap-2">
+          <CardDescription className="flex flex-wrap items-center gap-2">
             时间范围:{" "}
             <Badge variant="outline" className="font-mono font-normal">
               {compareData.dateFrom}
@@ -166,7 +166,7 @@ export function ComparisonResultsCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-5">
           {([
             { key: "strong", label: "强通过", count: compareData.summary.strong, color: "text-emerald-600 bg-emerald-50 border-emerald-100 ring-emerald-500/20" },
             { key: "pass", label: "通过", count: compareData.summary.pass, color: "text-green-600 bg-green-50 border-green-100 ring-green-500/20" },
@@ -183,7 +183,7 @@ export function ComparisonResultsCard({
                 }
               }}
               className={cn(
-                "flex cursor-pointer flex-col items-center justify-center rounded-xl border p-4 text-center transition-all hover:scale-105 hover:ring-2 hover:shadow-md",
+                "flex cursor-pointer flex-col items-center justify-center rounded-xl border p-3 text-center transition-all hover:scale-105 hover:ring-2 hover:shadow-md sm:p-4",
                 item.color
               )}
             >
@@ -229,8 +229,8 @@ export function ComparisonResultsCard({
                         <div className="group rounded-lg border p-4 text-sm transition-all hover:bg-muted/40">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-base">{item.keyword}</span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="break-words font-semibold text-base">{item.keyword}</span>
                                 {item.freshness ? (
                                   <Badge
                                     variant="outline"
@@ -241,14 +241,14 @@ export function ComparisonResultsCard({
                                   </Badge>
                                 ) : null}
                               </div>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                                 <span>热度: {item.avgValue}</span>
                                 <span>基准: {item.benchmarkValue}</span>
                               </div>
                             </div>
 
                             <div className="flex flex-col items-start gap-2 sm:items-end">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                 <Badge
                                   variant="secondary"
                                   className={cn("font-medium", verdictBadge(item.verdict))}
