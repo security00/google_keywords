@@ -95,6 +95,8 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
 
         self.assertFalse(scanner.is_game_name_valid("Machine Learning"))
         self.assertFalse(scanner.is_game_name_valid("Data Science"))
+        self.assertFalse(scanner.is_game_name_valid("chud the builder givesendgo"))
+        self.assertFalse(scanner.is_game_name_valid("streamer legal fund gofundme"))
         self.assertTrue(scanner.is_game_name_valid("It Reaches"))
         self.assertTrue(scanner.is_game_name_valid("Metro 2033"))
 

@@ -17,6 +17,8 @@ describe("scoreKeyword", () => {
       ["word meaning", "dictionary_query"],
       ["new york city", "place"],
       ["man arrested", "news_event"],
+      ["chud the builder givesendgo", "crowdfunding_event"],
+      ["streamer legal fund gofundme", "crowdfunding_event"],
       ["wordle answer", "exam_or_puzzle"],
       ["ap psych score calculator", "exam_or_puzzle"],
       ["apes score calculator", "exam_or_puzzle"],

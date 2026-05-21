@@ -57,6 +57,8 @@ export function scoreKeyword(keyword: string): RuleResult {
     return { action: "block", reason: "entertainment", score: -90 };
   if (/\b(arrested|arrest|lawsuit|scandal|killed|shot|bleeding|poison|crime|dui|foul ball)\b/i.test(lower))
     return { action: "block", reason: "news_event", score: -90 };
+  if (/\b(givesendgo|give send go|gofundme|fundraiser|fundraising|donation fund|legal fund|defense fund)\b/i.test(lower))
+    return { action: "block", reason: "crowdfunding_event", score: -90 };
 
   // Exams, answers, word games, and short-lived puzzle intent
   if (/\b(exam|result|answer key|answer|wordle|crossword|clue|hint|jamb|jee|cbse|dsssb|nta|bitsat|cutoff|reprint)\b/i.test(lower))

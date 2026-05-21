@@ -1052,6 +1052,16 @@ SEO_JUNK_PATTERNS = re.compile(
 )
 
 
+EVENT_PERSON_JUNK_PATTERNS = re.compile(
+    r"(?:"
+    r"givesendgo|give\s*send\s*go|gofundme"
+    r"|fundraiser|fundraising|donation\s+fund|legal\s+fund|defense\s+fund"
+    r"|lawsuit|arrest(?:ed)?|court\s+case|trial"
+    r"|streamer|youtuber|influencer"
+    r")"
+)
+
+
 GENERIC_NON_GAME_PHRASES = {
     "artificial intelligence",
     "business analytics",
@@ -1092,6 +1102,9 @@ def is_game_name_valid(name):
         return False
     # SEO junk patterns (embed, website, unblocked, etc.)
     if SEO_JUNK_PATTERNS.search(name_lower):
+        return False
+    # Short-lived person/event/crowdfunding trends are not durable game entities.
+    if EVENT_PERSON_JUNK_PATTERNS.search(name_lower):
         return False
     # Too many words = likely a category page, not a game
     if len(name_lower.split()) > 5:
