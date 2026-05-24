@@ -15,6 +15,13 @@ type SourceRow = {
   page_count: number;
   candidate_count: number;
   latest_candidate_at: string | null;
+  funnel_run_started_at: string | null;
+  funnel_status: string | null;
+  funnel_discovered_count: number | null;
+  funnel_trend_pass_count: number | null;
+  funnel_serp_pass_count: number | null;
+  funnel_promoted_count: number | null;
+  funnel_student_visible_count: number | null;
 };
 
 type CandidateRow = {
@@ -383,13 +390,14 @@ export default function GameRadarPage() {
                 <Th>策略备注</Th>
                 <Th align="right">页面</Th>
                 <Th align="right">候选</Th>
+                <Th>最近漏斗</Th>
                 <Th>最近检查</Th>
                 <Th>Sitemap</Th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
               ) : data?.sources.length ? (
                 data.sources.map((row) => (
                   <tr key={row.id} className="border-t hover:bg-muted/30">
@@ -428,12 +436,27 @@ export default function GameRadarPage() {
                     </Td>
                     <Td align="right">{row.page_count}</Td>
                     <Td align="right">{row.candidate_count}</Td>
+                    <Td className="min-w-[220px] text-xs">
+                      {row.funnel_run_started_at ? (
+                        <div>
+                          <div className="font-medium">
+                            {row.funnel_status || "-"} · 抓 {row.funnel_discovered_count ?? 0} / 推 {row.funnel_promoted_count ?? 0}
+                          </div>
+                          <div className="text-muted-foreground">
+                            T {row.funnel_trend_pass_count ?? 0} · S {row.funnel_serp_pass_count ?? 0} · 学生 {row.funnel_student_visible_count ?? 0}
+                          </div>
+                          <div className="text-muted-foreground">{date(row.funnel_run_started_at)}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">暂无</span>
+                      )}
+                    </Td>
                     <Td>{date(row.last_checked_at)}</Td>
                     <Td className="max-w-[420px] truncate text-muted-foreground" title={row.sitemap_url}>{row.sitemap_url}</Td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">暂无来源</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">暂无来源</td></tr>
               )}
             </tbody>
           </table>

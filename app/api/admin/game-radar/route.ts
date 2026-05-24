@@ -19,6 +19,13 @@ type SourceRow = {
   page_count: number;
   candidate_count: number;
   latest_candidate_at: string | null;
+  funnel_run_started_at: string | null;
+  funnel_status: string | null;
+  funnel_discovered_count: number | null;
+  funnel_trend_pass_count: number | null;
+  funnel_serp_pass_count: number | null;
+  funnel_promoted_count: number | null;
+  funnel_student_visible_count: number | null;
 };
 
 type CandidateRow = {
@@ -60,11 +67,28 @@ export async function GET(request: Request) {
         `SELECT s.id, s.name, s.base_url, s.sitemap_url, s.enabled, s.quality_tier, s.status_note, s.last_checked_at,
                 COUNT(DISTINCT p.id) AS page_count,
                 COUNT(DISTINCT c.id) AS candidate_count,
-                MAX(c.created_at) AS latest_candidate_at
+                MAX(c.created_at) AS latest_candidate_at,
+                fr.run_started_at AS funnel_run_started_at,
+                fr.status AS funnel_status,
+                fr.discovered_count AS funnel_discovered_count,
+                fr.trend_pass_count AS funnel_trend_pass_count,
+                fr.serp_pass_count AS funnel_serp_pass_count,
+                fr.promoted_count AS funnel_promoted_count,
+                fr.student_visible_count AS funnel_student_visible_count
          FROM game_radar_sources s
          LEFT JOIN game_radar_pages p ON p.source_id = s.id
          LEFT JOIN game_radar_candidates c ON c.source_id = s.id
-         GROUP BY s.id, s.name, s.base_url, s.sitemap_url, s.enabled, s.quality_tier, s.status_note, s.last_checked_at
+         LEFT JOIN game_radar_source_funnel_runs fr
+           ON fr.id = (
+             SELECT fr2.id
+             FROM game_radar_source_funnel_runs fr2
+             WHERE fr2.source_id = s.id
+             ORDER BY fr2.run_started_at DESC
+             LIMIT 1
+           )
+         GROUP BY s.id, s.name, s.base_url, s.sitemap_url, s.enabled, s.quality_tier, s.status_note, s.last_checked_at,
+                  fr.run_started_at, fr.status, fr.discovered_count, fr.trend_pass_count, fr.serp_pass_count,
+                  fr.promoted_count, fr.student_visible_count
          ORDER BY s.quality_tier ASC, s.id ASC`
       ),
       d1Query<CandidateRow>(
