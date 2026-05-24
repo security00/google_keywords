@@ -24,6 +24,10 @@ const statusConfig = {
   expired: { label: "已过期", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
 };
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function InviteCodesPage() {
   const [codes, setCodes] = useState<InviteCode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +45,8 @@ export default function InviteCodesPage() {
       if (!res.ok) throw new Error("Unauthorized");
       const data = await res.json();
       setCodes(data.codes || []);
-    } catch (e: any) {
-      setError(e.message || "加载失败");
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, "加载失败"));
     } finally {
       setLoading(false);
     }
@@ -69,8 +73,8 @@ export default function InviteCodesPage() {
       if (!res.ok) throw new Error(data.error || "生成失败");
       setShowGen(false);
       fetchCodes();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, "生成失败"));
     } finally {
       setGenLoading(false);
     }
@@ -86,8 +90,8 @@ export default function InviteCodesPage() {
       });
       if (!res.ok) throw new Error("删除失败");
       fetchCodes();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, "删除失败"));
     }
   };
 

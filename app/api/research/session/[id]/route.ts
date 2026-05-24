@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
 import { fetchSessionPayload } from "@/lib/session-store";
@@ -7,11 +7,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authenticate(request as any);
+    const auth = await authenticate(request);
     if (!auth.authenticated) { return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 }); }
     const user = { id: auth.userId! };
     if (!user) {

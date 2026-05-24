@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
 import { checkStudentAccess } from "@/lib/usage";
@@ -17,9 +17,9 @@ export const dynamic = "force-dynamic";
 // Body: { keywords: string[], months?: number, benchmark?: string }
 // Cache hit → return immediately (backward compatible)
 // Cache miss → submit async → return { jobId, status: "processing" }
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const auth = await authenticate(request as any);
+    const auth = await authenticate(request);
     if (!auth.authenticated) {
       return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
     }

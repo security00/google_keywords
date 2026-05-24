@@ -46,9 +46,10 @@ export async function POST(req: NextRequest) {
             key,
             message: 'Save this key securely. It will not be shown again.',
         });
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to generate key';
         return NextResponse.json(
-            { error: err.message || 'Failed to generate key' },
+            { error: message },
             { status: 400 }
         );
     }

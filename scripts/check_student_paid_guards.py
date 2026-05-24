@@ -54,7 +54,7 @@ def main() -> int:
     assert_order(
         "app/api/research/serp/route.ts",
         "requirePaidApiPermission(request)",
-        "const taskSubmission = await submitSerpTasksWithCost",
+        "submitSerpTasksWithCost(keywords)",
     )
     assert_order(
         "app/api/research/trends/route.ts",

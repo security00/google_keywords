@@ -38,6 +38,11 @@
 ## Admin Notes
 
 - Admin health dashboard work is partially implemented but not fully closed.
+- Game Radar latest handoff, `2026-05-24`:
+  - `main` / `origin/main` HEAD is `51a9d01 fix: improve mobile dashboard layout`.
+  - Recent fixes restored the `trend_pass` review gate, allowed `serp_pass` candidates to be reviewed, added non-game prefiltering, and added `scripts/game_radar_autoreview.py` with tests.
+  - Auto-review is a trusted-candidate admin/backoffice threshold layer only. It must not bypass Trends + SERP game relevance, and must not directly change student-facing recommendations.
+  - Agent coordination docs now live in `CLAUDE.md` and `docs/agents/`; Horizon borrowing status lives in `docs/horizon-borrowing-status.md`.
 - User management page should have visible pagination with page size `20`.
 - Student/admin game discovery copy should say "multi-source game candidates" or similar.
   Do not mention outdated `Steam + CrazyGames`, fixed UTC schedules, `GPTs`, or trend window internals in student-facing helper text.

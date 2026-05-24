@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 
 import { GET } from "@/app/api/game-keywords/route";
 import { d1Query } from "@/lib/d1";
+import { checkStudentAccess } from "@/lib/usage";
 
 vi.mock("@/lib/auth_middleware", () => ({
   authenticate: vi.fn(async () => ({ authenticated: true, userId: "user-1" })),
@@ -20,10 +22,12 @@ vi.mock("@/config/business-rules", () => ({
 }));
 
 const mockD1Query = vi.mocked(d1Query);
+const mockCheckStudentAccess = vi.mocked(checkStudentAccess);
 
 describe("GET /api/game-keywords", () => {
   beforeEach(() => {
     mockD1Query.mockReset();
+    mockCheckStudentAccess.mockResolvedValue({ allowed: true });
   });
 
   it("queries only fully verified recommended game keywords", async () => {
@@ -45,7 +49,7 @@ describe("GET /api/game-keywords", () => {
       ],
     });
 
-    const response = await GET(new Request("https://example.com/api/game-keywords") as any);
+    const response = await GET(new NextRequest("https://example.com/api/game-keywords"));
     const body = await response.json();
 
     expect(body.keywords).toHaveLength(1);
@@ -54,5 +58,20 @@ describe("GET /api/game-keywords", () => {
     expect(sql).toContain("recommendation != '⏭️ skip'");
     expect(sql).toContain("serp_organic > 0");
     expect(sql).toContain("reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%'");
+  });
+
+  it("blocks pending students before reading game recommendations", async () => {
+    mockCheckStudentAccess.mockResolvedValue({
+      allowed: false,
+      reason: "账号已注册，等待管理员开通 90 天使用期",
+      code: "trial_inactive",
+    });
+
+    const response = await GET(new NextRequest("https://example.com/api/game-keywords"));
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.code).toBe("trial_inactive");
+    expect(mockD1Query).not.toHaveBeenCalled();
   });
 });

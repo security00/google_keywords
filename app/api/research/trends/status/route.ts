@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { authenticate } from "@/lib/auth_middleware";
 import { getReadyTaskIds, getComparisonResults } from "@/lib/keyword-research";
@@ -11,9 +11,9 @@ export const dynamic = "force-dynamic";
 
 // GET /api/research/trends/status?jobId=X
 // Single non-blocking poll of DataForSEO tasks_ready
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticate(request as any);
+    const auth = await authenticate(request);
     if (!auth.authenticated) {
       return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
     }

@@ -50,3 +50,6 @@ dist/
 d1_export.sql
 d1_export_parts/
 *.pyc
+
+# local scratch files
+/tmp/
