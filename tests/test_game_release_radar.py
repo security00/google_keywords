@@ -76,6 +76,47 @@ class GameReleaseRadarTest(unittest.TestCase):
         self.assertEqual(candidates[0].keyword, "Fresh Free Planet")
         self.assertEqual(candidates[0].source_id, "itchio-new-free")
 
+    def test_fetch_roblox_search_extracts_game_results(self):
+        radar = load_release_radar()
+        payload = {
+            "searchResults": [
+                {
+                    "contentGroupType": "Game",
+                    "contents": [
+                        {
+                            "name": "[UPD] Fresh Roblox Planet 🚀",
+                            "rootPlaceId": 123,
+                            "canonicalUrlPath": "/games/123/Fresh-Roblox-Planet",
+                        },
+                        {
+                            "name": "Free Online Games",
+                            "rootPlaceId": 456,
+                            "canonicalUrlPath": "/games/456/Free-Online-Games",
+                        },
+                        {
+                            "name": "[UPD] Fresh Roblox Planet 🚀",
+                            "rootPlaceId": 789,
+                            "canonicalUrlPath": "/games/789/Fresh-Roblox-Planet",
+                        },
+                    ],
+                },
+                {"contentGroupType": "User", "contents": [{"name": "Fresh Roblox Planet"}]},
+            ]
+        }
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = radar.json.dumps(payload).encode("utf-8")
+
+        with patch.object(radar.urllib.request, "urlopen", return_value=response) as urlopen, \
+             patch.object(radar.time, "sleep"):
+            candidates = radar.fetch_roblox_search(["new"])
+
+        requested_url = urlopen.call_args[0][0].full_url
+        self.assertIn("searchQuery=new", requested_url)
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0].keyword, "Fresh Roblox Planet")
+        self.assertEqual(candidates[0].source_id, "roblox-search")
+        self.assertEqual(candidates[0].url, "https://www.roblox.com/games/123/Fresh-Roblox-Planet")
+
 
 if __name__ == "__main__":
     unittest.main()

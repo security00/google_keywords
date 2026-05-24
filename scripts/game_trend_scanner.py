@@ -568,6 +568,68 @@ def fetch_itchio_free():
         return []
 
 
+ROBLOX_SEARCH_QUERIES = [
+    "new roblox game",
+    "upcoming roblox game",
+    "new obby",
+    "new simulator",
+    "new tycoon",
+    "new anime game",
+]
+
+
+def clean_roblox_name(name):
+    cleaned = re.sub(r"\[[^\]]{1,24}\]", " ", name)
+    cleaned = re.sub(r"[^\w\s:'&!?.+-]", " ", cleaned, flags=re.UNICODE)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def fetch_roblox_search():
+    """Fetch Roblox experience candidates from public search API."""
+    print("\n🎮 Phase 1f: Roblox Search", flush=True)
+    try:
+        games = []
+        seen = set()
+        for query in ROBLOX_SEARCH_QUERIES:
+            params = urllib.parse.urlencode({
+                "searchQuery": query,
+                "sessionId": "game-trend-scanner",
+            })
+            req = urllib.request.Request(
+                f"https://apis.roblox.com/search-api/omni-search?{params}",
+                headers={"User-Agent": "Mozilla/5.0 (compatible; GameTrendScanner/1.0)"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read())
+
+            for group in data.get("searchResults", []):
+                if not isinstance(group, dict) or group.get("contentGroupType") != "Game":
+                    continue
+                contents = group.get("contents", [])
+                if not isinstance(contents, list):
+                    continue
+                for item in contents:
+                    if not isinstance(item, dict):
+                        continue
+                    raw_name = str(item.get("name") or "").strip()
+                    root_place_id = item.get("rootPlaceId")
+                    if not raw_name or not root_place_id:
+                        continue
+                    name = clean_roblox_name(raw_name)
+                    key = name.lower()
+                    if not name or key in seen or not is_game_name_valid(name):
+                        continue
+                    seen.add(key)
+                    games.append({"name": name, "source": "roblox", "roblox_place_id": root_place_id})
+            time.sleep(0.2)
+
+        print(f"  Found {len(games)} Roblox games", flush=True)
+        return games
+    except Exception as e:
+        print(f"  ❌ Roblox fetch failed: {e}", flush=True)
+        return []
+
+
 def fetch_crazygames_new():
     """Fetch latest games from CrazyGames /new page."""
     print("\n🎮 Phase 2: CrazyGames /new", flush=True)
@@ -1184,6 +1246,7 @@ def main():
         ag_new = []
         itchio_new = []
         itchio_free = []
+        roblox_new = []
     else:
         # ── Phase 1b: Steam new releases ──
         steam_new = fetch_steam_new_releases()
@@ -1200,16 +1263,19 @@ def main():
         # ── Phase 1f: itch.io free games ──
         itchio_free = fetch_itchio_free()
 
+        # ── Phase 1g: Roblox search candidates ──
+        roblox_new = fetch_roblox_search()
+
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in crazygames_new + steam_new + poki_new + ag_new + itchio_new + itchio_free:
+    for g in crazygames_new + steam_new + poki_new + ag_new + itchio_new + itchio_free + roblox_new:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
             all_games.append(g)
 
-    source_label = "CrazyGames /new" if args.max_sources == 0 else "CrazyGames + Steam + Poki + Addicting Games + itch.io"
+    source_label = "CrazyGames /new" if args.max_sources == 0 else "CrazyGames + Steam + Poki + Addicting Games + itch.io + Roblox"
     print(f"\n📋 Combined: {len(all_games)} unique new games ({source_label})", flush=True)
 
     # ── Filter out already trend-checked ──

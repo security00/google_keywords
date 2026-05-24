@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Release-source radar for admin-only new game candidates.
 
-Collects explicit new-release feeds (Steam, itch.io newest, and itch.io latest
-free games) and writes them into game_radar_* tables. This is candidate
+Collects explicit new-release feeds (Steam, itch.io newest, itch.io latest
+free games, and Roblox search discovery) and writes them into game_radar_* tables. This is candidate
 discovery only: no Trends, SERP, LLM, or student-facing writes happen here.
 """
 
@@ -16,6 +16,7 @@ import time
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from urllib.parse import quote_plus
 
 try:
     from scripts.game_suggest_radar import D1Client, normalize_keyword, stable_id
@@ -56,7 +57,23 @@ SOURCES = {
         "feed_url": "https://itch.io/games/newest/free",
         "quality_tier": 3,
     },
+    "roblox-search": {
+        "name": "Roblox Search",
+        "base_url": "https://www.roblox.com",
+        "feed_url": "https://apis.roblox.com/search-api/omni-search",
+        "quality_tier": 2,
+    },
 }
+
+ROBLOX_SEARCH_QUERIES = [
+    "new",
+    "updated",
+    "anime",
+    "obby",
+    "simulator",
+    "tycoon",
+    "tower defense",
+]
 
 ADULT_STEAM_TOKENS = (
     "hentai", "🔞", "nsfw", "18+", "sex", "porn", "futanari", "oneeshota",
@@ -93,6 +110,12 @@ def is_release_name_allowed(name: str) -> bool:
 def title_from_itch_url(url: str) -> str:
     slug = url.rstrip("/").split("/")[-1]
     return slug.replace("-", " ").strip().title()
+
+
+def clean_roblox_name(name: str) -> str:
+    cleaned = re.sub(r"\[[^\]]{1,24}\]", " ", name)
+    cleaned = re.sub(r"[^\w\s:'&!?.+-]", " ", cleaned, flags=re.UNICODE)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 def fetch_steam_new() -> list[ReleaseCandidate]:
@@ -164,6 +187,51 @@ def fetch_itchio(source_id: str) -> list[ReleaseCandidate]:
     return candidates
 
 
+def fetch_roblox_search(queries: list[str] | None = None) -> list[ReleaseCandidate]:
+    source = SOURCES["roblox-search"]
+    candidates: list[ReleaseCandidate] = []
+    seen: set[str] = set()
+    for query in queries or ROBLOX_SEARCH_QUERIES:
+        url = f"{source['feed_url']}?searchQuery={quote_plus(query)}&sessionId=game-release-radar"
+        data = fetch_json(url)
+        for group in data.get("searchResults", []):
+            if not isinstance(group, dict) or group.get("contentGroupType") != "Game":
+                continue
+            contents = group.get("contents", [])
+            if not isinstance(contents, list):
+                continue
+            for item in contents:
+                if not isinstance(item, dict):
+                    continue
+                raw_name = str(item.get("name") or "").strip()
+                root_place_id = item.get("rootPlaceId")
+                if not raw_name or not root_place_id:
+                    continue
+                name = clean_roblox_name(raw_name)
+                if not name or not is_release_name_allowed(name):
+                    continue
+                normalized = normalize_keyword(name)
+                if not normalized or normalized in seen:
+                    continue
+                seen.add(normalized)
+                canonical_path = str(item.get("canonicalUrlPath") or "")
+                game_url = f"{source['base_url']}{canonical_path}" if canonical_path.startswith("/games/") else f"{source['base_url']}/games/{root_place_id}"
+                candidates.append(
+                    ReleaseCandidate(
+                        keyword=name,
+                        normalized=normalized,
+                        source_id="roblox-search",
+                        source_name=source["name"],
+                        base_url=source["base_url"],
+                        feed_url=source["feed_url"],
+                        url=game_url,
+                        title=f"{name} | Roblox",
+                    )
+                )
+        time.sleep(0.2)
+    return candidates
+
+
 def collect_candidates(sources: list[str]) -> list[ReleaseCandidate]:
     all_candidates: list[ReleaseCandidate] = []
     for source_id in sources:
@@ -172,6 +240,8 @@ def collect_candidates(sources: list[str]) -> list[ReleaseCandidate]:
                 candidates = fetch_steam_new()
             elif source_id in {"itchio-new", "itchio-new-free"}:
                 candidates = fetch_itchio(source_id)
+            elif source_id == "roblox-search":
+                candidates = fetch_roblox_search()
             else:
                 print(f"skip unknown source: {source_id}", file=sys.stderr, flush=True)
                 continue
@@ -251,7 +321,7 @@ def main() -> None:
     parser.add_argument("--write", action="store_true", help="Write candidates to D1. Omit for dry-run.")
     args = parser.parse_args()
 
-    sources = args.source or ["steam-new", "itchio-new", "itchio-new-free"]
+    sources = args.source or ["steam-new", "roblox-search", "itchio-new", "itchio-new-free"]
     print(f"Game Release Radar - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}", flush=True)
     print(f"sources={sources} write={args.write}", flush=True)
     candidates = collect_candidates(sources)

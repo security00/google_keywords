@@ -45,6 +45,40 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
             ],
         )
 
+    def test_fetch_roblox_search_extracts_game_results(self):
+        scanner = load_scanner()
+
+        payload = {
+            "searchResults": [
+                {
+                    "contentGroupType": "Game",
+                    "contents": [
+                        {
+                            "name": "[UPD] Fresh Roblox Planet 🚀",
+                            "rootPlaceId": 123,
+                        },
+                        {
+                            "name": "Free Online Games",
+                            "rootPlaceId": 456,
+                        },
+                        {
+                            "name": "[UPD] Fresh Roblox Planet 🚀",
+                            "rootPlaceId": 789,
+                        },
+                    ],
+                },
+                {"contentGroupType": "User", "contents": [{"name": "Fresh Roblox Planet"}]},
+            ]
+        }
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = scanner.json.dumps(payload).encode("utf-8")
+
+        with patch.object(scanner.urllib.request, "urlopen", return_value=response), \
+             patch.object(scanner.time, "sleep"):
+            games = scanner.fetch_roblox_search()
+
+        self.assertEqual(games, [{"name": "Fresh Roblox Planet", "source": "roblox", "roblox_place_id": 123}])
+
     def test_select_games_to_check_gives_each_source_a_daily_floor(self):
         scanner = load_scanner()
 

@@ -43,6 +43,10 @@
   - Recent fixes restored the `trend_pass` review gate, allowed `serp_pass` candidates to be reviewed, added non-game prefiltering, and added `scripts/game_radar_autoreview.py` with tests.
   - Auto-review is a trusted-candidate admin/backoffice threshold layer only. It must not bypass Trends + SERP game relevance, and must not directly change student-facing recommendations.
   - Agent coordination docs now live in `CLAUDE.md` and `docs/agents/`; Horizon borrowing status lives in `docs/horizon-borrowing-status.md`.
+- Roblox source handoff, `2026-05-24`:
+  - `roblox-search` is connected through Roblox public omni-search as an admin Radar source and through `game_trend_scanner.py` as a daily candidate source.
+  - It must still pass Trends, 90-day history, and SERP game relevance before reaching `/api/game-keywords`.
+  - Initial D1 seed wrote 50 `game_radar_candidates` with status `new`; do not treat these as student recommendations until reviewed/promoted.
 - User management page should have visible pagination with page size `20`.
 - Student/admin game discovery copy should say "multi-source game candidates" or similar.
   Do not mention outdated `Steam + CrazyGames`, fixed UTC schedules, `GPTs`, or trend window internals in student-facing helper text.
