@@ -28,6 +28,13 @@ export type ComparisonFreshness = {
 
 export type DecayRisk = "low" | "medium" | "high";
 
+export type KeywordPipelineFit =
+  | "new_tool"
+  | "new_game"
+  | "old_word"
+  | "event_noise"
+  | "other";
+
 export type Candidate = {
   keyword: string;
   value: number;
@@ -38,6 +45,8 @@ export type Candidate = {
   confidence?: number;
   freshness?: ComparisonFreshness;
   decayRisk?: DecayRisk;
+  pipelineFit?: KeywordPipelineFit;
+  pipelineReason?: string;
 };
 
 export type OrganizedCandidates = {

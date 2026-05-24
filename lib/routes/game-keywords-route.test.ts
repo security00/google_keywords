@@ -5,12 +5,25 @@ import { GET } from "@/app/api/game-keywords/route";
 import { d1Query } from "@/lib/d1";
 import { checkStudentAccess } from "@/lib/usage";
 
+const allowedAccess = {
+  allowed: true as const,
+  user: {
+    id: "user-1",
+    email: "student@example.com",
+    role: "student" as const,
+    trialStartedAt: "2026-05-01T00:00:00Z",
+    trialExpiresAt: "2026-08-01T00:00:00Z",
+  },
+  quota: { used: 0, limit: 999 },
+  trial: { active: true, daysLeft: 60, expiresAt: "2026-08-01T00:00:00Z" },
+};
+
 vi.mock("@/lib/auth_middleware", () => ({
   authenticate: vi.fn(async () => ({ authenticated: true, userId: "user-1" })),
 }));
 
 vi.mock("@/lib/usage", () => ({
-  checkStudentAccess: vi.fn(async () => ({ allowed: true })),
+  checkStudentAccess: vi.fn(async () => allowedAccess),
 }));
 
 vi.mock("@/lib/d1", () => ({
@@ -27,7 +40,7 @@ const mockCheckStudentAccess = vi.mocked(checkStudentAccess);
 describe("GET /api/game-keywords", () => {
   beforeEach(() => {
     mockD1Query.mockReset();
-    mockCheckStudentAccess.mockResolvedValue({ allowed: true });
+    mockCheckStudentAccess.mockResolvedValue(allowedAccess);
   });
 
   it("queries only fully verified recommended game keywords", async () => {

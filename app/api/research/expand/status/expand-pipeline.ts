@@ -1,9 +1,9 @@
 import type { Candidate, FilterSummary } from "@/lib/types";
 import type { FilterConfig } from "@/lib/keyword-research";
 import { filterCandidatesWithKeywordModel } from "@/lib/keyword-research";
-import { batchScoreKeywords } from "@/lib/rule-engine";
+import { batchScoreKeywords, classifyKeywordPipeline } from "@/lib/rule-engine";
 import { saveKeywordHistory } from "@/lib/history";
-import { normalizeCandidateType, loadKeywordHistoryFirstSeen } from "./expand-helpers";
+import { loadKeywordHistoryFirstSeen } from "./expand-helpers";
 
 export interface CandidateInput {
   keyword: string;
@@ -76,6 +76,11 @@ export const filterAndEnrichCandidates = async (
     candidates = candidates.filter((candidate) => candidate.type === "rising");
   }
 
+  const withPipelineFit = <T extends { keyword: string }>(candidate: T) => {
+    const pipeline = classifyKeywordPipeline(candidate.keyword);
+    return { ...candidate, pipelineFit: pipeline.fit, pipelineReason: pipeline.reason };
+  };
+
   // === Optimization 1: Rule engine pre-filter ===
   const ruleResult = batchScoreKeywords(candidates.map(c => c.keyword));
   const ruleBlockedSet = new Set(ruleResult.blocked.map(k => k.toLowerCase()));
@@ -114,7 +119,7 @@ export const filterAndEnrichCandidates = async (
   const filteredOut: Candidate[] = [
     ...ruleFilteredOut,
     ...modelFilteredOut,
-  ];
+  ].map(withPipelineFit);
   const filterSummary: FilterSummary | undefined =
     useFilter && filterConfig
       ? {
@@ -163,7 +168,7 @@ export const filterAndEnrichCandidates = async (
     const isNew = !isSharedPrecomputeRequest && firstSeen === today;
     const score = Number(ruleKeptMap.get(norm)) || 0;
     const trends = trendsMap[norm];
-    return { ...c, isNew, score, trends };
+    return { ...withPipelineFit(c), isNew, score, trends };
   });
 
   return { enrichedCandidates, filteredOut, filterSummary, ruleBlockedSet, ruleKeptMap };

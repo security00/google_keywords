@@ -8,7 +8,7 @@ import {
 import type { Candidate, ExpandResponse } from "@/lib/types";
 import { d1Query } from "@/lib/d1";
 import { getJobById, updateJobStatus } from "@/lib/research-jobs";
-import { batchScoreKeywords } from "@/lib/rule-engine";
+import { batchScoreKeywords, classifyKeywordPipeline } from "@/lib/rule-engine";
 import { setCache } from "@/lib/cache";
 
 const D1_IN_QUERY_CHUNK_SIZE = 100;
@@ -167,14 +167,22 @@ export async function handleFinalizeGet(request: Request) {
   );
   const filteredOut = candidates.filter((candidate) =>
     ruleBlockedSet.has(candidate.keyword.toLowerCase())
-  );
+  ).map((candidate) => {
+    const pipeline = classifyKeywordPipeline(candidate.keyword);
+    return { ...candidate, pipelineFit: pipeline.fit, pipelineReason: pipeline.reason };
+  });
   const enrichedCandidates = candidates
     .filter((candidate) => !ruleBlockedSet.has(candidate.keyword.toLowerCase()))
-    .map((candidate) => ({
-      ...candidate,
-      isNew: false,
-      score: Number(ruleKeptMap.get(candidate.keyword.toLowerCase())) || 0,
-    }))
+    .map((candidate) => {
+      const pipeline = classifyKeywordPipeline(candidate.keyword);
+      return {
+        ...candidate,
+        isNew: false,
+        score: Number(ruleKeptMap.get(candidate.keyword.toLowerCase())) || 0,
+        pipelineFit: pipeline.fit,
+        pipelineReason: pipeline.reason,
+      };
+    })
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
   const organized = organizeCandidates(enrichedCandidates);

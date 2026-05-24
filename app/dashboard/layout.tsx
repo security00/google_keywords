@@ -53,7 +53,7 @@ function Navigation({
 
   // 学员菜单
   const studentSteps: NavItem[] = [
-    { href: "/dashboard/expand", label: "1. 词根扩展", active: pathname.includes("/expand") && !pathname.includes("/expand/") },
+    { href: "/dashboard/expand", label: "1. 新词扩展", active: pathname.includes("/expand") && !pathname.includes("/expand/") },
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
     { href: "/dashboard/games", label: "新游发现", icon: Gamepad2, active: pathname === "/dashboard/games" },
@@ -89,7 +89,7 @@ function Navigation({
   const researchGroups: NavGroup[] = [
     {
       id: "research-workflow",
-      label: "研究流程",
+      label: "新词管线",
       icon: Search,
       items: visibleStudentSteps.filter((step) =>
         ["/dashboard/expand", "/dashboard/candidates", "/dashboard/analysis"].includes(step.href)
@@ -97,7 +97,7 @@ function Navigation({
     },
     {
       id: "research-tools",
-      label: "推荐工具",
+      label: "专项管线",
       icon: Gamepad2,
       items: visibleStudentSteps.filter((step) =>
         ["/dashboard/games", "/dashboard/old-keywords"].includes(step.href)

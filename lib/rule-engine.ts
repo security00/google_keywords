@@ -8,6 +8,43 @@ export type RuleResult = {
   score: number; // -100 to 100, higher = better
 };
 
+export type KeywordPipelineFit =
+  | "new_tool"
+  | "new_game"
+  | "old_word"
+  | "event_noise"
+  | "other";
+
+export type KeywordPipelineClassification = {
+  fit: KeywordPipelineFit;
+  reason: string;
+};
+
+const EVENT_INTENT_RE =
+  /\b(heure|horaires|diffusion|broadcast|stream|streaming|live|score|scores|result|results|resultat|résultat|match|replay)\b/i;
+const SPORTS_EVENT_RE =
+  /\b(crunch creator|le crunch|rugby|football|soccer|nba|nhl|pga|masters|marathon|champions|chelsea|arsenal|liverpool|manchester united|man utd|manchester city|newcastle|barcelona|real madrid|tottenham|spurs)\b/i;
+const GAME_RE =
+  /\b(game|games|gaming|play|roblox|steam|itch|itchio|minecraft|fortnite|pokemon|pokémon|valorant|pubg|obby|simulator|tycoon|tower defense|anime game)\b/i;
+const TOOL_RE =
+  /\b(ai|tool|tools|builder|generator|creator|maker|checker|converter|analyzer|calculator|finder|scanner|detector|solver|optimizer|editor|manager|planner|tracker|monitor|extractor|compressor|enhancer|remover|template|workflow|automation|api|sdk|plugin|extension)\b/i;
+
+export function classifyKeywordPipeline(keyword: string): KeywordPipelineClassification {
+  const lower = keyword.trim().toLowerCase();
+
+  if (!lower) return { fit: "event_noise", reason: "empty_keyword" };
+  if (SPORTS_EVENT_RE.test(lower) || (EVENT_INTENT_RE.test(lower) && !TOOL_RE.test(lower))) {
+    return { fit: "event_noise", reason: "event_or_sports_intent" };
+  }
+  if (GAME_RE.test(lower)) {
+    return { fit: "new_game", reason: "game_candidate" };
+  }
+  if (TOOL_RE.test(lower)) {
+    return { fit: "new_tool", reason: "tool_candidate" };
+  }
+  return { fit: "other", reason: "weak_pipeline_fit" };
+}
+
 /**
  * Score a keyword based on rules. No API calls needed.
  */
@@ -16,6 +53,7 @@ export function scoreKeyword(keyword: string): RuleResult {
   const lower = text.toLowerCase();
   const words = lower.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
+  const pipeline = classifyKeywordPipeline(keyword);
 
   // --- Hard blocks (action: block) ---
 
@@ -59,6 +97,8 @@ export function scoreKeyword(keyword: string): RuleResult {
     return { action: "block", reason: "news_event", score: -90 };
   if (/\b(givesendgo|give send go|gofundme|fundraiser|fundraising|donation fund|legal fund|defense fund)\b/i.test(lower))
     return { action: "block", reason: "crowdfunding_event", score: -90 };
+  if (pipeline.fit === "event_noise")
+    return { action: "block", reason: pipeline.reason, score: -90 };
 
   // Exams, answers, word games, and short-lived puzzle intent
   if (/\b(exam|result|answer key|answer|wordle|crossword|clue|hint|jamb|jee|cbse|dsssb|nta|bitsat|cutoff|reprint)\b/i.test(lower))
@@ -89,9 +129,9 @@ export function scoreKeyword(keyword: string): RuleResult {
   if (/\b(stock|stocks|equity|equities|futures|trading|forex|crypto|bitcoin|gold price|share price|dividend|ipo)\b/i.test(lower))
     return { action: "block", reason: "finance", score: -90 };
 
-  // Sports, games, and transient event trackers
-  if (/\b(pokemon|fifa|football|soccer|rugby|nba|nhl|pga|masters|marathon|champions|team builder|draft|league|leagues|score chart)\b/i.test(lower))
-    return { action: "block", reason: "sports_or_game", score: -80 };
+  // Sports and transient event trackers. Productizable game terms are handled by the game pipeline.
+  if (/\b(fifa|football|soccer|rugby|nba|nhl|pga|masters|marathon|champions|team builder|draft|league|leagues|score chart)\b/i.test(lower))
+    return { action: "block", reason: "sports_event", score: -80 };
   if (/\b(chelsea|arsenal|liverpool|manchester united|man utd|manchester city|newcastle|barcelona|real madrid|tottenham|spurs)\b/i.test(lower))
     return { action: "block", reason: "sports_team", score: -90 };
   if (/\b(manager|coach|head coach)\b/i.test(lower) && /\b(sacked|rumor|rumors|next|new|replacement|hired|appointment|appointed)\b/i.test(lower))
@@ -136,6 +176,9 @@ export function scoreKeyword(keyword: string): RuleResult {
   // AI-related = strong trend signal
   const aiPatterns = /\b(ai|artificial intelligence|machine learning|deep learning|gpt|llm|neural|automation|copilot|agent|chatbot|claude|gemini|openai)\b/i;
   if (aiPatterns.test(lower)) score += 35;
+
+  // Game candidates are allowed in the new-word pipeline, but validated separately by the game pipeline.
+  if (pipeline.fit === "new_game") score += 25;
 
   // SaaS/software patterns
   const saasPatterns = /\b(app|software|platform|service|extension|plugin|addon|api|sdk|integration|workflow|template|dashboard)\b/i;

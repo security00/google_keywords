@@ -26,6 +26,20 @@ import { RECOMMENDED_COMPARE_LIMIT } from "@/config/business-rules";
 import type { Candidate, OrganizedCandidates } from "@/lib/types";
 
 const candidateTypeLabel = (type: "top" | "rising") => (type === "rising" ? "RISING" : "TOP");
+const pipelineFitLabel = (fit: Candidate["pipelineFit"]) => {
+  switch (fit) {
+    case "new_tool":
+      return "工具";
+    case "new_game":
+      return "游戏";
+    case "old_word":
+      return "老词";
+    case "event_noise":
+      return "事件";
+    default:
+      return "其他";
+  }
+};
 
 const mapOrganizedSections = (organized: OrganizedCandidates) => [
   {
@@ -258,6 +272,12 @@ export default function CandidatesPage() {
 
                         <div className="flex shrink-0 items-center gap-2">
                           <Badge
+                            variant={item.pipelineFit === "new_game" ? "outline" : "secondary"}
+                            className="h-5 px-1.5 text-[10px]"
+                          >
+                            {pipelineFitLabel(item.pipelineFit)}
+                          </Badge>
+                          <Badge
                             variant={item.type === "rising" ? "default" : "secondary"}
                             className="h-5 px-1.5 text-[10px]"
                           >
@@ -290,7 +310,9 @@ export default function CandidatesPage() {
                     className="flex items-start justify-between gap-2 rounded border border-destructive/20 bg-background px-3 py-2 text-xs opacity-70"
                   >
                     <span className="break-words line-through">{item.keyword}</span>
-                    <span>{item.value}%</span>
+                    <span className="shrink-0 text-right">
+                      {pipelineFitLabel(item.pipelineFit)} · {item.value}%
+                    </span>
                   </div>
                 ))}
               </div>

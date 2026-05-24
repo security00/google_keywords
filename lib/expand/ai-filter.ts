@@ -357,8 +357,9 @@ export const filterCandidatesWithKeywordModel = async (
 
   const systemPrompt = [
     "You are filtering keyword research candidates before they are shown to a human operator.",
-    "Keep durable, productizable, commercial keywords, especially AI tools, software, utilities, SaaS, templates, workflows, and automation.",
-    "Block short-lived noise, entertainment/news/sports/games/politics/celebrity/exam answers/coupons/gambling/adult/domain spam/local navigation queries.",
+    "Keep durable, productizable, commercial keywords, especially AI tools, software, utilities, SaaS, templates, workflows, automation, and game opportunities.",
+    "Block short-lived noise, entertainment/news/sports events/politics/celebrity/exam answers/coupons/gambling/adult/domain spam/local navigation queries.",
+    "Keep game terms only when they are productizable games, game tools, game platforms, or new game opportunities; block match scores, broadcasts, dates, live streams, and sports events.",
     "Block exact brands or one-off entities unless the query clearly describes a reusable software/tool opportunity.",
     "When uncertain, keep AI/tool/SaaS intent and block pure news/event curiosity.",
     "Return strict JSON only.",

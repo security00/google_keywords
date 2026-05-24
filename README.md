@@ -16,6 +16,31 @@ Production site: <https://discoverkeywords.co>
 - **Admin operations** — user activation, invite codes, health panels, pipeline runs, and cost visibility.
 - **External APIs** — authenticated endpoints for research and discovery-feed consumers.
 
+## Three Keyword Pipelines
+
+The product is organized around three separate pipelines. Keep their output
+boundaries explicit so short-lived event clusters do not pollute durable
+tool-site recommendations.
+
+1. **New-word expansion pipeline**
+   - Entry: `/dashboard/expand`, `/api/research/expand`, `scripts/precompute_shared_expand.py`.
+   - Input: configured seed/root terms.
+   - Output: recent productizable tool keywords and game keywords.
+   - Guardrail: event/news/sports clusters such as match times, scores, broadcasts,
+     or one-off creator events are filtered or marked as `event_noise`.
+2. **Game keyword pipeline**
+   - Entry: `/dashboard/games`, `/dashboard/admin/game-radar`,
+     `scripts/game_trend_scanner.py`, `scripts/game_radar_pipeline.py`.
+   - Input: game-specific sources such as Roblox, Steam, itch.io, Poki, and
+     curated radar sources.
+   - Output: student-visible game recommendations only after Trends, history,
+     and SERP game-relevance checks pass.
+3. **Old-word pipeline**
+   - Entry: `/dashboard/old-keywords`, `/dashboard/admin/old-keywords`,
+     `scripts/old_word_pipeline.py`.
+   - Input: existing seed lists and mature keyword pools.
+   - Output: low-competition old-word or old-hot opportunities.
+
 ## Current architecture
 
 - **Frontend / API:** Next.js 16 App Router + React 19 + TypeScript

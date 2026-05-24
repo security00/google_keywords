@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { scoreKeyword, batchScoreKeywords } from "./rule-engine";
+import { scoreKeyword, batchScoreKeywords, classifyKeywordPipeline } from "./rule-engine";
 
 describe("scoreKeyword", () => {
   // --- Hard blocks ---
@@ -28,11 +28,14 @@ describe("scoreKeyword", () => {
       ["free download manager", "legacy_software_brand"],
       ["steam achievement manager", "legacy_software_brand"],
       ["bitcoin trading", "finance"],
-      ["nba draft", "sports_or_game"],
-      ["chelsea fc", "sports_team"],
+      ["nba draft", "event_or_sports_intent"],
+      ["chelsea fc", "event_or_sports_intent"],
       ["promo code free", "coupon_or_code"],
       ["how to build", "generic_query"],
       ["netflix movie trailer", "entertainment"],
+      ["crunch creator", "event_or_sports_intent"],
+      ["diffusion crunch creator", "event_or_sports_intent"],
+      ["resultat crunch creator", "event_or_sports_intent"],
     ])("blocks '%s' → reason: %s", (kw, reason) => {
       const r = scoreKeyword(kw);
       expect(r.action).toBe("block");
@@ -90,6 +93,12 @@ describe("scoreKeyword", () => {
       expect(r.score).toBeGreaterThanOrEqual(95);
     });
 
+    test("game keyword can stay in new-word candidate pool", () => {
+      const r = scoreKeyword("roblox obby game");
+      expect(r.action).toBe("keep");
+      expect(r.score).toBeGreaterThanOrEqual(25);
+    });
+
     test("SaaS pattern gets +20", () => {
       const r = scoreKeyword("workflow platform");
       expect(r.score).toBeGreaterThanOrEqual(20);
@@ -136,6 +145,19 @@ describe("scoreKeyword", () => {
       expect(r.action).toBe("keep");
       expect(r.score).toBeGreaterThanOrEqual(95);
     });
+  });
+});
+
+describe("classifyKeywordPipeline", () => {
+  test.each([
+    ["ai image generator", "new_tool"],
+    ["sql query generator", "new_tool"],
+    ["roblox obby game", "new_game"],
+    ["pokemon game guide", "new_game"],
+    ["crunch creator heure", "event_noise"],
+    ["le crunch creator", "event_noise"],
+  ])("classifies '%s' as %s", (keyword, fit) => {
+    expect(classifyKeywordPipeline(keyword).fit).toBe(fit);
   });
 });
 
