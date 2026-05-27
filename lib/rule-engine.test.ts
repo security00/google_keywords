@@ -17,6 +17,9 @@ describe("scoreKeyword", () => {
       ["word meaning", "dictionary_query"],
       ["new york city", "place"],
       ["man arrested", "news_event"],
+      ["viral manager resignation response", "workplace_news_event"],
+      ["manager resignation response", "workplace_news_event"],
+      ["employee resignation reply", "workplace_news_event"],
       ["chud the builder givesendgo", "crowdfunding_event"],
       ["streamer legal fund gofundme", "crowdfunding_event"],
       ["wordle answer", "exam_or_puzzle"],
@@ -156,8 +159,17 @@ describe("classifyKeywordPipeline", () => {
     ["pokemon game guide", "new_game"],
     ["crunch creator heure", "event_noise"],
     ["le crunch creator", "event_noise"],
+    ["viral manager resignation response", "event_noise"],
   ])("classifies '%s' as %s", (keyword, fit) => {
     expect(classifyKeywordPipeline(keyword).fit).toBe(fit);
+  });
+
+  test("does not treat workplace event manager as a tool suffix", () => {
+    const result = classifyKeywordPipeline("viral manager resignation response");
+    expect(result).toEqual({
+      fit: "event_noise",
+      reason: "workplace_news_event",
+    });
   });
 });
 

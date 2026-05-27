@@ -195,6 +195,13 @@ export const ruleBasedBlockKeyword = (keyword: string, terms: string[]) => {
   if (/\b(news|outage|incident|killed|shot|arrest|crime|weather|forecast)\b/.test(lower)) {
     return true;
   }
+  if (
+    /\b(manager|employee|boss|worker|workplace|employer|hr)\b/.test(lower) &&
+    /\b(viral|resignation|resign|resigns|resigned|resigning|response|reply|story|details|fired|layoff|quit|quitting)\b/.test(lower) &&
+    !/\b(ai|tool|tools|builder|generator|creator|maker|checker|converter|analyzer|calculator|finder|scanner|detector|solver|optimizer|editor|planner|tracker|monitor|extractor|compressor|enhancer|remover|template|workflow|automation|api|sdk|plugin|extension|software|platform|app|game|games|gaming|roblox|steam|minecraft|pokemon|pokémon)\b/.test(lower)
+  ) {
+    return true;
+  }
 
   for (const term of terms) {
     const cleaned = term.trim().toLowerCase();

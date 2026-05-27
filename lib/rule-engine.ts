@@ -24,15 +24,29 @@ const EVENT_INTENT_RE =
   /\b(heure|horaires|diffusion|broadcast|stream|streaming|live|score|scores|result|results|resultat|résultat|match|replay)\b/i;
 const SPORTS_EVENT_RE =
   /\b(crunch creator|le crunch|rugby|football|soccer|nba|nhl|pga|masters|marathon|champions|chelsea|arsenal|liverpool|manchester united|man utd|manchester city|newcastle|barcelona|real madrid|tottenham|spurs)\b/i;
+const WORKPLACE_EVENT_ACTOR_RE =
+  /\b(manager|employee|boss|worker|workplace|employer|hr)\b/i;
+const WORKPLACE_EVENT_ACTION_RE =
+  /\b(viral|resignation|resign|resigns|resigned|resigning|response|reply|story|details|fired|layoff|quit|quitting)\b/i;
 const GAME_RE =
   /\b(game|games|gaming|play|roblox|steam|itch|itchio|minecraft|fortnite|pokemon|pokémon|valorant|pubg|obby|simulator|tycoon|tower defense|anime game)\b/i;
 const TOOL_RE =
   /\b(ai|tool|tools|builder|generator|creator|maker|checker|converter|analyzer|calculator|finder|scanner|detector|solver|optimizer|editor|manager|planner|tracker|monitor|extractor|compressor|enhancer|remover|template|workflow|automation|api|sdk|plugin|extension)\b/i;
+const DURABLE_TOOL_RE =
+  /\b(ai|tool|tools|builder|generator|creator|maker|checker|converter|analyzer|calculator|finder|scanner|detector|solver|optimizer|editor|planner|tracker|monitor|extractor|compressor|enhancer|remover|template|workflow|automation|api|sdk|plugin|extension|software|platform|app)\b/i;
 
 export function classifyKeywordPipeline(keyword: string): KeywordPipelineClassification {
   const lower = keyword.trim().toLowerCase();
 
   if (!lower) return { fit: "event_noise", reason: "empty_keyword" };
+  if (
+    WORKPLACE_EVENT_ACTOR_RE.test(lower) &&
+    WORKPLACE_EVENT_ACTION_RE.test(lower) &&
+    !DURABLE_TOOL_RE.test(lower) &&
+    !GAME_RE.test(lower)
+  ) {
+    return { fit: "event_noise", reason: "workplace_news_event" };
+  }
   if (SPORTS_EVENT_RE.test(lower) || (EVENT_INTENT_RE.test(lower) && !TOOL_RE.test(lower))) {
     return { fit: "event_noise", reason: "event_or_sports_intent" };
   }
@@ -95,6 +109,8 @@ export function scoreKeyword(keyword: string): RuleResult {
     return { action: "block", reason: "entertainment", score: -90 };
   if (/\b(arrested|arrest|lawsuit|scandal|killed|shot|bleeding|poison|crime|dui|foul ball)\b/i.test(lower))
     return { action: "block", reason: "news_event", score: -90 };
+  if (pipeline.fit === "event_noise" && pipeline.reason === "workplace_news_event")
+    return { action: "block", reason: "workplace_news_event", score: -90 };
   if (/\b(givesendgo|give send go|gofundme|fundraiser|fundraising|donation fund|legal fund|defense fund)\b/i.test(lower))
     return { action: "block", reason: "crowdfunding_event", score: -90 };
   if (pipeline.fit === "event_noise")
