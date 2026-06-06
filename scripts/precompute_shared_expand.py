@@ -313,8 +313,20 @@ def batches(items, size):
         yield items[index:index + size]
 
 
+def _effective_score(item):
+    """Apply trend-weighted score: high-trend items get a boost proportional to search value.
+    
+    This ensures emerging concepts (like odysseus ai with value=3750) aren't crowded out
+    by low-value tool-suffix items (like checker/builder with score=50 but minimal trend).
+    """
+    score = float(item.get("score") or 0)
+    value = float(item.get("value") or 0)
+    boost = min(max(0, value) / 100, 30)
+    return score + boost
+
+
 def organize_candidates(candidates):
-    sorted_candidates = sorted(candidates, key=lambda item: item.get("score", 0), reverse=True)
+    sorted_candidates = sorted(candidates, key=_effective_score, reverse=True)
     organized = {
         "explosive": [],
         "fastRising": [],
@@ -354,21 +366,24 @@ def build_recommended_selection(expand_response):
         keyword = item.get("keyword") if isinstance(item, dict) else None
         if not keyword or keyword in picked_set:
             return False
-        score = float(item.get("score") or 0)
-        if score < RECOMMENDED_MIN_SCORE:
+        eff = _effective_score(item)
+        if eff < RECOMMENDED_MIN_SCORE:
             return False
         picked.append(keyword)
         picked_set.add(keyword)
         return True
 
     def add_candidates(items, max_count):
+        # Sort by effective score so strongest items in each tier go first
+        items = sorted(items or [], key=_effective_score, reverse=True)
         added = 0
-        for item in items or []:
+        for item in items:
             if len(picked) >= limit or added >= max_count:
                 break
             if add_keyword(item):
                 added += 1
 
+    # Step 1: High-confidence (raw score >= 60, bypasses quotas)
     strong_candidates = [
         item for item in flat_list
         if isinstance(item, dict) and float(item.get("score") or 0) >= RECOMMENDED_HIGH_CONFIDENCE_SCORE
@@ -378,14 +393,32 @@ def build_recommended_selection(expand_response):
             break
         add_keyword(item)
 
+    # Step 2-4: Section quotas, but sorted by effective score (trend-weighted)
     add_candidates(organized.get("explosive"), RECOMMENDED_SECTION_QUOTAS["explosive"])
     add_candidates(organized.get("fastRising"), RECOMMENDED_SECTION_QUOTAS["fastRising"])
     add_candidates(organized.get("steadyRising"), RECOMMENDED_SECTION_QUOTAS["steadyRising"])
 
+    # Step 5: Remaining slots from all non-slow items by effective score
     if len(picked) < limit:
-        slow_ids = {id(item) for item in organized.get("slowRising", []) if isinstance(item, dict)}
-        non_slow = [item for item in flat_list if id(item) not in slow_ids]
-        add_candidates(non_slow, limit)
+        slow_items = organized.get("slowRising", [])
+        slow_keywords = {
+            item.get("keyword")
+            for item in (slow_items or [])
+            if isinstance(item, dict) and item.get("keyword")
+        }
+        remaining = [
+            item for item in flat_list
+            if isinstance(item, dict)
+            and item.get("keyword")
+            and item.get("keyword") not in picked_set
+            and item.get("keyword") not in slow_keywords
+        ]
+        # Sort remaining by effective score
+        remaining.sort(key=_effective_score, reverse=True)
+        for item in remaining:
+            if len(picked) >= limit:
+                break
+            add_keyword(item)
 
     return picked[:limit]
 

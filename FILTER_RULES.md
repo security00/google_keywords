@@ -22,6 +22,53 @@
 
 ---
 
+## 新增：软件产品命名模式识别（2026-06-06）
+
+### 背景
+传统工具后缀白名单（builder/generator/checker 等）无法覆盖新兴软件产品命名方式。
+导致 `hermes desktop`（AI桌面端）、`odysseus ai`（高趋势AI概念）等词因缺少经典后缀而被低压制。
+
+### 方案：三层加固
+
+#### Layer 1: 软件产品模式识别（`SOFTWARE_PRODUCT_RE`）
+
+新增正则，匹配现代软件产品命名模式，**只加分不改分类**：
+```
+desktop, browser, arena, studio, canvas, hub, assistant, runtime, terminal, workbench
+```
+
+选词原则：
+- 只能描述软件产品/界面，无娱乐/新闻/体育歧义
+- `desktop` → AI桌面端
+- `arena` → AI产品对比平台（chatbot arena）
+- `hub` → 资源平台（design hub）
+- `assistant` → AI助手
+
+加分：**+15**（介于 SaaS +20 和词数 +10 之间）
+
+#### Layer 2: 趋势价值加权选择
+
+`build_recommended_selection` 改用 **effective score** 替代原始得分排序：
+```
+effective_score = score + min(max(0, value) / 100, 30)
+```
+
+效果：
+- 高趋势词（如 `odysseus ai` value=3750）自动获得 +30 趋势加成
+- 低趋势工具后缀词（如检查器/生成器类）因 value 小，加成少
+- 原配额制保留但内部按 effective 排序
+
+#### Layer 3: sports_manager_persona 兜底（2026-06-04 添加，随本次部署上线）
+
+```
+[人名/职位] + manager/coach → 体育帅位搜索 → block
+```
+
+异常现象：`manager refuses to retire` 等体育新闻词因 "manager" 匹配 TOOL_RE 被误标为 new_tool，
+现在通过 whitelist 前缀检查拦截。
+
+---
+
 ## 一、前置规则过滤（`lib/rule-engine.ts`）
 
 ### A. 直接 block 的词
@@ -211,6 +258,18 @@
 - `newcastle manager rumors`
 
 动作：`block`
+
+**新增：人物名 + manager/coach 拦截（2026-06-04）**
+
+**背景：** `manager` 在 `TOOL_RE` 中属于工具后缀，导致 "iraola manager" 这类体育人物词被误判为工具词。
+
+**规则：**
+- 包含 `manager` 或 `coach`
+- 且**不含**已知工具/软件/实用语境前缀（如 password、task、project、file、download、workflow、email、database 等）
+
+原理：检查整个 keyword 中除了 "manager" 本身之外是否还有其他工具特征词。如果没有 → 大概率是体育人物搜索 → block。
+
+**动作：** `block`
 
 #### 11) 优惠 / code 噪音
 触发词：

@@ -35,6 +35,11 @@ const TOOL_RE =
 const DURABLE_TOOL_RE =
   /\b(ai|tool|tools|builder|generator|creator|maker|checker|converter|analyzer|calculator|finder|scanner|detector|solver|optimizer|editor|planner|tracker|monitor|extractor|compressor|enhancer|remover|template|workflow|automation|api|sdk|plugin|extension|software|platform|app)\b/i;
 
+// Software product naming conventions — emerging concepts that aren't classic tool suffixes
+// These describe software products/interfaces and are unlikely to create false positives.
+// Scoring only (+15), does not affect pipeline classification.
+const SOFTWARE_PRODUCT_RE = /\b(desktop|browser|arena|studio|canvas|hub|assistant|runtime|terminal|workbench)\b/i;
+
 export function classifyKeywordPipeline(keyword: string): KeywordPipelineClassification {
   const lower = keyword.trim().toLowerCase();
 
@@ -152,6 +157,16 @@ export function scoreKeyword(keyword: string): RuleResult {
     return { action: "block", reason: "sports_team", score: -90 };
   if (/\b(manager|coach|head coach)\b/i.test(lower) && /\b(sacked|rumor|rumors|next|new|replacement|hired|appointment|appointed)\b/i.test(lower))
     return { action: "block", reason: "sports_manager_news", score: -90 };
+  // [person name/surname] + manager/coach → sports manager persona (not a tool)
+  // Catches "iraola manager" while keeping "password manager", "task manager"
+  // Uses a known-tool-prefix whitelist: if the word before manager/coach isn't a
+  // recognized tool/software/utility context, it's a person name + job title → block.
+  if (
+    /\b(manager|coach)\b/i.test(lower) &&
+    !/\b(password|task|project|time|data|file|download|tag|note|budget|calendar|queue|session|resource|network|account|content|workflow|process|system|service|product|software|platform|keyword|plugin|extension|addon|api|sdk|template|document|classroom|office|home|digital|online|customer|client|team|tool|app|game|portal|database|email|image|photo|video)\b/i.test(lower)
+  ) {
+    return { action: "block", reason: "sports_manager_persona", score: -90 };
+  }
   if (/\b(cyclone|typhoon|ship tracker|marine traffic|tanker tracker|hurricane|weather tracker)\b/i.test(lower))
     return { action: "block", reason: "event_tracker", score: -80 };
 
@@ -199,6 +214,9 @@ export function scoreKeyword(keyword: string): RuleResult {
   // SaaS/software patterns
   const saasPatterns = /\b(app|software|platform|service|extension|plugin|addon|api|sdk|integration|workflow|template|dashboard)\b/i;
   if (saasPatterns.test(lower)) score += 20;
+
+  // Software product naming conventions (emerging product concepts)
+  if (SOFTWARE_PRODUCT_RE.test(lower)) score += 15;
 
   // Free/online patterns (search intent)
   if (/\b(free|online|no sign|without water|unlimited|best|top \d+)\b/i.test(lower)) score += 10;
