@@ -16,6 +16,8 @@ import { buildCacheKey, getCached, setCache } from "@/lib/cache";
 import { createJob, getJob } from "@/lib/research-jobs";
 import { d1Query } from "@/lib/d1";
 
+const MAX_FALLBACK_EXPAND_RESPONSE_BYTES = 1_000_000;
+
 const getGameKeywords = async () => {
   try {
     const result = await d1Query(
@@ -122,14 +124,14 @@ export const findCachedExpandFallback = async (keywords: string[]) => {
      FROM query_cache
      WHERE cache_key LIKE '%:expand_result:%' AND cache_key NOT LIKE '%:_trimmed'
      ORDER BY created_at DESC
-     LIMIT 5`
+     LIMIT 20`
   );
 
   for (const row of fullRows) {
     try {
       const response = JSON.parse(row.response_data) as ExpandResponse;
       if (!Array.isArray(response.flatList) || response.flatList.length === 0) continue;
-      if (row.response_data.length > 200_000) continue;
+      if (row.response_data.length > MAX_FALLBACK_EXPAND_RESPONSE_BYTES) continue;
       const responseKeywords = Array.isArray(response.keywords) ? normalizeKeywords(response.keywords) : [];
       const comparable = toComparableKeywordList(responseKeywords);
       if (comparable.length === expected.length && comparable.every((item, i) => item === expected[i])) {
@@ -141,7 +143,11 @@ export const findCachedExpandFallback = async (keywords: string[]) => {
   for (const row of fullRows) {
     try {
       const response = JSON.parse(row.response_data) as ExpandResponse;
-      if (Array.isArray(response.flatList) && response.flatList.length > 0 && row.response_data.length <= 200_000) {
+      if (
+        Array.isArray(response.flatList) &&
+        response.flatList.length > 0 &&
+        row.response_data.length <= MAX_FALLBACK_EXPAND_RESPONSE_BYTES
+      ) {
         return { response, cacheKey: row.cache_key, createdAt: row.created_at, mode: "any_full" as const };
       }
     } catch { continue; }
