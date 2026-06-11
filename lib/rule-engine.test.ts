@@ -160,6 +160,7 @@ describe("classifyKeywordPipeline", () => {
     ["crunch creator heure", "event_noise"],
     ["le crunch creator", "event_noise"],
     ["viral manager resignation response", "event_noise"],
+    ["mcdonald's drive-thru ai upgrade", "event_noise"],
   ])("classifies '%s' as %s", (keyword, fit) => {
     expect(classifyKeywordPipeline(keyword).fit).toBe(fit);
   });
@@ -169,6 +170,19 @@ describe("classifyKeywordPipeline", () => {
     expect(result).toEqual({
       fit: "event_noise",
       reason: "workplace_news_event",
+    });
+  });
+
+  test("does not treat brand AI upgrade news as a reusable tool", () => {
+    const classification = classifyKeywordPipeline("mcdonald's drive-thru ai upgrade");
+    expect(classification).toEqual({
+      fit: "event_noise",
+      reason: "business_news_event",
+    });
+    expect(scoreKeyword("mcdonald's drive-thru ai upgrade")).toEqual({
+      action: "block",
+      reason: "business_news_event",
+      score: -90,
     });
   });
 });

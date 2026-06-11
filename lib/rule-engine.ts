@@ -28,6 +28,10 @@ const WORKPLACE_EVENT_ACTOR_RE =
   /\b(manager|employee|boss|worker|workplace|employer|hr)\b/i;
 const WORKPLACE_EVENT_ACTION_RE =
   /\b(viral|resignation|resign|resigns|resigned|resigning|response|reply|story|details|fired|layoff|quit|quitting)\b/i;
+const BUSINESS_NEWS_BRAND_RE =
+  /\b(mcdonald'?s|burger king|wendy'?s|starbucks|walmart|target|costco|state farm|nissan|toyota|ford|tesla|disney|netflix)\b/i;
+const BUSINESS_NEWS_ACTION_RE =
+  /\b(upgrade|upgrades|upgraded|recall|recalls|lawsuit|contract changes|leak|leaked|layoff|layoffs|partnership|acquisition|merger|pilot program|rollout)\b/i;
 const GAME_RE =
   /\b(game|games|gaming|play|roblox|steam|itch|itchio|minecraft|fortnite|pokemon|pokémon|valorant|pubg|obby|simulator|tycoon|tower defense|anime game)\b/i;
 const TOOL_RE =
@@ -51,6 +55,9 @@ export function classifyKeywordPipeline(keyword: string): KeywordPipelineClassif
     !GAME_RE.test(lower)
   ) {
     return { fit: "event_noise", reason: "workplace_news_event" };
+  }
+  if (BUSINESS_NEWS_BRAND_RE.test(lower) && BUSINESS_NEWS_ACTION_RE.test(lower)) {
+    return { fit: "event_noise", reason: "business_news_event" };
   }
   if (SPORTS_EVENT_RE.test(lower) || (EVENT_INTENT_RE.test(lower) && !TOOL_RE.test(lower))) {
     return { fit: "event_noise", reason: "event_or_sports_intent" };
