@@ -79,7 +79,7 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
 
         self.assertEqual(games, [{"name": "Fresh Roblox Planet", "source": "roblox", "roblox_place_id": 123}])
 
-    def test_select_games_to_check_gives_each_source_a_daily_floor(self):
+    def test_select_games_to_check_weights_sources_after_daily_floor(self):
         scanner = load_scanner()
 
         games = (
@@ -93,24 +93,43 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
         self.assertEqual(len(selected), 6)
         self.assertEqual(
             [game["source"] for game in selected],
-            ["crazygames", "crazygames", "steam", "steam", "poki", "poki"],
+            ["crazygames", "steam", "poki", "steam", "steam", "steam"],
         )
 
-    def test_select_games_to_check_fills_remaining_by_original_order(self):
+    def test_select_games_to_check_keeps_one_floor_for_low_weight_sources(self):
         scanner = load_scanner()
 
         games = (
             [{"name": f"Crazy {i}", "source": "crazygames"} for i in range(5)]
             + [{"name": "Steam 0", "source": "steam"}]
-            + [{"name": "Poki 0", "source": "poki"}]
+            + [{"name": "Itch 0", "source": "itchio-free"}]
         )
 
         selected = scanner.select_games_to_check(games, checked_names=set(), max_keywords=5)
 
         self.assertEqual(
             [game["source"] for game in selected],
-            ["crazygames", "steam", "poki", "crazygames", "crazygames"],
+            ["crazygames", "steam", "itchio-free", "crazygames", "crazygames"],
         )
+
+    def test_select_games_to_check_prioritizes_watchlist_rechecks(self):
+        scanner = load_scanner()
+
+        games = (
+            [{"name": f"Crazy {i}", "source": "crazygames"} for i in range(5)]
+            + [{"name": "Watched One", "source": "itchio-free"}]
+            + [{"name": "Watched Two", "source": "itchio-free"}]
+            + [{"name": "Steam 0", "source": "steam"}]
+        )
+
+        selected = scanner.select_games_to_check(
+            games,
+            checked_names=set(),
+            max_keywords=5,
+            watchlist_names={"watched one", "watched two"},
+        )
+
+        self.assertEqual([game["name"] for game in selected[:2]], ["Watched One", "Watched Two"])
 
     def test_select_games_to_check_skips_already_checked_names(self):
         scanner = load_scanner()

@@ -100,6 +100,20 @@ BATCH_SIZE = 5  # trends API: small batches to avoid Worker CPU timeout
 WATCHLIST_RECOMMENDATION = "👀 watchlist"
 SERP_MIN_RATIO = 0.05
 WATCHLIST_MIN_RATIO = 0.05
+WATCHLIST_RECHECK_SHARE = 0.2
+SOURCE_SELECTION_WEIGHTS = {
+    "steam": 3.0,
+    "steam-new": 3.0,
+    "poki": 2.2,
+    "roblox": 2.0,
+    "roblox-search": 2.0,
+    "crazygames": 1.2,
+    "addictinggames": 1.0,
+    "itchio": 0.7,
+    "itchio-new": 0.7,
+    "itchio-free": 0.45,
+    "itchio-new-free": 0.45,
+}
 
 GENERIC_KEYWORDS = {
     "beauty", "art", "io", "fun", "run", "car", "bus", "pop", "box", "tap",
@@ -1070,14 +1084,44 @@ def serp_relevance_query(keyword, source):
     return f"{keyword} {suffix}"
 
 
-def select_games_to_check(all_games, checked_names, max_keywords):
+def source_selection_weight(source):
+    return SOURCE_SELECTION_WEIGHTS.get((source or "unknown").lower(), 1.0)
+
+
+def title_quality_score(name):
+    normalized = re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
+    if not normalized:
+        return 0.0
+    words = normalized.split()
+    score = 0.0
+    if 2 <= len(words) <= 5:
+        score += 0.35
+    if any(char.isdigit() for char in normalized):
+        score += 0.15
+    if any(token in normalized for token in ("demo", "prologue", "playtest", "alpha", "beta")):
+        score -= 0.3
+    if normalized in {"game", "online game", "free game", "games"}:
+        score -= 0.8
+    return score
+
+
+def candidate_selection_score(game, watchlist_names):
+    name = game.get("name", "")
+    source = game.get("source", "unknown")
+    watchlist_boost = 5.0 if name.lower() in watchlist_names else 0.0
+    return source_selection_weight(source) + title_quality_score(name) + watchlist_boost
+
+
+def select_games_to_check(all_games, checked_names, max_keywords, watchlist_names=None):
     """Select trend-check candidates without starving later sources.
 
     The scanner collects sources in a fixed order. A plain global slice can let
     CrazyGames consume the whole daily budget before Steam/Poki/itch.io get any
-    checks. New-game discovery is more valuable when every source gets at least
-    a small daily look, then remaining capacity goes to backlog order.
+    checks. New-game discovery is more valuable when every source gets a small
+    daily look, then remaining capacity goes to better historical sources and
+    watchlist rechecks.
     """
+    watchlist_names = {name.lower() for name in (watchlist_names or set())}
     pending = [g for g in all_games if g["name"].lower() not in checked_names]
     if max_keywords <= 0:
         return []
@@ -1093,31 +1137,50 @@ def select_games_to_check(all_games, checked_names, max_keywords):
             by_source[source] = []
         by_source[source].append(game)
 
-    # Give each active source a floor, while preserving enough room for all
-    # sources. With the current 30/day cron budget and 6 sources this gives 5
-    # per source; smaller manual budgets still give at least one per source.
-    per_source_floor = max(1, max_keywords // max(1, len(source_order)))
     selected = []
     selected_names = set()
 
-    for source in source_order:
-        for game in by_source[source][:per_source_floor]:
-            if len(selected) >= max_keywords:
-                return selected
-            key = game["name"].lower()
-            selected.append(game)
-            selected_names.add(key)
-
-    # Fill remaining slots in original combined order so the freshest backlog
-    # still wins after every source got a fair chance.
-    for game in pending:
+    def add_game(game):
         if len(selected) >= max_keywords:
-            break
+            return False
         key = game["name"].lower()
         if key in selected_names:
-            continue
+            return False
         selected.append(game)
         selected_names.add(key)
+        return True
+
+    # Recheck a bounded number of watchlist terms first. They already passed a
+    # game-relevance bar once, so they deserve a small recurring budget without
+    # taking over the whole daily scan.
+    watchlist_pending = [
+        game for game in pending
+        if game["name"].lower() in watchlist_names
+    ]
+    watchlist_limit = (
+        min(max_keywords, max(1, min(2, len(watchlist_pending)), int(max_keywords * WATCHLIST_RECHECK_SHARE)))
+        if watchlist_pending else 0
+    )
+    watchlist_pending.sort(key=lambda game: candidate_selection_score(game, watchlist_names), reverse=True)
+    for game in watchlist_pending[:watchlist_limit]:
+        add_game(game)
+
+    # Give each active source one floor slot, choosing the strongest item from
+    # that source. This prevents low-weight sources from being starved while
+    # avoiding equal allocation to historically noisy feeds.
+    for source in source_order:
+        candidates = [game for game in by_source[source] if game["name"].lower() not in selected_names]
+        candidates.sort(key=lambda game: candidate_selection_score(game, watchlist_names), reverse=True)
+        if candidates:
+            add_game(candidates[0])
+
+    # Fill remaining slots by learned source weight and cheap title signals.
+    remaining = [game for game in pending if game["name"].lower() not in selected_names]
+    remaining.sort(key=lambda game: candidate_selection_score(game, watchlist_names), reverse=True)
+    for game in remaining:
+        if len(selected) >= max_keywords:
+            break
+        add_game(game)
 
     return selected
 
@@ -1305,17 +1368,21 @@ def main():
 
     # ── Filter out already trend-checked ──
     pipeline_names = {r["keyword"].lower() for r in d1_query(
-        "SELECT keyword FROM game_keyword_pipeline WHERE status IN ('done', 'checking', 'worth_doing', 'recommended')"
+        "SELECT keyword FROM game_keyword_pipeline WHERE status IN ('done', 'checking', 'worth_doing', 'recommended', 'serp_pending')"
+    )}
+    watchlist_names = {r["keyword"].lower() for r in d1_query(
+        "SELECT keyword FROM game_keyword_pipeline WHERE status = 'watchlist'"
     )}
     pending = [g for g in all_games if g["name"].lower() not in pipeline_names]
 
     print(f"🆕 Not yet trend-checked: {len(pending)}", flush=True)
+    print(f"👀 Watchlist eligible for recheck: {len(watchlist_names)}", flush=True)
 
     if not pending:
         print("✅ All caught up, nothing new to check.", flush=True)
         return
 
-    to_check = select_games_to_check(all_games, pipeline_names, args.max_keywords)
+    to_check = select_games_to_check(all_games, pipeline_names, args.max_keywords, watchlist_names)
     source_counts = {}
     for game in to_check:
         source = game.get("source", "unknown")
