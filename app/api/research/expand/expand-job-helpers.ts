@@ -21,7 +21,7 @@ const MAX_FALLBACK_EXPAND_RESPONSE_BYTES = 1_000_000;
 const getGameKeywords = async () => {
   try {
     const result = await d1Query(
-      "SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict, recommendation, reason, trend_series FROM game_keyword_pipeline WHERE recommendation IS NOT NULL AND recommendation != '⏭️ skip' ORDER BY trend_ratio DESC LIMIT 20"
+      "SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict, recommendation, reason, trend_series FROM game_keyword_pipeline WHERE status = 'recommended' ORDER BY trend_ratio DESC LIMIT 20"
     );
     return (result?.rows || []).map((row: Record<string, unknown>) => ({
       keyword: row.keyword,

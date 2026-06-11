@@ -13,6 +13,7 @@ Revert: remove the cron job that runs this script.
 import os
 import sys
 import json
+import re
 import time
 import subprocess
 import urllib.request
@@ -26,6 +27,61 @@ GK_API_KEY = os.environ.get("GK_API_KEY", "")
 CF_TOKEN = os.environ.get("CF_API_TOKEN") or os.environ.get("CLOUDFLARE_API_TOKEN", "")
 CF_ACCOUNT = os.environ.get("CF_ACCOUNT_ID") or os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
 D1_ID = os.environ.get("D1_DB_ID", "")
+
+EVENT_INTENT_RE = re.compile(
+    r"\b(news|breaking|viral|lawsuit|recall|layoff|layoffs|upgrade|upgrades|rollout|leak|leaked|"
+    r"score|scores|result|results|live|stream|broadcast|episode|trailer|cast)\b",
+    re.I,
+)
+BUSINESS_BRAND_RE = re.compile(
+    r"\b(mcdonald'?s|burger king|wendy'?s|starbucks|walmart|target|costco|state farm|"
+    r"nissan|toyota|ford|tesla|disney|netflix)\b",
+    re.I,
+)
+AI_PRODUCT_RE = re.compile(
+    r"\b(ai|gpt|llm|claude|gemini|openai|copilot|agent|chatbot|automation|cursor|perplexity)\b",
+    re.I,
+)
+TOOL_RE = re.compile(
+    r"\b(tool|tools|builder|generator|creator|maker|checker|converter|analyzer|calculator|"
+    r"finder|scanner|detector|solver|optimizer|editor|planner|tracker|monitor|extractor|"
+    r"compressor|enhancer|remover|template|workflow|api|sdk|plugin|extension|desktop|browser|"
+    r"studio|canvas|assistant|runtime|terminal|app|software|platform)\b",
+    re.I,
+)
+GAME_RE = re.compile(
+    r"\b(game|games|gaming|play|roblox|steam|itch|itchio|minecraft|fortnite|pokemon|pokémon|"
+    r"valorant|pubg|obby|simulator|tycoon|tower defense|anime game)\b",
+    re.I,
+)
+
+
+def classify_signal_keyword(keyword: str) -> tuple[str, str]:
+    """Return (fit, reason) before submitting a signal into paid expand."""
+    text = (keyword or "").strip()
+    lower = text.lower()
+    if not lower:
+        return "noise", "empty_keyword"
+    if len(lower) > 80:
+        return "noise", "too_long"
+    if len(re.findall(r"[a-z0-9]+", lower)) > 6:
+        return "noise", "too_many_words"
+    if BUSINESS_BRAND_RE.search(lower) and EVENT_INTENT_RE.search(lower):
+        return "business_news_event", "brand_news_event"
+    if EVENT_INTENT_RE.search(lower) and not (AI_PRODUCT_RE.search(lower) and TOOL_RE.search(lower)):
+        return "general_content", "event_or_news_intent"
+    if GAME_RE.search(lower):
+        return "new_game", "game_candidate"
+    if AI_PRODUCT_RE.search(lower) and (TOOL_RE.search(lower) or len(lower.split()) <= 3):
+        return "new_tool", "ai_tool_candidate"
+    if TOOL_RE.search(lower):
+        return "new_tool", "tool_candidate"
+    return "noise", "weak_pipeline_fit"
+
+
+def allow_signal_bridge(keyword: str) -> tuple[bool, str, str]:
+    fit, reason = classify_signal_keyword(keyword)
+    return fit in {"new_tool", "new_game"}, fit, reason
 
 
 def d1_query(sql: str, params: list = None) -> list:
@@ -111,15 +167,31 @@ def main():
         for r in rows:
             kw = r["keyword"]
             score = r["signal_score"]
-            print(f"  • {kw:45s} (signal_score={score:.1f})", file=sys.stderr)
+            allowed, fit, reason = allow_signal_bridge(kw)
+            action = "submit" if allowed else "block"
+            print(f"  • {kw:45s} (signal_score={score:.1f}, action={action}, fit={fit}, reason={reason})", file=sys.stderr)
         return
 
     # Submit each candidate to the expand pipeline
     submitted = 0
+    blocked = 0
     failed = 0
     for r in rows:
         kw = r["keyword"]
         cid = r["id"]
+
+        allowed, fit, reason = allow_signal_bridge(kw)
+        if not allowed:
+            print(f"  ⛔ block: {kw} ({fit}:{reason})", file=sys.stderr)
+            try:
+                d1_query(
+                    "UPDATE signal_candidates SET processed = 1, accepted = ? WHERE id = ?",
+                    [f"rejected:{fit}:{reason}", cid],
+                )
+            except Exception as e:
+                print(f"WARNING: Failed to mark blocked signal {kw}: {e}", file=sys.stderr)
+            blocked += 1
+            continue
 
         body = {
             "keywords": [kw],
@@ -135,7 +207,10 @@ def main():
 
         # Mark as processed in D1
         try:
-            d1_query("UPDATE signal_candidates SET processed = 1 WHERE id = ?", [cid])
+            d1_query(
+                "UPDATE signal_candidates SET processed = 1, accepted = ? WHERE id = ?",
+                [f"accepted:{fit}:{reason}", cid],
+            )
         except Exception as e:
             print(f"WARNING: Failed to mark {kw} as processed: {e}", file=sys.stderr)
 
@@ -145,7 +220,7 @@ def main():
         # Brief pause between submissions
         time.sleep(0.5)
 
-    print(f"\n✅ Bridge complete: {submitted} submitted, {failed} failed", file=sys.stderr)
+    print(f"\n✅ Bridge complete: {submitted} submitted, {blocked} blocked, {failed} failed", file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -97,6 +97,9 @@ HISTORY_DAYS = 90  # Historical baseline check window
 MIN_RATIO = 0.3
 MIN_SLOPE = 0.0
 BATCH_SIZE = 5  # trends API: small batches to avoid Worker CPU timeout
+WATCHLIST_RECOMMENDATION = "👀 watchlist"
+SERP_MIN_RATIO = 0.05
+WATCHLIST_MIN_RATIO = 0.05
 
 GENERIC_KEYWORDS = {
     "beauty", "art", "io", "fun", "run", "car", "bus", "pop", "box", "tap",
@@ -994,6 +997,9 @@ def classify_keyword(ratio, slope, verdict, serp_organic=0, serp_auth=0, serp_fe
             return "🎯 niche", reason
         else:
             return "⏭️ skip", reason
+    elif ratio >= WATCHLIST_MIN_RATIO and slope >= 0 and serp_auth <= 1:
+        reason += "；👀 新游源命中且SERP相关，趋势还小，先进入观察名单复查"
+        return WATCHLIST_RECOMMENDATION, reason
     else:
         return "⏭️ skip", reason
 
@@ -1043,6 +1049,25 @@ def check_serp_competition(serp_data, keyword=""):
     is_low = game_relevance > 0 and (auth_domains == 0 or (auth_domains <= 1 and niche_domains >= 2))
     
     return is_low, organic_count, auth_domains, has_featured, game_relevance
+
+
+def serp_relevance_query(keyword, source):
+    """Build a cheap second-pass query used only when exact SERP lacks game context."""
+    source_terms = {
+        "roblox": "roblox",
+        "steam": "steam",
+        "steam-new": "steam",
+        "poki": "poki",
+        "crazygames": "game",
+        "itchio": "itch.io",
+        "itchio-free": "itch.io",
+        "addictinggames": "game",
+    }
+    suffix = source_terms.get((source or "").lower(), "game")
+    lower = keyword.lower()
+    if suffix.lower() in lower:
+        return f"{keyword} game"
+    return f"{keyword} {suffix}"
 
 
 def select_games_to_check(all_games, checked_names, max_keywords):
@@ -1280,7 +1305,7 @@ def main():
 
     # ── Filter out already trend-checked ──
     pipeline_names = {r["keyword"].lower() for r in d1_query(
-        "SELECT keyword FROM game_keyword_pipeline WHERE status IN ('done', 'checking', 'worth_doing')"
+        "SELECT keyword FROM game_keyword_pipeline WHERE status IN ('done', 'checking', 'worth_doing', 'recommended')"
     )}
     pending = [g for g in all_games if g["name"].lower() not in pipeline_names]
 
@@ -1464,8 +1489,8 @@ def main():
             r["surge"] = hb["surge"]
             r["hist_avg"] = hb["hist_avg"]
 
-    # ── Phase 4: SERP competition check for ALL keywords with ratio >= 0.1 ──
-    serp_candidates = [r for r in results if r.get("ratio", 0) >= 0.1]
+    # ── Phase 4: SERP competition check for promising keywords ──
+    serp_candidates = [r for r in results if r.get("ratio", 0) >= SERP_MIN_RATIO or r.get("slope", 0) > 0]
 
     if serp_candidates:
         print(f"\n🔎 Phase 4: SERP competition check for {len(serp_candidates)} keywords", flush=True)
@@ -1532,10 +1557,54 @@ def main():
             )
             
             time.sleep(1)
+
+        # Exact-title SERPs are often ambiguous for new games. A cheap second
+        # pass checks whether a game-context query is relevant, while keeping
+        # competition metrics from the exact query.
+        relevance_retry = [
+            r for r in serp_candidates
+            if r.get("serp_game_relevance", 0) <= 0 and not r.get("serp_error")
+        ]
+        if relevance_retry:
+            retry_queries = [serp_relevance_query(r["keyword"], r.get("source", "")) for r in relevance_retry]
+            retry_by_query = {q.lower(): r for q, r in zip(retry_queries, relevance_retry)}
+            print(f"  SERP relevance retry: {retry_queries}", flush=True)
+            task_id = start_pipeline_task(
+                stage="game.serp-relevance-retry",
+                idempotency_key=f"serp-relevance:{','.join(retry_queries)}",
+                payload={"keywords": retry_queries},
+                metadata={"keyword_count": len(retry_queries)},
+            )
+            retry_resp = call_serp_api(retry_queries, task_id=task_id)
+            if retry_resp:
+                retry_results = retry_resp.get("results", {})
+                matched = 0
+                for query in retry_queries:
+                    kw_data = retry_results.get(query.lower()) or retry_results.get(query)
+                    r = retry_by_query.get(query.lower())
+                    if not kw_data or not r:
+                        continue
+                    _, _, _, _, relevance = check_serp_competition(kw_data, r["keyword"])
+                    if relevance > 0:
+                        r["serp_game_relevance"] = relevance
+                        r["serp_relevance_query"] = query
+                        matched += 1
+                        print(f"  🟡 {r['keyword']}: game relevance recovered via '{query}'", flush=True)
+                succeed_pipeline_task(
+                    task_id,
+                    result={"results": len(retry_results), "relevance_recovered": matched, "fromCache": bool(retry_resp.get("fromCache"))},
+                    metadata={"keywords": retry_queries},
+                )
+            else:
+                fail_pipeline_task(
+                    task_id,
+                    error="SERP relevance retry API call failed",
+                    metadata={"keywords": retry_queries},
+                )
     
     # ── Phase 5: Final classification with SERP data ──
     print(f"\n🏷️ Phase 5: Final classification", flush=True)
-    categorized = {"🔥 hot": [], "📈 rising": [], "🎯 niche": [], "⏭️ skip": []}
+    categorized = {"🔥 hot": [], "📈 rising": [], "🎯 niche": [], WATCHLIST_RECOMMENDATION: [], "⏭️ skip": []}
     classify_task_id = start_pipeline_task(
         stage="game.classify",
         idempotency_key=f"classify:{','.join(r['keyword'] for r in results)}",
@@ -1565,7 +1634,12 @@ def main():
         
         # Update D1 with final classification
         if not args.dry_run:
-            status = "done" if rec == "⏭️ skip" else "recommended"
+            if rec == "⏭️ skip":
+                status = "done"
+            elif rec == WATCHLIST_RECOMMENDATION:
+                status = "watchlist"
+            else:
+                status = "recommended"
             save_result(
                 r["keyword"], r["source"], ratio, slope, verdict,
                 status=status, serp_organic=organic, serp_auth=auth,
@@ -1574,7 +1648,8 @@ def main():
                 trend_series=r.get("series")
             )
 
-    recommended = [r for r in results if r.get("recommendation") != "⏭️ skip"]
+    recommended = [r for r in results if r.get("recommendation") not in ("⏭️ skip", WATCHLIST_RECOMMENDATION)]
+    watchlist = categorized[WATCHLIST_RECOMMENDATION]
     succeed_pipeline_task(
         classify_task_id,
         result={
@@ -1583,6 +1658,7 @@ def main():
             "hot": len(categorized["🔥 hot"]),
             "rising": len(categorized["📈 rising"]),
             "niche": len(categorized["🎯 niche"]),
+            "watchlist": len(watchlist),
             "skip": len(categorized["⏭️ skip"]),
         },
         metadata={"dry_run": args.dry_run},
@@ -1596,6 +1672,7 @@ def main():
     print(f"   🔥 Hot:     {len(categorized['🔥 hot'])}")
     print(f"   📈 Rising:  {len(categorized['📈 rising'])}")
     print(f"   🎯 Niche:   {len(categorized['🎯 niche'])}")
+    print(f"   👀 Watch:   {len(watchlist)}")
     print(f"   ⏭️ Skip:    {len(categorized['⏭️ skip'])}")
     print(f"{'='*60}")
 
@@ -1603,6 +1680,12 @@ def main():
         print(f"\n🎮 RECOMMENDED GAME KEYWORDS:")
         for r in sorted(recommended, key=lambda x: x.get("ratio", 0), reverse=True):
             print(f"  {r.get('recommendation', '?')} {r['keyword']} | ratio={r.get('ratio', 0):.3f} | slope={r.get('slope', 0):.3f} | organic={r.get('serp_organic', '?')} | auth={r.get('serp_auth', '?')} | src={r.get('source', '?')}")
+            print(f"     Reason: {r.get('reason', 'N/A')}")
+
+    if watchlist:
+        print(f"\n👀 WATCHLIST GAME KEYWORDS:")
+        for r in sorted(watchlist, key=lambda x: x.get("ratio", 0), reverse=True)[:10]:
+            print(f"  {r['keyword']} | ratio={r.get('ratio', 0):.3f} | slope={r.get('slope', 0):.3f} | src={r.get('source', '?')}")
             print(f"     Reason: {r.get('reason', 'N/A')}")
 
     if args.dry_run:
@@ -1625,6 +1708,7 @@ def main():
             "hot": len(categorized["🔥 hot"]),
             "rising": len(categorized["📈 rising"]),
             "niche": len(categorized["🎯 niche"]),
+            "watchlist": len(watchlist),
             "skip": len(categorized["⏭️ skip"]),
             "dry_run": args.dry_run,
             "cost": cost_summary,

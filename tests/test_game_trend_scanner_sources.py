@@ -237,6 +237,30 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
         self.assertEqual(rec, "⏭️ skip")
         self.assertIn("SERP首页缺少游戏相关结果", reason)
 
+    def test_classify_low_trend_relevant_game_as_watchlist_not_recommended(self):
+        scanner = load_scanner()
+
+        rec, reason = scanner.classify_keyword(
+            ratio=0.08,
+            slope=0.3,
+            verdict="fail",
+            serp_auth=0,
+            serp_game_relevance=1,
+            hist_vs_bench=0.2,
+            surge=1.1,
+            hist_avg=4,
+        )
+
+        self.assertEqual(rec, scanner.WATCHLIST_RECOMMENDATION)
+        self.assertIn("观察名单", reason)
+
+    def test_serp_relevance_query_adds_source_context(self):
+        scanner = load_scanner()
+
+        self.assertEqual(scanner.serp_relevance_query("Brookhaven RP", "roblox"), "Brookhaven RP roblox")
+        self.assertEqual(scanner.serp_relevance_query("Lost Castle 2", "steam"), "Lost Castle 2 steam")
+        self.assertEqual(scanner.serp_relevance_query("Tap Out", "crazygames"), "Tap Out game")
+
     def test_classify_defaults_to_skip_without_serp_relevance(self):
         scanner = load_scanner()
 

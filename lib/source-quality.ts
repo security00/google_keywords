@@ -12,6 +12,7 @@ export type GameSourceQualityRow = {
   source_site: string;
   total_checked: number;
   recommended_count: number;
+  watchlist_count: number;
   hot_count: number;
   rising_count: number;
   niche_count: number;
@@ -83,7 +84,8 @@ export async function getSourceQualityStats(): Promise<SourceQualityStats> {
       `SELECT
          COALESCE(NULLIF(source_site, ''), 'unknown') AS source_site,
          COUNT(*) AS total_checked,
-         SUM(CASE WHEN recommendation IS NOT NULL AND recommendation != '⏭️ skip' THEN 1 ELSE 0 END) AS recommended_count,
+         SUM(CASE WHEN status = 'recommended' THEN 1 ELSE 0 END) AS recommended_count,
+         SUM(CASE WHEN status = 'watchlist' THEN 1 ELSE 0 END) AS watchlist_count,
          SUM(CASE WHEN recommendation = '🔥 hot' THEN 1 ELSE 0 END) AS hot_count,
          SUM(CASE WHEN recommendation = '📈 rising' THEN 1 ELSE 0 END) AS rising_count,
          SUM(CASE WHEN recommendation = '🎯 niche' THEN 1 ELSE 0 END) AS niche_count,
@@ -91,7 +93,7 @@ export async function getSourceQualityStats(): Promise<SourceQualityStats> {
          AVG(trend_ratio) AS avg_trend_ratio,
          AVG(trend_slope) AS avg_trend_slope,
          AVG(serp_auth) AS avg_serp_auth,
-         CAST(SUM(CASE WHEN recommendation IS NOT NULL AND recommendation != '⏭️ skip' THEN 1 ELSE 0 END) AS REAL) / NULLIF(COUNT(*), 0) AS snr,
+         CAST(SUM(CASE WHEN status = 'recommended' THEN 1 ELSE 0 END) AS REAL) / NULLIF(COUNT(*), 0) AS snr,
          MAX(trend_checked_at) AS last_checked_at
        FROM game_keyword_pipeline
        GROUP BY COALESCE(NULLIF(source_site, ''), 'unknown')
@@ -118,6 +120,7 @@ export async function getSourceQualityStats(): Promise<SourceQualityStats> {
     ...row,
     total_checked: Number(row.total_checked || 0),
     recommended_count: Number(row.recommended_count || 0),
+    watchlist_count: Number(row.watchlist_count || 0),
     hot_count: Number(row.hot_count || 0),
     rising_count: Number(row.rising_count || 0),
     niche_count: Number(row.niche_count || 0),

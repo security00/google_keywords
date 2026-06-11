@@ -11,6 +11,7 @@ const source = (overrides: Partial<GameSourceQualityRow>): GameSourceQualityRow 
   source_site: "example",
   total_checked: 0,
   recommended_count: 0,
+  watchlist_count: 0,
   hot_count: 0,
   rising_count: 0,
   niche_count: 0,

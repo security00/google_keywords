@@ -20,7 +20,9 @@ export async function GET(request: Request) {
     const params: string[] = [];
 
     if (filter === "recommended") {
-      where = "WHERE recommendation != '⏭️ skip' AND recommendation IS NOT NULL";
+      where = "WHERE status = 'recommended'";
+    } else if (filter === "watchlist") {
+      where = "WHERE status = 'watchlist'";
     }
 
     const countResult = await d1Query(

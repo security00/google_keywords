@@ -7,6 +7,7 @@ type GameSourceQualityRow = {
   source_site: string;
   total_checked: number;
   recommended_count: number;
+  watchlist_count?: number;
   hot_count: number;
   rising_count: number;
   niche_count: number;
