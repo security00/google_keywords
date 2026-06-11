@@ -76,6 +76,11 @@ ENABLE_COMPARE_INTENT = os.environ.get("GK_PRECOMPUTE_COMPARE_INTENT", "true").l
     "false",
     "no",
 }
+WAIT_FOR_COMPARE_INTENT = os.environ.get("GK_PRECOMPUTE_WAIT_FOR_INTENT", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 USE_EXPAND_CACHE = os.environ.get("GK_PRECOMPUTE_USE_CACHE", "false").lower() in {
     "1",
     "true",
@@ -712,6 +717,44 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
         research_job_id=job_id,
         metadata={"job_id": job_id, "tasks": submit.get("total"), "cost": submit.get("cost")},
     )
+
+    if not WAIT_FOR_COMPARE_INTENT:
+        status = curl_json(
+            "GET",
+            f"/api/research/compare/intent/status?jobId={job_id}",
+            body=None,
+            timeout=INTENT_STATUS_TIMEOUT_SECONDS,
+        )
+        state = status.get("status")
+        if state == "complete":
+            print(
+                f"✅ Shared compare intent complete: intents={status.get('intents')} results={status.get('results')}",
+                file=sys.stderr,
+            )
+            save_state(
+                stage="complete",
+                intentJobId=job_id,
+                intentCompletedAt=utc_now_iso(),
+                intentReady=status.get("ready"),
+                intentTotal=status.get("total"),
+            )
+            return status
+        if state == "failed":
+            raise RuntimeError(status.get("error") or "intent status failed")
+        save_state(
+            stage="intent_pending",
+            intentJobId=job_id,
+            intentReady=status.get("ready"),
+            intentTotal=status.get("total"),
+            intentLastPollAt=utc_now_iso(),
+            compareSelected=selected,
+        )
+        print(
+            f"⏳ Intent pending: {status.get('ready')}/{status.get('total')} (async finalize)",
+            file=sys.stderr,
+        )
+        return status
+
     started_at = time.time()
     while time.time() - started_at < MAX_WAIT_SECONDS:
         status = curl_json(

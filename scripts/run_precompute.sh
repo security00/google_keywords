@@ -1,5 +1,21 @@
-#!/bin/bash
-cd /root/projects/google_keywords
-export GK_API_KEY="gk_live_a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
-export GK_SITE_URL="https://discoverkeywords.co"
-python3 scripts/precompute.py "$@"
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PROJECT_DIR="${GK_PRECOMPUTE_PROJECT_DIR:-/root/clawd/projects/google_keywords}"
+ENV_FILE="${GK_PRECOMPUTE_ENV_FILE:-/root/.config/google_keywords/precompute.env}"
+PYTHON_BIN="${GK_PRECOMPUTE_PYTHON_BIN:-python3}"
+PRECOMPUTE_SCRIPT="${GK_PRECOMPUTE_SCRIPT:-scripts/precompute_shared_expand.py}"
+
+if [ ! -f "$ENV_FILE" ]; then
+  printf 'env file missing: %s\n' "$ENV_FILE" >&2
+  exit 1
+fi
+
+set -a
+# shellcheck disable=SC1090
+. "$ENV_FILE"
+set +a
+
+cd "$PROJECT_DIR"
+exec "$PYTHON_BIN" "$PRECOMPUTE_SCRIPT" "$@"
