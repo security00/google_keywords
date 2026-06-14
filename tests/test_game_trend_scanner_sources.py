@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -142,6 +143,65 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
         selected = scanner.select_games_to_check(games, checked_names={"already done"}, max_keywords=10)
 
         self.assertEqual(selected, [{"name": "Fresh Steam", "source": "steam"}])
+
+    def test_call_trends_api_saves_pending_job_on_timeout(self):
+        scanner = load_scanner()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scanner.TRENDS_PENDING_JOBS_FILE = str(Path(tmpdir) / "pending.json")
+            submit = MagicMock()
+            submit.returncode = 0
+            submit.stdout = scanner.json.dumps({
+                "jobId": "job-123456",
+                "status": "processing",
+                "total": 2,
+                "cost": {"actualCostUsd": 0.0045},
+            })
+            poll = MagicMock()
+            poll.returncode = 0
+            poll.stdout = scanner.json.dumps({"status": "processing", "progress": "0/2 tasks ready"})
+
+            with patch.object(scanner.subprocess, "run", side_effect=[submit, poll]), \
+                 patch.object(scanner.time, "time", side_effect=[0, 1, 1]):
+                resp = scanner.call_trends_api(["Fresh Steam", "Fresh Poki"], max_wait=0)
+
+            self.assertEqual(resp["status"], "pending")
+            self.assertEqual(resp["jobId"], "job-123456")
+            pending = scanner.load_pending_trends_jobs()
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(next(iter(pending.values()))["jobId"], "job-123456")
+
+    def test_call_trends_api_resumes_saved_pending_job(self):
+        scanner = load_scanner()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scanner.TRENDS_PENDING_JOBS_FILE = str(Path(tmpdir) / "pending.json")
+            key = scanner.trends_pending_key(["Fresh Steam", "Fresh Poki"])
+            scanner.remember_pending_trends_job(key, {
+                "jobId": "job-123456",
+                "keywords": ["Fresh Steam", "Fresh Poki"],
+                "days": scanner.TREND_DAYS,
+                "endpointLabel": "trends_14d",
+                "taskCount": 2,
+                "actualCostUsd": 0.0045,
+                "cost": {"actualCostUsd": 0.0045},
+            })
+            poll = MagicMock()
+            poll.returncode = 0
+            poll.stdout = scanner.json.dumps({
+                "status": "complete",
+                "results": [{"keyword": "Fresh Steam", "ratioMean": 1.2}],
+            })
+
+            with patch.object(scanner.subprocess, "run", return_value=poll), \
+                 patch.object(scanner, "record_trends_cost") as record_cost:
+                resp = scanner.call_trends_api(["Fresh Steam", "Fresh Poki"], max_wait=0)
+
+            self.assertEqual(resp["status"], "complete")
+            self.assertTrue(resp["fromPendingJob"])
+            self.assertEqual(resp["results"][0]["keyword"], "Fresh Steam")
+            self.assertEqual(scanner.load_pending_trends_jobs(), {})
+            record_cost.assert_called_once()
 
     def test_game_name_filter_rejects_generic_non_game_phrases(self):
         scanner = load_scanner()

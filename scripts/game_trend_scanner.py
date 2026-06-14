@@ -63,6 +63,10 @@ D1_API_TOKEN = os.environ.get("CF_API_TOKEN", "")
 D1_DATABASE_ID = os.environ.get("D1_DATABASE_ID", "b40de8a4-75e1-4df6-a84d-3ecd62b70538")
 API_URL = os.environ.get("GK_API_URL", "https://discoverkeywords.co")
 API_KEY = os.environ.get("GK_API_KEY", "")
+TRENDS_PENDING_JOBS_FILE = os.environ.get(
+    "GK_GAME_TRENDS_PENDING_JOBS_FILE",
+    "/root/.local/state/google_keywords/game_trends_pending_jobs.json",
+)
 
 # CrazyGames /new — 特殊源，有发布日期排序
 CRAZYGAMES_NEW = "https://www.crazygames.com/new"
@@ -224,6 +228,96 @@ def record_trends_cost(endpoint_label, keywords, task_count, actual_cost, task_i
             "cost": cost_payload,
         },
     )
+
+
+def utc_now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def trends_pending_key(keywords, *, days=TREND_DAYS, endpoint_label="trends_14d"):
+    normalized = [str(keyword).strip().lower() for keyword in keywords]
+    payload = {
+        "endpoint": endpoint_label,
+        "days": int(days),
+        "benchmark": TREND_BENCHMARK,
+        "keywords": normalized,
+    }
+    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def load_pending_trends_jobs():
+    try:
+        with open(TRENDS_PENDING_JOBS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        return {}
+
+
+def save_pending_trends_jobs(jobs):
+    path = os.path.abspath(TRENDS_PENDING_JOBS_FILE)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(jobs, f, ensure_ascii=False, sort_keys=True, indent=2)
+    os.replace(tmp_path, path)
+
+
+def remember_pending_trends_job(key, record):
+    jobs = load_pending_trends_jobs()
+    jobs[key] = record
+    save_pending_trends_jobs(jobs)
+
+
+def forget_pending_trends_job(key):
+    jobs = load_pending_trends_jobs()
+    if key in jobs:
+        del jobs[key]
+        save_pending_trends_jobs(jobs)
+
+
+def poll_trends_status(job_id):
+    status_url = f"{API_URL}/api/research/trends/status?jobId={job_id}"
+    poll_cmd = [
+        "curl", "-sL", "--max-time", "15", status_url,
+        "-H", f"Authorization: Bearer {API_KEY}",
+    ]
+    poll_result = subprocess.run(poll_cmd, capture_output=True, text=True, timeout=20)
+    if poll_result.returncode != 0 or not poll_result.stdout.strip():
+        return None
+    return json.loads(poll_result.stdout)
+
+
+def wait_for_trends_job(job_id, *, max_wait=180, poll_interval=10):
+    deadline = time.time() + max_wait
+    attempt = 0
+    while True:
+        try:
+            poll_resp = poll_trends_status(job_id)
+        except Exception:
+            poll_resp = None
+
+        if poll_resp:
+            status = poll_resp.get("status")
+            if status == "complete" or poll_resp.get("results") is not None:
+                return "complete", poll_resp
+            if status == "failed":
+                return "failed", poll_resp
+            if status == "processing":
+                progress = poll_resp.get("progress", "")
+                if attempt % 3 == 0 and progress:
+                    print(f"    ⏳ trends polling... {progress}", flush=True)
+
+        if time.time() >= deadline:
+            return "pending", poll_resp or {"status": "processing", "jobId": job_id}
+
+        sleep_for = min(poll_interval, max(0, deadline - time.time()))
+        if sleep_for > 0:
+            time.sleep(sleep_for)
+        attempt += 1
 
 
 # ─── Sitemap Discovery (reuse discovery_scan.py logic) ───────────────
@@ -680,17 +774,44 @@ def fetch_crazygames_new():
 
 # ─── Trends API ───────────────────────────────────────────────────────
 
-def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d", task_id=None):
+def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d", task_id=None, days=TREND_DAYS):
     """Call /api/research/trends with keywords (async with polling).
     
     1. POST /api/research/trends → get jobId (or cached results)
     2. Poll /api/research/trends/status?jobId=X until complete
     """
-    import subprocess
     url = f"{API_URL}/api/research/trends"
+    pending_key = trends_pending_key(keywords, days=days, endpoint_label=endpoint_label)
+    pending_jobs = load_pending_trends_jobs()
+    pending = pending_jobs.get(pending_key)
+    if pending and pending.get("jobId"):
+        job_id = pending["jobId"]
+        print(f"    ↩️ resume trends jobId={job_id[:8]}...", flush=True)
+        status, poll_resp = wait_for_trends_job(job_id, max_wait=max_wait)
+        if status == "complete":
+            forget_pending_trends_job(pending_key)
+            record_trends_cost(
+                endpoint_label,
+                keywords,
+                int(pending.get("taskCount") or ((len(keywords) + 3) // 4)),
+                pending.get("actualCostUsd"),
+                task_id,
+                research_job_id=job_id,
+                cost_payload=pending.get("cost"),
+            )
+            poll_resp["fromPendingJob"] = True
+            return poll_resp
+        if status == "failed":
+            forget_pending_trends_job(pending_key)
+            print(f"    ❌ trends job failed: {poll_resp.get('error', 'unknown')}", file=sys.stderr)
+            return None
+
+        print(f"    ⏳ trends job still pending after {max_wait}s; will resume next run", file=sys.stderr)
+        return {"status": "pending", "pending": True, "jobId": job_id, "results": None}
+
     payload = json.dumps({
         "keywords": keywords,
-        "days": TREND_DAYS,
+        "days": days,
         "benchmark": TREND_BENCHMARK,
     })
     
@@ -733,66 +854,47 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d", task
             return None
         
         print(f"    ⏳ trends async jobId={job_id[:8]}...", flush=True)
+        remember_pending_trends_job(pending_key, {
+            "jobId": job_id,
+            "keywords": keywords,
+            "days": days,
+            "endpointLabel": endpoint_label,
+            "taskCount": task_count,
+            "actualCostUsd": actual_cost,
+            "cost": resp.get("cost"),
+            "createdAt": utc_now_iso(),
+            "updatedAt": utc_now_iso(),
+        })
         
     except Exception as e:
         print(f"    ⚠️ trends submit failed: {e}", file=sys.stderr)
         return None
     
     # Step 2: Poll for results
-    poll_interval = 10  # start at 10s
-    max_intervals = max_wait // poll_interval
-    for attempt in range(max_intervals):
-        time.sleep(poll_interval)
-        
-        status_url = f"{API_URL}/api/research/trends/status?jobId={job_id}"
-        poll_cmd = [
-            "curl", "-sL", "--max-time", "15", status_url,
-            "-H", f"Authorization: Bearer {API_KEY}",
-        ]
-        try:
-            poll_result = subprocess.run(poll_cmd, capture_output=True, text=True, timeout=20)
-            if poll_result.returncode != 0:
-                continue
-            poll_resp = json.loads(poll_result.stdout)
-            
-            if poll_resp.get("status") == "complete":
-                record_trends_cost(
-                    endpoint_label,
-                    keywords,
-                    task_count,
-                    actual_cost,
-                    task_id,
-                    research_job_id=job_id,
-                    cost_payload=resp.get("cost"),
-                )
-                return poll_resp
-            elif poll_resp.get("status") == "processing":
-                progress = poll_resp.get("progress", "")
-                if attempt % 3 == 0:  # print every ~30s
-                    print(f"    ⏳ trends polling... {progress}", flush=True)
-                continue
-            elif poll_resp.get("status") == "failed":
-                print(f"    ❌ trends job failed: {poll_resp.get('error', 'unknown')}", file=sys.stderr)
-                return None
-            else:
-                # Might be cached result returned directly
-                if poll_resp.get("results") is not None:
-                    record_trends_cost(
-                        endpoint_label,
-                        keywords,
-                        task_count,
-                        actual_cost,
-                        task_id,
-                        research_job_id=job_id,
-                        cost_payload=resp.get("cost"),
-                    )
-                    return poll_resp
-                continue
-        except Exception:
-            continue
-    
-    print(f"    ⚠️ trends polling timed out after {max_wait}s", file=sys.stderr)
-    return None
+    status, poll_resp = wait_for_trends_job(job_id, max_wait=max_wait)
+    if status == "complete":
+        forget_pending_trends_job(pending_key)
+        record_trends_cost(
+            endpoint_label,
+            keywords,
+            task_count,
+            actual_cost,
+            task_id,
+            research_job_id=job_id,
+            cost_payload=resp.get("cost"),
+        )
+        return poll_resp
+    if status == "failed":
+        forget_pending_trends_job(pending_key)
+        print(f"    ❌ trends job failed: {poll_resp.get('error', 'unknown')}", file=sys.stderr)
+        return None
+
+    jobs = load_pending_trends_jobs()
+    if pending_key in jobs:
+        jobs[pending_key]["updatedAt"] = utc_now_iso()
+        save_pending_trends_jobs(jobs)
+    print(f"    ⚠️ trends polling timed out after {max_wait}s; saved jobId for next run", file=sys.stderr)
+    return {"status": "pending", "pending": True, "jobId": job_id, "results": None}
 
 
 def save_result(keyword, source_site, ratio, slope, verdict, status="done",
@@ -1414,6 +1516,15 @@ def main():
                 metadata={"keywords": keywords, "batch": batch_num},
             )
             print("  ❌ API call failed, skipping batch", flush=True)
+            continue
+        if resp.get("pending"):
+            succeed_pipeline_task(
+                task_id,
+                status="warned",
+                result={"status": "pending", "jobId": resp.get("jobId")},
+                metadata={"keywords": keywords, "batch": batch_num, "jobId": resp.get("jobId")},
+            )
+            print(f"  ⏳ Trends job pending; saved jobId={str(resp.get('jobId'))[:8]} for next run", flush=True)
             continue
 
         from_cache = resp.get("fromCache", False)
