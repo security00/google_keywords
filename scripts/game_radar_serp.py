@@ -29,6 +29,7 @@ except ModuleNotFoundError:
 DEFAULT_API_URL = "https://discoverkeywords.co"
 MIN_GAME_RELEVANCE = 1
 MAX_AUTH_DOMAINS = 1
+STEAM_TOP_SELLER_MAX_AUTH_DOMAINS = 2
 
 
 @dataclass(frozen=True)
@@ -67,10 +68,12 @@ def classify_serp_result(
     serp_data: dict,
     keyword: str,
     *,
+    source_id: str | None = None,
     min_game_relevance: int = MIN_GAME_RELEVANCE,
     max_auth_domains: int = MAX_AUTH_DOMAINS,
 ) -> SerpDecision:
     is_low, organic, auth, featured, game_relevance = check_serp_competition(serp_data, keyword)
+    source_max_auth_domains = STEAM_TOP_SELLER_MAX_AUTH_DOMAINS if source_id == "steam-topsellers" else max_auth_domains
     if game_relevance < min_game_relevance:
         return SerpDecision(
             status="serp_fail",
@@ -81,7 +84,7 @@ def classify_serp_result(
             reason=f"serp_not_game_relevant: organic={organic}, auth={auth}, game_rel={game_relevance}",
             reject_reason="serp_not_game_relevant",
         )
-    if int(auth or 0) > max_auth_domains and not is_low:
+    if int(auth or 0) > source_max_auth_domains and not is_low:
         return SerpDecision(
             status="serp_fail",
             organic=int(organic or 0),
@@ -243,6 +246,7 @@ def validate_candidates(
             decision = classify_serp_result(
                 serp_data,
                 keyword,
+                source_id=candidate.source_id,
                 min_game_relevance=min_game_relevance,
                 max_auth_domains=max_auth_domains,
             )

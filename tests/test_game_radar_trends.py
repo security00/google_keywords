@@ -40,6 +40,29 @@ class GameRadarTrendsTest(unittest.TestCase):
         self.assertEqual(decision.status, "trend_pass")
         self.assertAlmostEqual(decision.ratio, 0.35)
 
+    def test_passes_sustained_steam_top_seller_with_high_ratio(self):
+        trends = load_trends()
+
+        decision = trends.classify_trend_result(
+            {"ratioMean": 46.33, "slopeRatio": -18.0, "verdict": "fail"},
+            source_id="steam-topsellers",
+        )
+
+        self.assertEqual(decision.status, "trend_pass")
+        self.assertIsNone(decision.reject_reason)
+        self.assertIn("steam_top_seller_sustained", decision.reason)
+
+    def test_does_not_apply_steam_top_seller_override_to_other_sources(self):
+        trends = load_trends()
+
+        decision = trends.classify_trend_result(
+            {"ratioMean": 46.33, "slopeRatio": -18.0, "verdict": "fail"},
+            source_id="steam-new",
+        )
+
+        self.assertEqual(decision.status, "trend_fail")
+        self.assertEqual(decision.reject_reason, "low_trend_signal")
+
     def test_prefilter_marks_obvious_non_game_before_api_calls(self):
         trends = load_trends()
 

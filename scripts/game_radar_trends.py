@@ -33,6 +33,7 @@ DEFAULT_BENCHMARK = "gpts"
 POLL_INTERVAL_SECONDS = 5
 MIN_RATIO = 0.3
 MIN_SLOPE = 0.0
+STEAM_TOP_SELLER_SUSTAINED_RATIO = 5.0
 PASS_VERDICTS = {"strong", "pass", "close", "watch"}
 
 
@@ -74,12 +75,28 @@ def parse_float(value, default: float = 0.0) -> float:
         return default
 
 
-def classify_trend_result(result: dict, *, min_ratio: float = MIN_RATIO, min_slope: float = MIN_SLOPE) -> TrendDecision:
+def classify_trend_result(
+    result: dict,
+    *,
+    source_id: str | None = None,
+    min_ratio: float = MIN_RATIO,
+    min_slope: float = MIN_SLOPE,
+) -> TrendDecision:
     ratio = parse_float(result.get("ratioMean", result.get("ratio", 0)))
     slope = parse_float(result.get("slopeRatio", 0))
     verdict = str(result.get("verdict") or "unknown")
     has_traffic = ratio >= min_ratio
     has_shape = slope >= min_slope or verdict in PASS_VERDICTS
+
+    if source_id == "steam-topsellers" and ratio >= STEAM_TOP_SELLER_SUSTAINED_RATIO:
+        return TrendDecision(
+            status="trend_pass",
+            ratio=ratio,
+            slope=slope,
+            verdict=verdict,
+            reason=f"steam_top_seller_sustained: ratio={ratio:.2f}, slope={slope:.2f}, verdict={verdict}",
+            reject_reason=None,
+        )
 
     if has_traffic and has_shape:
         return TrendDecision(
@@ -257,7 +274,7 @@ def validate_candidates(
             candidate = by_keyword.get(keyword)
             if not candidate:
                 continue
-            decision = classify_trend_result(result, min_ratio=min_ratio, min_slope=min_slope)
+            decision = classify_trend_result(result, source_id=candidate.source_id, min_ratio=min_ratio, min_slope=min_slope)
             totals["checked"] += 1
             totals["passed" if decision.status == "trend_pass" else "failed"] += 1
             print(

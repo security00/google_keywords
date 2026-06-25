@@ -49,6 +49,22 @@ class GameRadarSerpTest(unittest.TestCase):
         self.assertEqual(decision.status, "serp_fail")
         self.assertEqual(decision.reject_reason, "serp_competition_high")
 
+    def test_allows_one_extra_authority_domain_for_steam_top_sellers(self):
+        serp = load_serp()
+
+        decision = serp.classify_serp_result(serp_result(auth=2), "Ice River", source_id="steam-topsellers")
+
+        self.assertEqual(decision.status, "serp_pass")
+        self.assertIsNone(decision.reject_reason)
+
+    def test_keeps_default_authority_limit_for_other_sources(self):
+        serp = load_serp()
+
+        decision = serp.classify_serp_result(serp_result(auth=2), "Ice River", source_id="steam-new")
+
+        self.assertEqual(decision.status, "serp_fail")
+        self.assertEqual(decision.reject_reason, "serp_competition_high")
+
     def test_matches_lowercase_api_result_keys(self):
         serp = load_serp()
         results = {"it reaches": serp_result(title="It Reaches game on Steam")}
