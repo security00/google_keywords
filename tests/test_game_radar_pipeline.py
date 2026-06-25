@@ -44,6 +44,13 @@ class GameRadarPipelineTest(unittest.TestCase):
 
         self.assertEqual(sources, ["steam-new", "roblox-search", "itchio-new"])
 
+    def test_default_sources_include_steam_top_sellers(self):
+        pipeline = load_pipeline()
+
+        sources = pipeline.parse_sources([])
+
+        self.assertIn("steam-topsellers", sources)
+
     def test_fetch_funnel_snapshot_counts_run_activity_and_student_visible(self):
         pipeline = load_pipeline()
         d1 = FakeD1()

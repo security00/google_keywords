@@ -23,7 +23,7 @@ except ModuleNotFoundError:
     from game_radar_trends import load_env
 
 
-DEFAULT_RELEASE_SOURCES = ["steam-new", "roblox-search", "itchio-new", "itchio-new-free"]
+DEFAULT_RELEASE_SOURCES = ["steam-new", "steam-topsellers", "roblox-search", "itchio-new", "itchio-new-free"]
 
 
 @dataclass(frozen=True)

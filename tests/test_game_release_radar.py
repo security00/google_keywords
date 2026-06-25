@@ -43,6 +43,40 @@ class GameReleaseRadarTest(unittest.TestCase):
         self.assertEqual(candidates[0].source_id, "steam-new")
         self.assertEqual(candidates[0].url, "https://store.steampowered.com/app/10")
 
+    def test_fetch_steam_top_sellers_keeps_recent_hot_games_only(self):
+        radar = load_release_radar()
+        payload = {
+            "results_html": """
+              <a href="https://store.steampowered.com/app/4704690/MECCHA_CHAMELEON/"
+                 data-ds-appid="4704690" class="search_result_row">
+                <span class="title">MECCHA CHAMELEON</span>
+              </a>
+              <a href="https://store.steampowered.com/app/730/CounterStrike_2/"
+                 data-ds-appid="730" class="search_result_row">
+                <span class="title">Counter-Strike 2</span>
+              </a>
+            """
+        }
+        responses = []
+        for item in [
+            payload,
+            {"4704690": {"success": True, "data": {"release_date": {"coming_soon": False, "date": "9 Jun, 2026"}}}},
+            {"730": {"success": True, "data": {"release_date": {"coming_soon": False, "date": "21 Aug, 2012"}}}},
+        ]:
+            response = MagicMock()
+            response.__enter__.return_value.read.return_value = radar.json.dumps(item).encode("utf-8")
+            responses.append(response)
+
+        with patch.object(radar.urllib.request, "urlopen", side_effect=responses), \
+             patch.object(radar, "is_recent_steam_release", side_effect=lambda date: date == "9 Jun, 2026"), \
+             patch.object(radar.time, "sleep"):
+            candidates = radar.fetch_steam_top_sellers()
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0].keyword, "MECCHA CHAMELEON")
+        self.assertEqual(candidates[0].source_id, "steam-topsellers")
+        self.assertEqual(candidates[0].url, "https://store.steampowered.com/app/4704690")
+
     def test_fetch_itchio_new_extracts_game_urls(self):
         radar = load_release_radar()
         html = '''

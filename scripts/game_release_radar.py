@@ -9,6 +9,7 @@ discovery only: no Trends, SERP, LLM, or student-facing writes happen here.
 from __future__ import annotations
 
 import argparse
+import html as html_lib
 import json
 import re
 import sys
@@ -43,6 +44,12 @@ SOURCES = {
         "name": "Steam New Releases",
         "base_url": "https://store.steampowered.com",
         "feed_url": "https://store.steampowered.com/api/featuredcategories",
+        "quality_tier": 1,
+    },
+    "steam-topsellers": {
+        "name": "Steam Top Sellers",
+        "base_url": "https://store.steampowered.com",
+        "feed_url": "https://store.steampowered.com/search/results/?query&start=0&count=50&dynamic_data=&sort_by=_ASC&snr=1_7_7_230_7&filter=topsellers&infinite=1",
         "quality_tier": 1,
     },
     "itchio-new": {
@@ -81,6 +88,8 @@ ADULT_STEAM_TOKENS = (
     "succubus", "strip", "lust", "horny",
 )
 
+STEAM_TOP_SELLER_MAX_AGE_DAYS = 60
+
 
 def fetch_json(url: str) -> dict:
     req = urllib.request.Request(
@@ -105,6 +114,24 @@ def is_release_name_allowed(name: str) -> bool:
     if any(token in lower for token in ADULT_STEAM_TOKENS):
         return False
     return is_game_name_valid(name)
+
+
+def parse_steam_release_date(date_text: str) -> datetime | None:
+    cleaned = date_text.strip()
+    for fmt in ("%d %b, %Y", "%b %d, %Y"):
+        try:
+            return datetime.strptime(cleaned, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def is_recent_steam_release(date_text: str, *, max_age_days: int = STEAM_TOP_SELLER_MAX_AGE_DAYS) -> bool:
+    released_at = parse_steam_release_date(date_text)
+    if not released_at:
+        return False
+    age_days = (datetime.now(timezone.utc) - released_at).days
+    return 0 <= age_days <= max_age_days
 
 
 def title_from_itch_url(url: str) -> str:
@@ -155,6 +182,66 @@ def fetch_steam_new() -> list[ReleaseCandidate]:
                 title=f"{name} | Steam New Release",
             )
         )
+    return candidates
+
+
+def extract_steam_search_items(results_html: str) -> list[tuple[str, str]]:
+    items: list[tuple[str, str]] = []
+    for match in re.finditer(r"<a\s+[^>]*class=\"[^\"]*search_result_row[^\"]*\"[^>]*>.*?</a>", results_html, re.S):
+        block = match.group(0)
+        app_match = re.search(r"data-ds-appid=\"(\d+)\"", block)
+        title_match = re.search(r"<span class=\"title\">(.*?)</span>", block, re.S)
+        if not app_match or not title_match:
+            continue
+        name = html_lib.unescape(re.sub(r"<.*?>", " ", title_match.group(1))).strip()
+        if name:
+            items.append((app_match.group(1), re.sub(r"\s+", " ", name)))
+    return items
+
+
+def fetch_steam_release_date(app_id: str) -> str | None:
+    data = fetch_json(f"https://store.steampowered.com/api/appdetails?appids={app_id}&filters=release_date,basic")
+    app_data = data.get(str(app_id), {})
+    if not app_data.get("success"):
+        return None
+    release_date = app_data.get("data", {}).get("release_date", {})
+    if release_date.get("coming_soon"):
+        return None
+    date_text = release_date.get("date")
+    return str(date_text).strip() if date_text else None
+
+
+def fetch_steam_top_sellers() -> list[ReleaseCandidate]:
+    source = SOURCES["steam-topsellers"]
+    data = fetch_json(source["feed_url"])
+    results_html = str(data.get("results_html") or "")
+
+    candidates: list[ReleaseCandidate] = []
+    seen: set[str] = set()
+    for app_id, name in extract_steam_search_items(results_html):
+        if not is_release_name_allowed(name):
+            continue
+        release_date = fetch_steam_release_date(app_id)
+        if not release_date or not is_recent_steam_release(release_date):
+            continue
+        normalized = normalize_keyword(name)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        url = f"https://store.steampowered.com/app/{app_id}"
+        candidates.append(
+            ReleaseCandidate(
+                keyword=name,
+                normalized=normalized,
+                source_id="steam-topsellers",
+                source_name=source["name"],
+                base_url=source["base_url"],
+                feed_url=source["feed_url"],
+                url=url,
+                title=f"{name} | Steam Top Seller",
+            )
+        )
+        time.sleep(0.1)
     return candidates
 
 
@@ -238,6 +325,8 @@ def collect_candidates(sources: list[str]) -> list[ReleaseCandidate]:
         try:
             if source_id == "steam-new":
                 candidates = fetch_steam_new()
+            elif source_id == "steam-topsellers":
+                candidates = fetch_steam_top_sellers()
             elif source_id in {"itchio-new", "itchio-new-free"}:
                 candidates = fetch_itchio(source_id)
             elif source_id == "roblox-search":
@@ -321,7 +410,7 @@ def main() -> None:
     parser.add_argument("--write", action="store_true", help="Write candidates to D1. Omit for dry-run.")
     args = parser.parse_args()
 
-    sources = args.source or ["steam-new", "roblox-search", "itchio-new", "itchio-new-free"]
+    sources = args.source or ["steam-new", "steam-topsellers", "roblox-search", "itchio-new", "itchio-new-free"]
     print(f"Game Release Radar - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}", flush=True)
     print(f"sources={sources} write={args.write}", flush=True)
     candidates = collect_candidates(sources)

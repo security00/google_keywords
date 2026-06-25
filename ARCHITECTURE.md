@@ -360,6 +360,7 @@ GET /api/old-keywords
 |---|---|---|---|---|
 | CrazyGames | `/new` | 每日 | ~68个 | 最大源，需 curl subprocess（Python urllib 被 CF 拦截） |
 | Steam | `featuredcategories/new_releases` | 每日 | ~20个 | 已重新启用；仅进入现有趋势/SERP/分类管线，不单独放宽阈值 |
+| Steam Top Sellers | `search/results?filter=topsellers` + `appdetails` | 每日 | ~5-10个 | 只保留近 60 天发行的新近热销游戏，用于捕捉 Meccha Chameleon 这类爆火信号 |
 | Poki | JSON-LD `/new` | 每日 | ~20个 | 页面内嵌结构化数据 |
 | Addicting Games | `/new-games` | 每日 | ~2个 | 14天内新游戏 |
 | itch.io | newest/free game pages | 每日 | 变动 | 独立游戏补充源 |
