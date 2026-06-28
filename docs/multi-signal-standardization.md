@@ -59,7 +59,6 @@ Each evidence item contains:
 
 Improve the review workflow before adding new platforms:
 
-- Promote the read-only CLI into an admin-only view.
 - Add explicit review actions before candidates reach paid expand.
 - Treat X and Facebook as adapter design work first, not production ingestion.
 
@@ -73,6 +72,7 @@ Improve the review workflow before adding new platforms:
 ## Review Queue Status
 
 - `scripts/signal_review_queue.py` provides a read-only CLI for status distribution, rejected reason counts, and top candidates.
-- It does not update `signal_candidates`.
-- It supports both legacy provider-map `signal_sources` JSON and standardized evidence JSON.
-- This CLI is the safe precursor to a future admin-only Signal Review Queue UI.
+- `/dashboard/admin/signal-review` provides a read-only admin page backed by `/api/admin/signal-review`.
+- Both surfaces do not update `signal_candidates`.
+- Both surfaces support legacy provider-map `signal_sources` JSON and standardized evidence JSON.
+- The admin page is the safe precursor to future approve/reject actions.
