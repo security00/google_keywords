@@ -57,10 +57,15 @@ Each evidence item contains:
 
 ## Next Implementation Slice
 
-Improve extraction quality before adding new platforms:
+Improve the review workflow before adding new platforms:
 
-- Add source-specific extractors for Reddit, GitHub Trending, RSS, and HN.
 - Track rejected reasons in an admin-only view.
 - Add a Signal Review Queue before candidates reach paid expand.
 - Treat X and Facebook as adapter design work first, not production ingestion.
 
+## Extraction Quality Status
+
+- GitHub Trending now uses repository names instead of description bigrams.
+- HN/RSS title extraction requires buildable hints such as AI, LLM, API, MCP, tool, generator, agent, SaaS, or extension.
+- Reddit still uses title bigrams, because subreddit posts often express direct builder intent.
+- Dry-run validation should be run with `--dry-run --no-dataforseo` before any production wiring.

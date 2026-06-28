@@ -8,9 +8,9 @@ DataForSEO volume is the ultimate noise filter.
 import logging
 import re
 import unicodedata
-from typing import Dict, List, Set, Tuple
+from typing import List, Set, Tuple
 
-from .models import SignalItem, KeywordCandidate
+from .models import SignalItem, KeywordCandidate, SignalProvider
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +62,8 @@ STOP_WORDS: Set[str] = {
     "yes", "yet", "us", "ve", "re",
     "called", "known", "based",
     "running", "working", "building", "creating",
+    "across", "already", "contain", "contains", "generated",
+    "awaiting", "maker", "spreading", "server", "indexes",
     "using", "used", "uses", "making", "getting",
     "dont", "doesnt", "wont", "cant", "isnt", "wasnt", "arent",
     "werent", "havent", "hasnt", "hadnt", "couldnt", "wouldnt",
@@ -83,7 +85,23 @@ GENERIC_WORDS: Set[str] = {
     "support", "help", "faq", "tips", "tricks", "hacks",
     "experience", "experiences", "problem", "problems", "question",
     "answer", "answers", "discussion", "discussions",
+    "wall", "street", "camera", "cameras", "code",
 }
+
+# Keep obvious noise out of D1 before the bridge stage spends attention on it.
+DISALLOWED_PHRASE_RE = re.compile(
+    r"\b(world cup|fifa|uefa|premier league|champions league|spidey|spider[- ]?man|marvel|"
+    r"wu[- ]?tang|watermark remover|remove watermark|paywall remover|game engine|extensions sdk|extension sdk|"
+    r"strncpy api|electronic calculator|ai assistant|game boy|comfortably monitor|maker lastpass|"
+    r"wall street|maker micron|server indexes|high-performance code|they're spreading|flock cameras)\b",
+    re.I,
+)
+
+BUILDABLE_HINT_RE = re.compile(
+    r"\b(ai|llm|gpt|claude|gemini|api|sdk|mcp|agent|tool|generator|calculator|tracker|"
+    r"builder|converter|analyzer|monitor|desktop|browser|plugin|extension|saas|open source|github)\b",
+    re.I,
+)
 
 # Short brand/tech words that ARE good keyword components
 BRAND_WORDS: Set[str] = {
@@ -109,6 +127,77 @@ def normalize_keyword(kw: str) -> str:
     kw = re.sub(r"[^a-z0-9\s\-/#@]", " ", kw)
     kw = re.sub(r"\s+", " ", kw).strip()
     return kw
+
+
+def _raw_to_candidate(
+    item: SignalItem,
+    norm: str,
+    raw_keyword: str,
+    extract_method: str,
+) -> KeywordCandidate:
+    return KeywordCandidate(
+        keyword=raw_keyword,
+        keyword_normalized=norm,
+        source_signals=[item],
+        source_count=1,
+        avg_hotness=item.hotness,
+        first_seen_at=item.published_at,
+        last_seen_at=item.published_at,
+        extract_method=extract_method,
+    )
+
+
+def _split_repo_slug(slug: str) -> str:
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", slug)
+    spaced = re.sub(r"[-_.]+", " ", spaced)
+    spaced = re.sub(r"\s+", " ", spaced).strip()
+    return spaced
+
+
+def _is_buildable_phrase(norm: str) -> bool:
+    if not norm or len(norm) < 5:
+        return False
+    if "/" in norm or any(ord(ch) > 127 for ch in norm):
+        return False
+    if DISALLOWED_PHRASE_RE.search(norm):
+        return False
+    words = norm.split()
+    if len(words) > 6:
+        return False
+    meaningful = [word for word in words if _is_content_word(word)]
+    return len(meaningful) >= 1
+
+
+def _extract_github_candidates(item: SignalItem) -> List[KeywordCandidate]:
+    repo = str(item.metadata.get("repo") or "")
+    if not repo:
+        return []
+
+    slug = repo.split("/")[-1]
+    raw_keyword = _split_repo_slug(slug)
+    norm = normalize_keyword(raw_keyword)
+    if not _is_buildable_phrase(norm):
+        return []
+
+    return [_raw_to_candidate(item, norm, raw_keyword, "github_repo_name")]
+
+
+def _extract_title_candidates(item: SignalItem, method: str) -> List[KeywordCandidate]:
+    title = item.title.strip()
+    if len(title) < 10:
+        return []
+    if any(ord(ch) > 127 for ch in title) or DISALLOWED_PHRASE_RE.search(title):
+        return []
+
+    candidates = []
+    for norm, raw_bigram, _quality in _extract_best_bigrams(title):
+        if not _is_buildable_phrase(norm):
+            continue
+        if item.provider in {SignalProvider.HACKERNEWS, SignalProvider.RSS}:
+            if not BUILDABLE_HINT_RE.search(f"{title} {raw_bigram}"):
+                continue
+        candidates.append(_raw_to_candidate(item, norm, raw_bigram, method))
+    return candidates
 
 
 def _extract_best_bigrams(title: str) -> List[Tuple[str, str, float]]:
@@ -137,6 +226,10 @@ def _extract_best_bigrams(title: str) -> List[Tuple[str, str, float]]:
 
         norm = normalize_keyword(bigram)
         if not norm:
+            continue
+        if "/" in norm:
+            continue
+        if any(ord(ch) > 127 for ch in bigram) or DISALLOWED_PHRASE_RE.search(norm):
             continue
 
         # Skip if both words are hyphenated fragments
@@ -176,27 +269,11 @@ def extract_keyword_candidates(items: List[SignalItem]) -> List[KeywordCandidate
     candidates: List[KeywordCandidate] = []
 
     for item in items:
-        title = item.title.strip()
-        if len(title) < 10:
+        if item.provider == SignalProvider.GITHUB_TRENDING:
+            candidates.extend(_extract_github_candidates(item))
             continue
 
-        bigrams = _extract_best_bigrams(title)
-        if not bigrams:
-            continue
-
-        # Each bigram becomes its own candidate
-        for norm, raw_bigram, quality in bigrams:
-            candidate = KeywordCandidate(
-                keyword=raw_bigram,
-                keyword_normalized=norm,
-                source_signals=[item],
-                source_count=1,
-                avg_hotness=item.hotness,
-                first_seen_at=item.published_at,
-                last_seen_at=item.published_at,
-                extract_method="bigram",
-            )
-            candidates.append(candidate)
+        candidates.extend(_extract_title_candidates(item, f"{item.provider.value}_title_bigram"))
 
     # Sort by: hotness + quality
     def score(c: KeywordCandidate) -> float:
