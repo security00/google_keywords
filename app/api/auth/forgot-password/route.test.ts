@@ -26,13 +26,15 @@ describe("POST /api/auth/forgot-password", () => {
     global.fetch = vi.fn();
   });
 
-  test("does not reveal whether an email is unknown", async () => {
+  test("tells unregistered users to register before resetting password", async () => {
     mockD1Query.mockResolvedValueOnce({ rows: [] });
 
     const response = await postForgotPassword("missing@example.com");
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ success: true });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "该邮箱未注册，请先注册账号",
+    });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 

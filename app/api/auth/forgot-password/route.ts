@@ -76,8 +76,10 @@ export async function POST(req: NextRequest) {
     [normalizedEmail]
   );
   if (!users || users.length === 0) {
-    // 不暴露用户是否存在
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { error: "该邮箱未注册，请先注册账号" },
+      { status: 404 }
+    );
   }
 
   // 生成 token
