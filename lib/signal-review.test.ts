@@ -1,14 +1,28 @@
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import {
   clampSignalReviewLimit,
   countSignalEvidence,
   normalizeSignalReviewStatus,
   parseSignalSourceLabels,
+  signalReviewAcceptedValue,
+  signalReviewProcessedValue,
   signalReviewStatusClause,
+  updateSignalReviewCandidate,
 } from "./signal-review";
+import { d1Query } from "./d1";
+
+vi.mock("./d1", () => ({
+  d1Query: vi.fn(),
+}));
+
+const mockD1Query = vi.mocked(d1Query);
 
 describe("signal review helpers", () => {
+  beforeEach(() => {
+    mockD1Query.mockReset();
+  });
+
   test("normalizes unsupported statuses to pending", () => {
     expect(normalizeSignalReviewStatus("all")).toBe("all");
     expect(normalizeSignalReviewStatus("accepted")).toBe("accepted");
@@ -61,5 +75,41 @@ describe("signal review helpers", () => {
   test("handles malformed JSON safely", () => {
     expect(parseSignalSourceLabels("{")).toEqual([]);
     expect(countSignalEvidence("{")).toBe(0);
+  });
+
+  test("builds manual review status values", () => {
+    expect(signalReviewAcceptedValue("approve")).toBe("accepted:manual:admin_review");
+    expect(signalReviewProcessedValue("approve")).toBe(0);
+
+    expect(signalReviewAcceptedValue("reject", "Weak Pipeline Fit!")).toBe(
+      "rejected:manual:weak_pipeline_fit"
+    );
+    expect(signalReviewProcessedValue("reject")).toBe(1);
+  });
+
+  test("updates a candidate review decision in D1", async () => {
+    mockD1Query.mockResolvedValue({ rows: [{ id: "sig_1" }] });
+
+    await expect(
+      updateSignalReviewCandidate({ id: "sig_1", action: "approve" })
+    ).resolves.toEqual({
+      id: "sig_1",
+      accepted: "accepted:manual:admin_review",
+      processed: 0,
+    });
+
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("UPDATE signal_candidates");
+    expect(mockD1Query.mock.calls[0][1]).toEqual([
+      "accepted:manual:admin_review",
+      0,
+      "sig_1",
+    ]);
+  });
+
+  test("rejects a missing candidate id before writing", async () => {
+    await expect(
+      updateSignalReviewCandidate({ id: " ", action: "reject" })
+    ).rejects.toThrow("Candidate id is required");
+    expect(mockD1Query).not.toHaveBeenCalled();
   });
 });

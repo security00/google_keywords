@@ -15,6 +15,7 @@ export type SignalReviewReasonRow = {
 };
 
 export type SignalReviewCandidate = {
+  id: string;
   keyword: string;
   keywordNormalized: string;
   signalScore: number;
@@ -35,6 +36,7 @@ export type SignalReviewQueue = {
 };
 
 type SignalCandidateRow = {
+  id: string;
   keyword: string;
   keyword_normalized: string;
   signal_score: number | null;
@@ -44,6 +46,8 @@ type SignalCandidateRow = {
   created_at: string;
   signal_sources: string | null;
 };
+
+export type SignalReviewAction = "approve" | "reject";
 
 type StatusCountRow = {
   status: string;
@@ -137,6 +141,7 @@ const normalizeReasonRow = (row: RejectedReasonRow): SignalReviewReasonRow => ({
 });
 
 const normalizeCandidateRow = (row: SignalCandidateRow): SignalReviewCandidate => ({
+  id: row.id,
   keyword: row.keyword,
   keywordNormalized: row.keyword_normalized,
   signalScore: Number(row.signal_score || 0),
@@ -147,6 +152,55 @@ const normalizeCandidateRow = (row: SignalCandidateRow): SignalReviewCandidate =
   sources: parseSignalSourceLabels(row.signal_sources),
   evidenceCount: countSignalEvidence(row.signal_sources),
 });
+
+export const normalizeSignalReviewAction = (raw: unknown): SignalReviewAction | null => {
+  return raw === "approve" || raw === "reject" ? raw : null;
+};
+
+export const normalizeManualRejectReason = (raw: unknown) => {
+  const text = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+  const slug = text
+    .replace(/[^a-z0-9_:-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+  return slug || "manual_rejected";
+};
+
+export const signalReviewAcceptedValue = (
+  action: SignalReviewAction,
+  reason?: unknown
+) => {
+  if (action === "approve") return "accepted:manual:admin_review";
+  return `rejected:manual:${normalizeManualRejectReason(reason)}`;
+};
+
+export const signalReviewProcessedValue = (action: SignalReviewAction) => {
+  return action === "approve" ? 0 : 1;
+};
+
+export async function updateSignalReviewCandidate(input: {
+  id: string;
+  action: SignalReviewAction;
+  reason?: unknown;
+}) {
+  const id = input.id.trim();
+  if (!id) throw new Error("Candidate id is required");
+
+  const accepted = signalReviewAcceptedValue(input.action, input.reason);
+  const processed = signalReviewProcessedValue(input.action);
+
+  const { rows } = await d1Query<{ id: string }>(
+    `UPDATE signal_candidates
+     SET accepted = ?, processed = ?
+     WHERE id = ?
+     RETURNING id`,
+    [accepted, processed, id]
+  );
+
+  if (!rows.length) throw new Error("Candidate not found");
+  return { id: rows[0].id, accepted, processed };
+}
 
 export async function getSignalReviewQueue(
   statusInput: string | null | undefined = "pending",
@@ -172,7 +226,7 @@ export async function getSignalReviewQueue(
          ORDER BY count DESC`
       ),
       d1Query<SignalCandidateRow>(
-        `SELECT keyword, keyword_normalized, signal_score, avg_hotness, dataforseo_volume,
+        `SELECT id, keyword, keyword_normalized, signal_score, avg_hotness, dataforseo_volume,
                 accepted, created_at, signal_sources
          FROM signal_candidates
          ${clause}

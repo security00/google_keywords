@@ -145,11 +145,13 @@ def main():
     ts = time.strftime("%Y-%m-%d %H:%M UTC")
     print(f"🚀 Signal Bridge — {ts}", file=sys.stderr)
 
-    # Fetch unprocessed candidates
+    # Fetch admin-approved, unprocessed candidates.
     try:
         rows = d1_query(
             "SELECT id, keyword, keyword_normalized, signal_score, signal_sources, avg_hotness "
-            "FROM signal_candidates WHERE processed = 0 ORDER BY signal_score DESC LIMIT ?",
+            "FROM signal_candidates "
+            "WHERE processed = 0 AND accepted LIKE 'accepted:%' "
+            "ORDER BY signal_score DESC LIMIT ?",
             [args.limit]
         )
     except Exception as e:

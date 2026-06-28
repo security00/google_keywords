@@ -16,6 +16,7 @@ type ReasonRow = {
 };
 
 type Candidate = {
+  id: string;
   keyword: string;
   keywordNormalized: string;
   signalScore: number;
@@ -56,6 +57,7 @@ export default function SignalReviewPage() {
   const [data, setData] = useState<SignalReviewQueue | null>(null);
   const [status, setStatus] = useState<SignalReviewStatus>("pending");
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = async (nextStatus = status) => {
@@ -89,6 +91,28 @@ export default function SignalReviewPage() {
     .reduce((sum, row) => sum + row.count, 0) ?? 0;
   const totalCount = data?.summary.reduce((sum, row) => sum + row.count, 0) ?? 0;
 
+  const reviewCandidate = async (candidate: Candidate, action: "approve" | "reject") => {
+    const reason = action === "reject" ? window.prompt("Reject reason", "manual_rejected") : undefined;
+    if (action === "reject" && reason === null) return;
+
+    setUpdatingId(candidate.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/signal-review", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: candidate.id, action, reason }),
+      });
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || "更新失败");
+      await load(status);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "更新失败");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -97,7 +121,7 @@ export default function SignalReviewPage() {
           <div>
             <h1 className="text-2xl font-bold">Signal Review Queue</h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              只读查看多平台信号候选、状态分布和拒绝原因。这个页面不写库、不触发 DataForSEO、不改变学生端推荐。
+              审核多平台信号候选、状态分布和拒绝原因。Approve 只允许候选进入 signal bridge 后续扩展；本页不触发 DataForSEO，不改变学生端推荐。
             </p>
           </div>
         </div>
@@ -151,15 +175,16 @@ export default function SignalReviewPage() {
                 <Th align="right">Volume</Th>
                 <Th align="right">Evidence</Th>
                 <Th>Status</Th>
+                <Th>Action</Th>
                 <Th>Created</Th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">加载中...</td></tr>
               ) : data?.candidates.length ? (
                 data.candidates.map((row) => (
-                  <tr key={`${row.keywordNormalized}-${row.createdAt}`} className="border-t hover:bg-muted/30">
+                  <tr key={row.id} className="border-t hover:bg-muted/30">
                     <Td className="font-medium">
                       <div className="flex flex-col gap-1">
                         <span>{row.keyword}</span>
@@ -180,11 +205,29 @@ export default function SignalReviewPage() {
                         {row.accepted || "pending"}
                       </span>
                     </Td>
+                    <Td>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => reviewCandidate(row, "approve")}
+                          disabled={updatingId === row.id}
+                          className="rounded-md border border-emerald-200 px-2 py-1 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => reviewCandidate(row, "reject")}
+                          disabled={updatingId === row.id}
+                          className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </Td>
                     <Td>{formatDate(row.createdAt)}</Td>
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">暂无候选</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">暂无候选</td></tr>
               )}
             </tbody>
           </table>
