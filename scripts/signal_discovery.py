@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from signal_collector.pipeline import SignalDiscoveryPipeline, DEFAULT_CONFIG
 from signal_collector.models import KeywordCandidate
+from signal_collector.standardizer import signal_sources_json, standardized_signal_opportunity
 
 logging.basicConfig(
     level=logging.INFO,
@@ -167,9 +168,8 @@ def save_candidates_to_d1(candidates: list[KeywordCandidate], volume_data: dict)
         for c in candidates:
             kw = c.keyword_normalized
             vol = volume_data.get(kw, {})
-            signal_sources = json.dumps({
-                s.provider.value: s.title for s in c.source_signals
-            })
+            standardized = standardized_signal_opportunity(c)
+            signal_sources = signal_sources_json(c)
 
             sql = """INSERT OR IGNORE INTO signal_candidates
                      (id, keyword, keyword_normalized, signal_sources,
@@ -183,7 +183,7 @@ def save_candidates_to_d1(candidates: list[KeywordCandidate], volume_data: dict)
                 c.keyword,
                 kw,
                 signal_sources,
-                c.source_count * 5 + (c.avg_hotness / 10),
+                standardized.signal_score,
                 c.avg_hotness,
                 c.first_seen_at.isoformat(),
                 c.last_seen_at.isoformat(),
