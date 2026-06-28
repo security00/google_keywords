@@ -59,8 +59,8 @@ Each evidence item contains:
 
 Improve the review workflow before adding new platforms:
 
-- Track rejected reasons in an admin-only view.
-- Add a Signal Review Queue before candidates reach paid expand.
+- Promote the read-only CLI into an admin-only view.
+- Add explicit review actions before candidates reach paid expand.
 - Treat X and Facebook as adapter design work first, not production ingestion.
 
 ## Extraction Quality Status
@@ -69,3 +69,10 @@ Improve the review workflow before adding new platforms:
 - HN/RSS title extraction requires buildable hints such as AI, LLM, API, MCP, tool, generator, agent, SaaS, or extension.
 - Reddit still uses title bigrams, because subreddit posts often express direct builder intent.
 - Dry-run validation should be run with `--dry-run --no-dataforseo` before any production wiring.
+
+## Review Queue Status
+
+- `scripts/signal_review_queue.py` provides a read-only CLI for status distribution, rejected reason counts, and top candidates.
+- It does not update `signal_candidates`.
+- It supports both legacy provider-map `signal_sources` JSON and standardized evidence JSON.
+- This CLI is the safe precursor to a future admin-only Signal Review Queue UI.
