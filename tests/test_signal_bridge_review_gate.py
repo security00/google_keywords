@@ -15,6 +15,15 @@ def load_bridge():
 
 
 class SignalBridgeReviewGateTest(unittest.TestCase):
+    def test_allows_reviewed_ai_workspace_keyword(self):
+        bridge = load_bridge()
+
+        allowed, fit, reason = bridge.allow_signal_bridge("AI workspace")
+
+        self.assertTrue(allowed)
+        self.assertEqual(fit, "new_tool")
+        self.assertEqual(reason, "ai_tool_candidate")
+
     def test_bridge_only_fetches_admin_approved_candidates(self):
         bridge = load_bridge()
         bridge.GK_API_KEY = "test-key"

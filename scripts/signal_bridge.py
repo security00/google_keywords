@@ -46,7 +46,7 @@ TOOL_RE = re.compile(
     r"\b(tool|tools|builder|generator|creator|maker|checker|converter|analyzer|calculator|"
     r"finder|scanner|detector|solver|optimizer|editor|planner|tracker|monitor|extractor|"
     r"compressor|enhancer|remover|template|workflow|api|sdk|plugin|extension|desktop|browser|"
-    r"studio|canvas|assistant|runtime|terminal|app|software|platform)\b",
+    r"studio|canvas|assistant|runtime|terminal|workspace|app|software|platform)\b",
     re.I,
 )
 GAME_RE = re.compile(
