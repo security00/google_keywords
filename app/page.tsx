@@ -44,10 +44,22 @@ const workflow = [
 ];
 
 const useCases = [
-  "Find new tool-site keywords before they show up in crowded keyword databases.",
-  "Spot rising game opportunities with trend and SERP checks before adding pages.",
-  "Review AI product and workflow terms while blocking entertainment and news noise.",
-  "Give students a stable shared-cache experience without accidental paid calls.",
+  {
+    text: "Find new tool-site keywords before they show up in crowded keyword databases.",
+    href: "/keyword-opportunity-platform",
+  },
+  {
+    text: "Turn noisy SEO signals into reviewed keyword candidates.",
+    href: "/seo-signal-discovery",
+  },
+  {
+    text: "Prioritize programmatic SEO pages from reviewed demand patterns.",
+    href: "/programmatic-seo-keyword-research",
+  },
+  {
+    text: "Give students a stable shared-cache experience without accidental paid calls.",
+    href: "/api-docs",
+  },
 ];
 
 const proofCards = [
@@ -138,12 +150,12 @@ export default function Home() {
                 Request access
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-              <Link
-                href="/dashboard"
-                className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-              >
-                Open dashboard
-              </Link>
+            <Link
+              href="/api-docs"
+              className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+            >
+              View API docs
+            </Link>
             </div>
             <div className="mt-8 grid max-w-xl grid-cols-3 gap-3">
               {stats.map((item) => (
@@ -196,10 +208,14 @@ export default function Home() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {useCases.map((item) => (
-              <div key={item} className="flex gap-3 rounded-lg border border-zinc-200 bg-white p-4">
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex gap-3 rounded-lg border border-zinc-200 bg-white p-4 hover:border-emerald-300"
+              >
                 <CheckCircle2 className="mt-0.5 h-5 w-5 flex-none text-emerald-700" aria-hidden="true" />
-                <p className="text-sm leading-6 text-zinc-600">{item}</p>
-              </div>
+                <p className="text-sm leading-6 text-zinc-600">{item.text}</p>
+              </Link>
             ))}
           </div>
         </div>
@@ -271,6 +287,9 @@ export default function Home() {
             </Link>
             <Link href="/register" className="hover:text-zinc-950">
               Register
+            </Link>
+            <Link href="/api-docs" className="hover:text-zinc-950">
+              API docs
             </Link>
             <Link href="/dashboard" className="hover:text-zinc-950">
               Dashboard
