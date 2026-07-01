@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { ProductEvidencePreview } from "@/components/product-evidence-preview";
 
 type MarketingPageProps = {
   eyebrow: string;
@@ -136,11 +137,17 @@ export function MarketingPage({
 
       <section className="border-y border-zinc-200 bg-[#f7f7f2]">
         <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">Examples</p>
-            <h2 className="mt-3 text-3xl font-semibold text-zinc-950 sm:text-4xl">
-              Public examples, private workflows protected.
-            </h2>
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+            <div className="max-w-3xl">
+              <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">Examples</p>
+              <h2 className="mt-3 text-3xl font-semibold text-zinc-950 sm:text-4xl">
+                Public examples, private workflows protected.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-zinc-600">
+                The preview mirrors the review dashboard style with anonymized keywords and safe product metrics.
+              </p>
+            </div>
+            <ProductEvidencePreview compact />
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-3">
             {proof.map((item) => (

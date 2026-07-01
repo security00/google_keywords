@@ -1,18 +1,15 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
   CheckCircle2,
-  Database,
   Gauge,
-  Layers3,
-  LineChart,
   LockKeyhole,
   Radar,
   SearchCheck,
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
+import { ProductEvidencePreview } from "@/components/product-evidence-preview";
 
 export const dynamic = "force-static";
 
@@ -201,7 +198,7 @@ export default function Home() {
             </div>
           </div>
 
-          <ProductPreview />
+          <ProductEvidencePreview />
         </div>
       </section>
 
@@ -377,95 +374,5 @@ export default function Home() {
         </div>
       </footer>
     </main>
-  );
-}
-
-function ProductPreview() {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
-        <div>
-          <div className="text-sm font-semibold text-zinc-950">Opportunity queue</div>
-          <div className="mt-1 text-xs text-zinc-500">Reviewed signals ready for action</div>
-        </div>
-        <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">
-          Live cache
-        </span>
-      </div>
-      <div className="mt-4 grid gap-3">
-        <PreviewRow
-          icon={LineChart}
-          title="Trend validated"
-          detail="browser extension generator"
-          value="+42%"
-          tone="emerald"
-        />
-        <PreviewRow
-          icon={BarChart3}
-          title="SERP fit"
-          detail="pricing calculator template"
-          value="Tool"
-          tone="sky"
-        />
-        <PreviewRow
-          icon={Database}
-          title="Shared cache"
-          detail="student dashboard fallback"
-          value="Ready"
-          tone="amber"
-        />
-      </div>
-      <div className="mt-5 rounded-lg border border-zinc-200 bg-[#f7f7f2] p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold text-zinc-950">Signal review</div>
-            <div className="mt-1 text-xs text-zinc-500">Noise blocked before expand</div>
-          </div>
-          <Layers3 className="h-5 w-5 text-zinc-500" aria-hidden="true" />
-        </div>
-        <div className="mt-4 space-y-2">
-          <div className="h-2 rounded-full bg-zinc-200">
-            <div className="h-2 w-4/5 rounded-full bg-emerald-600" />
-          </div>
-          <div className="flex justify-between text-xs text-zinc-500">
-            <span>Accepted opportunities</span>
-            <span>80%</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PreviewRow({
-  icon: Icon,
-  title,
-  detail,
-  value,
-  tone,
-}: {
-  icon: typeof LineChart;
-  title: string;
-  detail: string;
-  value: string;
-  tone: "emerald" | "sky" | "amber";
-}) {
-  const toneClass = {
-    emerald: "bg-emerald-50 text-emerald-800",
-    sky: "bg-sky-50 text-sky-800",
-    amber: "bg-amber-50 text-amber-800",
-  }[tone];
-
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 p-3">
-      <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${toneClass}`}>
-        <Icon className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-zinc-950">{title}</div>
-        <div className="truncate text-xs text-zinc-500">{detail}</div>
-      </div>
-      <div className="text-sm font-semibold text-zinc-950">{value}</div>
-    </div>
   );
 }
