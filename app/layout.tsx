@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "关键词研究平台",
-  description: "基于 DataForSEO 与 Cloudflare D1 的关键词研究与新游发现工具",
+  title: "Discover Keywords | Reviewed Keyword Opportunity Platform",
+  description: "Find reviewed keyword opportunities from multi-source signals, trends, SERP checks, and guarded discovery workflows.",
   icons: {
     icon: [{ url: "/favicon.ico" }],
   },
