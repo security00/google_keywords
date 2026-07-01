@@ -62,6 +62,24 @@ const useCases = [
   },
 ];
 
+const solutionPages = [
+  {
+    title: "Keyword opportunity platform",
+    href: "/keyword-opportunity-platform",
+    text: "How reviewed signals become buildable keyword opportunities before crowded tools expose them.",
+  },
+  {
+    title: "SEO signal discovery",
+    href: "/seo-signal-discovery",
+    text: "How multi-source signals are collected, filtered, reviewed, and bridged into research workflows.",
+  },
+  {
+    title: "Programmatic SEO keyword research",
+    href: "/programmatic-seo-keyword-research",
+    text: "How operators can prioritize repeatable page patterns for tools, templates, game pages, and clusters.",
+  },
+];
+
 const proofCards = [
   {
     keyword: "browser extension generator",
@@ -103,6 +121,9 @@ export default function Home() {
           <nav className="hidden items-center gap-6 text-sm text-zinc-600 md:flex">
             <a href="#workflow" className="hover:text-zinc-950">
               Workflow
+            </a>
+            <a href="#solutions" className="hover:text-zinc-950">
+              Solutions
             </a>
             <a href="#use-cases" className="hover:text-zinc-950">
               Use cases
@@ -150,12 +171,25 @@ export default function Home() {
                 Request access
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-            <Link
-              href="/api-docs"
-              className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
-            >
-              View API docs
-            </Link>
+              <Link
+                href="/api-docs"
+                className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
+              >
+                View API docs
+              </Link>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold text-zinc-700">
+              <Link href="/keyword-opportunity-platform" className="hover:text-emerald-700">
+                Keyword opportunity platform
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <Link href="/seo-signal-discovery" className="hover:text-emerald-700">
+                SEO signal discovery
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <Link href="/programmatic-seo-keyword-research" className="hover:text-emerald-700">
+                Programmatic SEO research
+              </Link>
             </div>
             <div className="mt-8 grid max-w-xl grid-cols-3 gap-3">
               {stats.map((item) => (
@@ -198,7 +232,43 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="use-cases" className="border-y border-zinc-200 bg-[#f7f7f2]">
+      <section id="solutions" className="border-y border-zinc-200 bg-[#f7f7f2]">
+        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+            <div className="max-w-3xl">
+              <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Solution pages</p>
+              <h2 className="mt-3 text-3xl font-semibold text-zinc-950 sm:text-4xl">
+                Explore the public SEO pages.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-zinc-600">
+                These pages explain the product from different search intents and give crawlers clear internal paths
+                into the new keyword discovery content.
+              </p>
+            </div>
+            <Link href="/api-docs" className="text-sm font-semibold text-zinc-900 hover:text-emerald-700">
+              API docs
+            </Link>
+          </div>
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {solutionPages.map((page) => (
+              <Link
+                key={page.href}
+                href={page.href}
+                className="group rounded-lg border border-zinc-200 bg-white p-5 hover:border-emerald-300"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xl font-semibold text-zinc-950">{page.title}</h3>
+                  <ArrowRight className="h-5 w-5 flex-none text-zinc-400 group-hover:text-emerald-700" aria-hidden="true" />
+                </div>
+                <p className="mt-4 text-sm leading-6 text-zinc-600">{page.text}</p>
+                <span className="mt-5 inline-flex text-sm font-semibold text-emerald-700">Open page</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="use-cases" className="bg-white">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[420px_1fr] lg:px-8">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">Use cases</p>
@@ -221,7 +291,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-white">
+      <section className="border-t border-zinc-200 bg-white">
         <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div className="max-w-2xl">
@@ -290,6 +360,15 @@ export default function Home() {
             </Link>
             <Link href="/api-docs" className="hover:text-zinc-950">
               API docs
+            </Link>
+            <Link href="/keyword-opportunity-platform" className="hover:text-zinc-950">
+              Opportunity platform
+            </Link>
+            <Link href="/seo-signal-discovery" className="hover:text-zinc-950">
+              Signal discovery
+            </Link>
+            <Link href="/programmatic-seo-keyword-research" className="hover:text-zinc-950">
+              Programmatic SEO
             </Link>
             <Link href="/dashboard" className="hover:text-zinc-950">
               Dashboard
