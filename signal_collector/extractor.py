@@ -93,7 +93,8 @@ DISALLOWED_PHRASE_RE = re.compile(
     r"\b(world cup|fifa|uefa|premier league|champions league|spidey|spider[- ]?man|marvel|"
     r"wu[- ]?tang|watermark remover|remove watermark|paywall remover|game engine|extensions sdk|extension sdk|"
     r"strncpy api|electronic calculator|ai assistant|game boy|comfortably monitor|maker lastpass|"
-    r"wall street|maker micron|server indexes|high-performance code|they're spreading|flock cameras)\b",
+    r"wall street|maker micron|server indexes|high-performance code|they're spreading|flock cameras|"
+    r"agent kim|k[- ]?drama|tv drama|drama series|tv series|netflix series)\b",
     re.I,
 )
 

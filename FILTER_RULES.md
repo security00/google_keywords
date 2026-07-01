@@ -1,6 +1,6 @@
 # google_keywords 过滤规则备忘
 
-更新时间：2026-04-25
+更新时间：2026-06-23
 
 ---
 
@@ -66,6 +66,38 @@ effective_score = score + min(max(0, value) / 100, 30)
 
 异常现象：`manager refuses to retire` 等体育新闻词因 "manager" 匹配 TOOL_RE 被误标为 new_tool，
 现在通过 whitelist 前缀检查拦截。
+
+## 新增：信号层噪声拦截加固（2026-06-23）
+
+### 背景
+`signal_discovery` 从 RSS / Reddit / HN 抽取 bigram 时，会把部分热点事件或 IP 风险词先写入 D1，再交给 `signal_bridge` 判断。
+本次发现以下类型需要更早、更明确拦截：
+
+- 娱乐 IP / 商标强绑定：`spidey tracker`、`wu tang name generator`
+- 娱乐剧集 / 人物名片段：`agent kim reactivated`
+- 非英语体育赛事：`bỉ – ai cập`
+- 大型体育事件：`rising 2026 World Cup`
+- 侵权 / 规避类工具：`gemini watermark remover`
+
+### 落地规则
+
+1. `signal_collector/extractor.py`
+   - 命中明显高风险标题时，整条标题不再抽取候选 bigram。
+   - 当前拦截：`world cup`、`fifa`、`uefa`、`premier league`、`champions league`、`spidey`、`spider-man`、`marvel`、`wu tang`、`agent kim`、`k-drama`、`tv drama`、`drama series`、`watermark remover`、`remove watermark`、`paywall remover`。
+   - 标题含非 ASCII 字符时跳过，避免非英语赛事词误入英文工具站管线。
+
+2. `scripts/signal_bridge.py`
+   - `rights_evasion`：水印移除、付费墙绕过、解锁 premium 等。
+   - `entertainment_ip_or_trademark`：娱乐 IP / 明星团体 / 商标强绑定词。
+   - `sports_event`：世界杯、FIFA、欧冠、主流体育联赛和赛事词。
+   - `non_english_keyword`：含非 ASCII 字符的非英语候选。
+   - `title_fragment`：从标题中抽出来的语法碎片，如 `AI generated`、`contain Claude`、`Comfortably monitor`、`maker LastPass`。
+   - `generic_platform_phrase`：过泛的平台 / SDK / 历史技术词，如 `Game Engine`、`Extensions SDK`、`AI Assistant`、`electronic calculator`。
+   - `repo_fragment`：GitHub `owner/repo` 片段，如 `refactoringhq/tolaria Desktop`，不作为自然搜索词送入 expand。
+
+3. `lib/rule-engine.ts`
+   - 同步增加主 expand / precompute 入口兜底。
+   - 避免同类词绕过 signal bridge 后，被常规工具后缀（`tracker` / `generator` / `remover`）误判为 `new_tool`。
 
 ---
 

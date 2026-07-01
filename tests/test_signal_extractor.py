@@ -66,6 +66,17 @@ class SignalExtractorNoiseTest(unittest.TestCase):
         self.assertNotIn("chat control", extracted)
         self.assertNotIn("control moving", extracted)
 
+    def test_blocks_entertainment_series_noise_before_d1(self):
+        candidates = extract_keyword_candidates([
+            item("Agent Kim reactivated is the latest hit drama series"),
+            item("Agent Kim reactivated"),
+        ])
+
+        extracted = {c.keyword_normalized for c in candidates}
+
+        self.assertNotIn("agent kim", extracted)
+        self.assertNotIn("kim reactivated", extracted)
+
     def test_keeps_buildable_tool_phrase_from_reddit(self):
         candidates = extract_keyword_candidates([
             item("[Tool] SaaS pricing calculator for founders", SignalProvider.REDDIT, subreddit="sideproject"),

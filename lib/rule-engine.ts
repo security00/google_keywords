@@ -23,7 +23,11 @@ export type KeywordPipelineClassification = {
 const EVENT_INTENT_RE =
   /\b(heure|horaires|diffusion|broadcast|stream|streaming|live|score|scores|result|results|resultat|résultat|match|replay)\b/i;
 const SPORTS_EVENT_RE =
-  /\b(crunch creator|le crunch|rugby|football|soccer|nba|nhl|pga|masters|marathon|champions|chelsea|arsenal|liverpool|manchester united|man utd|manchester city|newcastle|barcelona|real madrid|tottenham|spurs)\b/i;
+  /\b(crunch creator|le crunch|world cup|fifa|uefa|premier league|champions league|rugby|football|soccer|nba|nhl|nfl|mlb|pga|masters|marathon|champions|chelsea|arsenal|liverpool|manchester united|man utd|manchester city|newcastle|barcelona|real madrid|tottenham|spurs)\b/i;
+const ENTERTAINMENT_IP_RE =
+  /\b(spidey|spider[- ]?man|marvel|dc comics|star wars|harry potter|wu[- ]?tang|disney|pixar|naruto|dragon ball|one piece)\b/i;
+const RIGHTS_EVASION_RE =
+  /\b(watermark remover|remove watermark|logo remover|remove logo|bypass watermark|unlock premium|paywall remover)\b/i;
 const WORKPLACE_EVENT_ACTOR_RE =
   /\b(manager|employee|boss|worker|workplace|employer|hr)\b/i;
 const WORKPLACE_EVENT_ACTION_RE =
@@ -58,6 +62,12 @@ export function classifyKeywordPipeline(keyword: string): KeywordPipelineClassif
   }
   if (BUSINESS_NEWS_BRAND_RE.test(lower) && BUSINESS_NEWS_ACTION_RE.test(lower)) {
     return { fit: "event_noise", reason: "business_news_event" };
+  }
+  if (RIGHTS_EVASION_RE.test(lower)) {
+    return { fit: "event_noise", reason: "rights_evasion" };
+  }
+  if (ENTERTAINMENT_IP_RE.test(lower)) {
+    return { fit: "event_noise", reason: "entertainment_ip_or_trademark" };
   }
   if (SPORTS_EVENT_RE.test(lower) || (EVENT_INTENT_RE.test(lower) && !TOOL_RE.test(lower))) {
     return { fit: "event_noise", reason: "event_or_sports_intent" };

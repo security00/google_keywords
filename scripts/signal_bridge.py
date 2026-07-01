@@ -33,11 +33,37 @@ EVENT_INTENT_RE = re.compile(
     r"score|scores|result|results|live|stream|broadcast|episode|trailer|cast)\b",
     re.I,
 )
+SPORTS_EVENT_RE = re.compile(
+    r"\b(world cup|fifa|uefa|premier league|champions league|nba|nhl|nfl|mlb|rugby|soccer|football|"
+    r"cricket|tennis|grand slam|olympics?|qualifier|qualifiers?|match|fixture|fixtures?)\b",
+    re.I,
+)
 BUSINESS_BRAND_RE = re.compile(
     r"\b(mcdonald'?s|burger king|wendy'?s|starbucks|walmart|target|costco|state farm|"
     r"nissan|toyota|ford|tesla|disney|netflix)\b",
     re.I,
 )
+ENTERTAINMENT_IP_RE = re.compile(
+    r"\b(spidey|spider[- ]?man|marvel|dc comics|star wars|harry potter|wu[- ]?tang|disney|pixar|"
+    r"naruto|dragon ball|one piece|agent kim|k[- ]?drama|tv drama|drama series|tv series|netflix series)\b",
+    re.I,
+)
+RIGHTS_EVASION_RE = re.compile(
+    r"\b(watermark remover|remove watermark|logo remover|remove logo|bypass watermark|"
+    r"unlock premium|paywall remover)\b",
+    re.I,
+)
+TITLE_FRAGMENT_RE = re.compile(
+    r"\b(ai generated|ai already|contain claude|contains claude|claude across|across multiple|"
+    r"already killed|slightly reducing|sprinting towards|comfortably monitor|maker lastpass)\b",
+    re.I,
+)
+GENERIC_PLATFORM_RE = re.compile(
+    r"\b(game engine|extensions sdk|extension sdk|language model|prompt injection|performance benchmarks|"
+    r"test-driven development|strncpy api|electronic calculator|ai assistant|game boy)\b",
+    re.I,
+)
+REPO_FRAGMENT_RE = re.compile(r"\b[\w.-]+/[\w.-]+\b")
 AI_PRODUCT_RE = re.compile(
     r"\b(ai|gpt|llm|claude|gemini|openai|copilot|agent|chatbot|automation|cursor|perplexity)\b",
     re.I,
@@ -62,17 +88,31 @@ def classify_signal_keyword(keyword: str) -> tuple[str, str]:
     lower = text.lower()
     if not lower:
         return "noise", "empty_keyword"
+    if any(ord(ch) > 127 for ch in text):
+        return "noise", "non_english_keyword"
     if len(lower) > 80:
         return "noise", "too_long"
     if len(re.findall(r"[a-z0-9]+", lower)) > 6:
         return "noise", "too_many_words"
+    if RIGHTS_EVASION_RE.search(lower):
+        return "unsafe", "rights_evasion"
+    if ENTERTAINMENT_IP_RE.search(lower):
+        return "unsafe", "entertainment_ip_or_trademark"
+    if TITLE_FRAGMENT_RE.search(lower):
+        return "noise", "title_fragment"
+    if GENERIC_PLATFORM_RE.search(lower):
+        return "noise", "generic_platform_phrase"
+    if REPO_FRAGMENT_RE.search(lower):
+        return "noise", "repo_fragment"
+    if SPORTS_EVENT_RE.search(lower):
+        return "general_content", "sports_event"
     if BUSINESS_BRAND_RE.search(lower) and EVENT_INTENT_RE.search(lower):
         return "business_news_event", "brand_news_event"
     if EVENT_INTENT_RE.search(lower) and not (AI_PRODUCT_RE.search(lower) and TOOL_RE.search(lower)):
         return "general_content", "event_or_news_intent"
     if GAME_RE.search(lower):
         return "new_game", "game_candidate"
-    if AI_PRODUCT_RE.search(lower) and (TOOL_RE.search(lower) or len(lower.split()) <= 3):
+    if AI_PRODUCT_RE.search(lower) and TOOL_RE.search(lower):
         return "new_tool", "ai_tool_candidate"
     if TOOL_RE.search(lower):
         return "new_tool", "tool_candidate"

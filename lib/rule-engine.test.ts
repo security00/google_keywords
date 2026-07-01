@@ -39,6 +39,10 @@ describe("scoreKeyword", () => {
       ["crunch creator", "event_or_sports_intent"],
       ["diffusion crunch creator", "event_or_sports_intent"],
       ["resultat crunch creator", "event_or_sports_intent"],
+      ["spidey tracker", "entertainment_ip_or_trademark"],
+      ["wu tang name generator", "entertainment_ip_or_trademark"],
+      ["rising 2026 World Cup", "event_or_sports_intent"],
+      ["gemini watermark remover", "rights_evasion"],
     ])("blocks '%s' → reason: %s", (kw, reason) => {
       const r = scoreKeyword(kw);
       expect(r.action).toBe("block");
@@ -161,6 +165,10 @@ describe("classifyKeywordPipeline", () => {
     ["le crunch creator", "event_noise"],
     ["viral manager resignation response", "event_noise"],
     ["mcdonald's drive-thru ai upgrade", "event_noise"],
+    ["spidey tracker", "event_noise"],
+    ["wu tang name generator", "event_noise"],
+    ["rising 2026 World Cup", "event_noise"],
+    ["gemini watermark remover", "event_noise"],
   ])("classifies '%s' as %s", (keyword, fit) => {
     expect(classifyKeywordPipeline(keyword).fit).toBe(fit);
   });
