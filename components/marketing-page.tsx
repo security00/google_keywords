@@ -7,6 +7,7 @@ import {
   SearchCheck,
   ShieldCheck,
 } from "lucide-react";
+import { FaqSchema, type FAQItem } from "@/components/faq-schema";
 import { MarketingFooter, MarketingHeader, solutionLinks } from "@/components/marketing-chrome";
 import { ProductEvidencePreview } from "@/components/product-evidence-preview";
 
@@ -26,10 +27,7 @@ type MarketingPageProps = {
     title: string;
     text: string;
   }>;
-  faqs: Array<{
-    question: string;
-    answer: string;
-  }>;
+  faqs: FAQItem[];
 };
 
 const workflowIcons = [Radar, ShieldCheck, SearchCheck, LineChart];
@@ -47,6 +45,7 @@ export function MarketingPage({
 }: MarketingPageProps) {
   return (
     <main className="min-h-screen bg-[#f7f7f2] text-zinc-950">
+      <FaqSchema faqs={faqs} />
       <MarketingHeader />
 
       <section className="border-b border-zinc-200">

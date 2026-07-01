@@ -8,6 +8,7 @@ import {
   SearchCheck,
   ShieldCheck,
 } from "lucide-react";
+import { FaqSchema } from "@/components/faq-schema";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
 import { ProductEvidencePreview } from "@/components/product-evidence-preview";
 
@@ -143,11 +144,22 @@ const faqs = [
     answer:
       "Collection, filtering, trend checks, SERP validation, and review workflows stay inside protected dashboard and background systems.",
   },
+  {
+    question: "How is this different from a normal keyword tool?",
+    answer:
+      "Traditional keyword tools mostly help you look up known terms. Discover Keywords focuses on reviewed signals that can reveal opportunities before they become crowded.",
+  },
+  {
+    question: "What data sources does the public site expose?",
+    answer:
+      "The public site only shows static examples and product positioning. Raw sources, review queues, API keys, and research history stay inside authenticated workflows.",
+  },
 ];
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#f7f7f2] text-zinc-950">
+      <FaqSchema faqs={faqs} />
       <MarketingHeader />
 
       <section className="border-b border-zinc-200 bg-[#f7f7f2]">

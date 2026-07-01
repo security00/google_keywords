@@ -79,6 +79,16 @@ export default function ProgrammaticSeoKeywordResearchPage() {
           answer:
             "Start with opportunities that have clear intent, SERP fit, repeatable page structure, and enough demand evidence to justify production.",
         },
+        {
+          question: "How do you avoid thin programmatic SEO pages?",
+          answer:
+            "The workflow checks whether a keyword family has real intent, a useful repeatable page format, and enough evidence before it becomes a page cluster candidate.",
+        },
+        {
+          question: "Can this help choose page templates?",
+          answer:
+            "Yes. Reviewed signals and SERP shape help separate calculator, generator, template, comparison, guide, game, and database page patterns.",
+        },
       ]}
     />
   );

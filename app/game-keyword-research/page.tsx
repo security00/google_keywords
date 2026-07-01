@@ -79,6 +79,16 @@ export default function GameKeywordResearchPage() {
           answer:
             "No. Public pages do not call paid providers. Student workflows stay on shared cache and guarded research endpoints.",
         },
+        {
+          question: "How do you validate game keywords before building pages?",
+          answer:
+            "Game candidates need relevance checks, trend evidence, SERP fit, and review context before they become buildable opportunities.",
+        },
+        {
+          question: "What game keyword signals are risky?",
+          answer:
+            "Duplicate scraped titles, short-lived launch spikes, fandom-only phrases, non-game terms, and missing SERP evidence are risky and should not be treated as confirmed opportunities.",
+        },
       ]}
     />
   );

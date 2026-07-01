@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, KeyRound, LockKeyhole, ServerCog } from "lucide-react";
+import { FaqSchema } from "@/components/faq-schema";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
 
 export const dynamic = "force-static";
@@ -72,9 +73,43 @@ const quotas = [
   "Public marketing pages do not trigger paid research providers.",
 ];
 
+const developerFaqs = [
+  {
+    question: "Where do API keys come from?",
+    answer:
+      "API keys are generated from the authenticated dashboard. Public documentation pages do not create, expose, or validate keys.",
+  },
+  {
+    question: "Which authentication method should scripts use?",
+    answer:
+      "Bearer tokens are recommended for scripts, agents, and server-side integrations because they avoid leaking keys through URLs.",
+  },
+  {
+    question: "Do shared-cache hits count against quota?",
+    answer:
+      "No. Shared-cache hits are treated separately from paid research work and do not count against student daily research quota.",
+  },
+  {
+    question: "How should async research jobs be consumed?",
+    answer:
+      "Submit the job through the protected endpoint, store the returned job id, and poll the matching status endpoint until cached final results are ready.",
+  },
+  {
+    question: "Can unauthenticated visitors call research APIs from this page?",
+    answer:
+      "No. The docs page is static and public, but research endpoints remain authenticated and quota-aware.",
+  },
+  {
+    question: "Do API docs change cron, D1, or background workflows?",
+    answer:
+      "No. This page documents the existing surfaces and does not modify cron jobs, D1 schema, shared cache, or provider call behavior.",
+  },
+];
+
 export default function ApiDocsPage() {
   return (
     <main className="min-h-screen bg-[#f7f7f2] text-zinc-950">
+      <FaqSchema faqs={developerFaqs} />
       <MarketingHeader />
 
       <section className="border-b border-zinc-200">
@@ -208,6 +243,23 @@ export default function ApiDocsPage() {
             Open dashboard
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
+        </div>
+      </section>
+
+      <section className="border-t border-zinc-200 bg-[#f7f7f2]">
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[360px_1fr] lg:px-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Developer FAQ</p>
+            <h2 className="mt-3 text-3xl font-semibold text-zinc-950">Operational details for safe API use.</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {developerFaqs.map((item) => (
+              <div key={item.question} className="rounded-lg border border-zinc-200 bg-white p-5">
+                <h3 className="font-semibold text-zinc-950">{item.question}</h3>
+                <p className="mt-3 text-sm leading-6 text-zinc-600">{item.answer}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
       <MarketingFooter />

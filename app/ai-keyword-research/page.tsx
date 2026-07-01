@@ -79,6 +79,16 @@ export default function AiKeywordResearchPage() {
           answer:
             "Reviewed AI signals can support tool pages, comparison pages, guides, templates, workflow pages, and programmatic clusters.",
         },
+        {
+          question: "How do you discover AI product keywords safely?",
+          answer:
+            "AI signals are filtered for product fit, source context, trend movement, and SERP shape before protected research workflows spend provider calls on them.",
+        },
+        {
+          question: "What AI keyword signals are filtered out?",
+          answer:
+            "Generic AI news, vague hype phrases, entertainment terms, celebrity spikes, protected brand noise, and phrases without buildable search intent are filtered out.",
+        },
       ]}
     />
   );

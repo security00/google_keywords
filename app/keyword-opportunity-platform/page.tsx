@@ -79,6 +79,16 @@ export default function KeywordOpportunityPlatformPage() {
           answer:
             "Access continues through the existing registration, login, dashboard, and invite-based student workflows.",
         },
+        {
+          question: "How do you find low-competition keyword opportunities?",
+          answer:
+            "The workflow starts with early signals, then checks intent, trend movement, SERP shape, and buildability before an opportunity is treated as worth action.",
+        },
+        {
+          question: "What makes a keyword opportunity buildable?",
+          answer:
+            "A buildable opportunity has a clear page type, durable intent, enough demand evidence, and a realistic path to a useful tool, guide, template, or database page.",
+        },
       ]}
     />
   );

@@ -79,6 +79,16 @@ export default function SeoSignalDiscoveryPage() {
           answer:
             "No. This page is static. Student-facing research still goes through the shared-cache and protected dashboard paths.",
         },
+        {
+          question: "How is SEO signal discovery different from keyword research?",
+          answer:
+            "Signal discovery looks for early demand clues before a keyword is obvious, while keyword research validates whether that clue can become a useful search page.",
+        },
+        {
+          question: "Which signals are rejected before research?",
+          answer:
+            "News headlines, celebrity spikes, sports events, entertainment IP, trademark noise, generic fragments, and weak product-fit terms are blocked before paid validation.",
+        },
       ]}
     />
   );
