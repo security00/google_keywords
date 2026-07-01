@@ -7,7 +7,7 @@ import {
   SearchCheck,
   ShieldCheck,
 } from "lucide-react";
-import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
+import { MarketingFooter, MarketingHeader, solutionLinks } from "@/components/marketing-chrome";
 import { ProductEvidencePreview } from "@/components/product-evidence-preview";
 
 type MarketingPageProps = {
@@ -152,6 +152,34 @@ export function MarketingPage({
                 <h3 className="font-semibold text-zinc-950">{item.question}</h3>
                 <p className="mt-3 text-sm leading-6 text-zinc-600">{item.answer}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-zinc-200 bg-[#f7f7f2]">
+        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Related pages</p>
+            <h2 className="mt-3 text-3xl font-semibold text-zinc-950 sm:text-4xl">
+              Explore more keyword discovery workflows.
+            </h2>
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {solutionLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="group rounded-lg border border-zinc-200 bg-white p-5 hover:border-emerald-300"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold text-zinc-950">{link.label}</h3>
+                  <ArrowRight className="h-4 w-4 flex-none text-zinc-400 group-hover:text-emerald-700" aria-hidden="true" />
+                </div>
+                <p className="mt-3 text-sm leading-6 text-zinc-600">
+                  Read how Discover Keywords handles this search intent with reviewed signals and protected workflows.
+                </p>
+              </Link>
             ))}
           </div>
         </div>

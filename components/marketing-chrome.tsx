@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
-const solutionLinks = [
+export const solutionLinks = [
   { href: "/keyword-opportunity-platform", label: "Opportunity platform" },
   { href: "/seo-signal-discovery", label: "Signal discovery" },
   { href: "/programmatic-seo-keyword-research", label: "Programmatic SEO" },
+  { href: "/game-keyword-research", label: "Game keywords" },
+  { href: "/ai-keyword-research", label: "AI keywords" },
 ];
 
 export function MarketingHeader() {

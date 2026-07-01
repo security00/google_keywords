@@ -54,6 +54,14 @@ const useCases = [
     href: "/programmatic-seo-keyword-research",
   },
   {
+    text: "Find new game keyword opportunities with review gates and SERP-fit checks.",
+    href: "/game-keyword-research",
+  },
+  {
+    text: "Discover AI product and workflow keywords before crowded tools expose them.",
+    href: "/ai-keyword-research",
+  },
+  {
     text: "Give students a stable shared-cache experience without accidental paid calls.",
     href: "/api-docs",
   },
@@ -74,6 +82,16 @@ const solutionPages = [
     title: "Programmatic SEO keyword research",
     href: "/programmatic-seo-keyword-research",
     text: "How operators can prioritize repeatable page patterns for tools, templates, game pages, and clusters.",
+  },
+  {
+    title: "Game keyword research",
+    href: "/game-keyword-research",
+    text: "How reviewed game signals become safer keyword opportunities with game relevance and SERP validation.",
+  },
+  {
+    title: "AI keyword research",
+    href: "/ai-keyword-research",
+    text: "How AI product, agent, and workflow signals are filtered before they become keyword research candidates.",
   },
 ];
 
@@ -102,6 +120,29 @@ const stats = [
   { label: "Signal layers", value: "5+" },
   { label: "Review gates", value: "3" },
   { label: "Student paid calls", value: "0" },
+];
+
+const faqs = [
+  {
+    question: "How do people get access?",
+    answer:
+      "Access still goes through the existing registration, login, and invite-based student activation flow. The public site only explains the product.",
+  },
+  {
+    question: "Do public pages trigger paid research calls?",
+    answer:
+      "No. The homepage, API docs, and SEO pages are static marketing pages and do not call DataForSEO, OpenRouter, SERP, D1, or protected dashboard APIs.",
+  },
+  {
+    question: "What protects student workflows?",
+    answer:
+      "Student-facing research stays on shared cache and guarded endpoints. If a fresh cache is not ready, the product falls back to the latest successful shared cache.",
+  },
+  {
+    question: "Where does keyword discovery happen?",
+    answer:
+      "Collection, filtering, trend checks, SERP validation, and review workflows stay inside protected dashboard and background systems.",
+  },
 ];
 
 export default function Home() {
@@ -149,6 +190,14 @@ export default function Home() {
               <span className="text-zinc-300">/</span>
               <Link href="/programmatic-seo-keyword-research" className="hover:text-emerald-700">
                 Programmatic SEO research
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <Link href="/game-keyword-research" className="hover:text-emerald-700">
+                Game keyword research
+              </Link>
+              <span className="text-zinc-300">/</span>
+              <Link href="/ai-keyword-research" className="hover:text-emerald-700">
+                AI keyword research
               </Link>
             </div>
             <div className="mt-8 grid max-w-xl grid-cols-3 gap-3">
@@ -275,6 +324,23 @@ export default function Home() {
                 </div>
                 <h3 className="mt-5 text-xl font-semibold text-zinc-950">{item.keyword}</h3>
                 <p className="mt-3 text-sm leading-6 text-zinc-600">{item.reason}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-zinc-200 bg-[#f7f7f2]">
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[360px_1fr] lg:px-8">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-zinc-500">FAQ</p>
+            <h2 className="mt-3 text-3xl font-semibold text-zinc-950">How the public site stays safe.</h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {faqs.map((item) => (
+              <div key={item.question} className="rounded-lg border border-zinc-200 bg-white p-5">
+                <h3 className="font-semibold text-zinc-950">{item.question}</h3>
+                <p className="mt-3 text-sm leading-6 text-zinc-600">{item.answer}</p>
               </div>
             ))}
           </div>
