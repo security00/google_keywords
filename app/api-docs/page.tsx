@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, KeyRound, LockKeyhole, ServerCog, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, KeyRound, LockKeyhole, ServerCog } from "lucide-react";
+import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
 
 export const dynamic = "force-static";
 
@@ -74,30 +75,7 @@ const quotas = [
 export default function ApiDocsPage() {
   return (
     <main className="min-h-screen bg-[#f7f7f2] text-zinc-950">
-      <header className="border-b border-zinc-200/80 bg-[#f7f7f2]/95">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold text-zinc-950">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-950 text-white">
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-            </span>
-            Discover Keywords
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-white hover:text-zinc-950"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="whitespace-nowrap rounded-md bg-zinc-950 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
-            >
-              Request access
-            </Link>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader />
 
       <section className="border-b border-zinc-200">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[1fr_420px] lg:px-8 lg:py-20">
@@ -232,6 +210,7 @@ export default function ApiDocsPage() {
           </Link>
         </div>
       </section>
+      <MarketingFooter />
     </main>
   );
 }
