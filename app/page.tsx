@@ -139,10 +139,10 @@ export default function Home() {
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
               <Link
-                href="/api-docs"
+                href="/dashboard"
                 className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
               >
-                View API docs
+                Open dashboard
               </Link>
             </div>
             <div className="mt-8 grid max-w-xl grid-cols-3 gap-3">
@@ -272,8 +272,8 @@ export default function Home() {
             <Link href="/register" className="hover:text-zinc-950">
               Register
             </Link>
-            <Link href="/api-docs" className="hover:text-zinc-950">
-              API docs
+            <Link href="/dashboard" className="hover:text-zinc-950">
+              Dashboard
             </Link>
           </div>
         </div>
