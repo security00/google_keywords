@@ -63,6 +63,9 @@ const COOKIE_SECURE =
   process.env.AUTH_COOKIE_SECURE !== undefined
     ? process.env.AUTH_COOKIE_SECURE === "true"
     : process.env.NODE_ENV === "production";
+const COOKIE_DOMAIN =
+  process.env.AUTH_COOKIE_DOMAIN?.trim() ||
+  (process.env.NODE_ENV === "production" ? ".discoverkeywords.co" : undefined);
 const SCRYPT_COST = 16384;
 const SCRYPT_BLOCK_SIZE = 8;
 const SCRYPT_PARALLELIZATION = 1;
@@ -322,6 +325,7 @@ export const setSessionCookie = (response: NextResponse, token: string) => {
     secure: COOKIE_SECURE,
     path: "/",
     maxAge,
+    domain: COOKIE_DOMAIN,
   });
   return response;
 };
@@ -335,6 +339,7 @@ export const clearSessionCookie = (response: NextResponse) => {
     secure: COOKIE_SECURE,
     path: "/",
     maxAge: 0,
+    domain: COOKIE_DOMAIN,
   });
   return response;
 };
