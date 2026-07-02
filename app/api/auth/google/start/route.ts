@@ -14,6 +14,13 @@ const COOKIE_SECURE =
     ? process.env.AUTH_COOKIE_SECURE === "true"
     : process.env.NODE_ENV === "production";
 
+const oauthCookieDomain = (request: Request) => {
+  const hostname = new URL(request.url).hostname;
+  return hostname === "discoverkeywords.co" || hostname.endsWith(".discoverkeywords.co")
+    ? ".discoverkeywords.co"
+    : undefined;
+};
+
 export async function GET(request: Request) {
   try {
     const state = createGoogleOAuthState();
@@ -31,6 +38,7 @@ export async function GET(request: Request) {
       secure: COOKIE_SECURE,
       path: "/",
       maxAge: 10 * 60,
+      domain: oauthCookieDomain(request),
     });
     response.cookies.set({
       name: GOOGLE_OAUTH_RETURN_COOKIE,
@@ -40,6 +48,7 @@ export async function GET(request: Request) {
       secure: COOKIE_SECURE,
       path: "/",
       maxAge: 10 * 60,
+      domain: oauthCookieDomain(request),
     });
     return response;
   } catch (error) {

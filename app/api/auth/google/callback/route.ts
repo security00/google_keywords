@@ -22,6 +22,13 @@ const COOKIE_SECURE =
     ? process.env.AUTH_COOKIE_SECURE === "true"
     : process.env.NODE_ENV === "production";
 
+const oauthCookieDomain = (request: NextRequest) => {
+  const hostname = request.nextUrl.hostname;
+  return hostname === "discoverkeywords.co" || hostname.endsWith(".discoverkeywords.co")
+    ? ".discoverkeywords.co"
+    : undefined;
+};
+
 const loginRedirect = (request: NextRequest, message: string) => {
   const url = new URL("/login", request.url);
   url.searchParams.set("error", message);
@@ -79,6 +86,7 @@ export async function GET(request: NextRequest) {
       secure: COOKIE_SECURE,
       path: "/",
       maxAge: 0,
+      domain: oauthCookieDomain(request),
     });
     response.cookies.set({
       name: GOOGLE_OAUTH_RETURN_COOKIE,
@@ -88,6 +96,7 @@ export async function GET(request: NextRequest) {
       secure: COOKIE_SECURE,
       path: "/",
       maxAge: 0,
+      domain: oauthCookieDomain(request),
     });
     return setSessionCookie(response, session.token);
   } catch (error) {
