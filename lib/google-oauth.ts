@@ -1,7 +1,6 @@
 import "server-only";
 
 import { randomBytes } from "crypto";
-import { ProxyAgent } from "undici";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -25,13 +24,15 @@ const proxyUrl = () =>
   process.env.http_proxy?.trim() ||
   "";
 
-const googleFetch = (input: string, init?: RequestInit) => {
+const googleFetch = async (input: string, init?: RequestInit) => {
   const proxy = proxyUrl();
-  if (!proxy) return fetch(input, init);
+  if (!proxy || process.env.NODE_ENV === "production") return fetch(input, init);
+
+  const { ProxyAgent } = await import("undici");
   return fetch(input, {
     ...init,
     dispatcher: new ProxyAgent(proxy),
-  } as RequestInit & { dispatcher: ProxyAgent });
+  } as RequestInit & { dispatcher: unknown });
 };
 
 const requiredEnv = (name: string) => {
