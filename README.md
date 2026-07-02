@@ -142,9 +142,28 @@ Common variables:
 | DataForSEO | DataForSEO login/password or configured API credentials used by the runtime |
 | OpenRouter | `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL` |
 | Auth / cron | session secrets, cron secrets, admin credentials as configured in deployment |
+| Google OAuth | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` or `NEXT_PUBLIC_APP_URL` |
+| Stripe billing | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_FOUNDING_PRICE_ID`, `NEXT_PUBLIC_APP_URL` |
 | Analytics | `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_CLARITY_PROJECT_ID` |
 
 `wrangler.jsonc` contains non-secret defaults and the D1 binding. Secrets must stay outside the file.
+
+For Google sign-in, configure the OAuth redirect URI as:
+
+```text
+https://www.discoverkeywords.co/api/auth/google/callback
+```
+
+For Stripe webhooks, configure the endpoint as:
+
+```text
+https://www.discoverkeywords.co/api/billing/webhook
+```
+
+Current SaaS billing starts with a test-mode Founding Member subscription at
+`$49/month`. The Stripe Product/Price/Webhook resources live in Stripe test mode;
+store the secret key, webhook signing secret, and price id in Cloudflare secrets.
+Do not commit Stripe keys or webhook secrets to the repo.
 
 ## Database and migrations
 

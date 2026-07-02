@@ -23,11 +23,22 @@ type AuthUserRow = AuthUser & {
   password_hash: string;
 };
 
+type AuthUserMetaRow = AuthUserRow & {
+  trial_started_at: string | null;
+  trial_expires_at: string | null;
+};
+
 type AuthSessionRow = {
   user_id: string;
   email: string;
   role?: string;
   expires_at: string;
+};
+
+type AuthIdentityRow = {
+  user_id: string;
+  email: string;
+  role?: string;
 };
 
 const scrypt = (
@@ -151,6 +162,90 @@ export const createUser = async (
   );
 
   return { id: userId, email: normalized };
+};
+
+export const findUserByEmail = async (email: string): Promise<AuthUser | null> => {
+  const normalized = normalizeEmail(email);
+  const { rows } = await d1Query<AuthUserMetaRow>(
+    "SELECT id, email, password_hash, role, trial_started_at, trial_expires_at FROM auth_users_v2 WHERE email = ? LIMIT 1",
+    [normalized]
+  );
+
+  const user = rows[0];
+  if (!user) return null;
+  return { id: user.id, email: user.email, role: user.role };
+};
+
+export const createPendingOAuthUser = async (email: string): Promise<AuthUser> => {
+  const normalized = normalizeEmail(email);
+  const existing = await findUserByEmail(normalized);
+  if (existing) return existing;
+
+  const now = new Date().toISOString();
+  const userId = randomUUID();
+  const passwordHash = await createPasswordHash(randomBytes(32).toString("base64url"));
+
+  await d1Query(
+    `INSERT INTO auth_users_v2
+     (id, email, password_hash, role, trial_started_at, trial_expires_at, created_at, updated_at)
+     VALUES (?, ?, ?, 'student', NULL, NULL, ?, ?)`,
+    [userId, normalized, passwordHash, now, now]
+  );
+
+  return { id: userId, email: normalized, role: "student" };
+};
+
+export const findUserByIdentity = async (
+  provider: string,
+  providerSubject: string
+): Promise<AuthUser | null> => {
+  const { rows } = await d1Query<AuthIdentityRow>(
+    `SELECT u.id AS user_id, u.email, u.role
+     FROM auth_identities ai
+     JOIN auth_users_v2 u ON u.id = ai.user_id
+     WHERE ai.provider = ? AND ai.provider_subject = ?
+     LIMIT 1`,
+    [provider, providerSubject]
+  );
+
+  const row = rows[0];
+  if (!row) return null;
+  return { id: row.user_id, email: row.email, role: row.role };
+};
+
+export const linkOAuthIdentity = async ({
+  userId,
+  provider,
+  providerSubject,
+  providerEmail,
+  emailVerified,
+}: {
+  userId: string;
+  provider: string;
+  providerSubject: string;
+  providerEmail: string;
+  emailVerified: boolean;
+}) => {
+  const now = new Date().toISOString();
+  await d1Query(
+    `INSERT INTO auth_identities
+     (id, user_id, provider, provider_subject, provider_email, email_verified, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(provider, provider_subject) DO UPDATE SET
+       provider_email = excluded.provider_email,
+       email_verified = excluded.email_verified,
+       updated_at = excluded.updated_at`,
+    [
+      randomUUID(),
+      userId,
+      provider,
+      providerSubject,
+      normalizeEmail(providerEmail),
+      emailVerified ? 1 : 0,
+      now,
+      now,
+    ]
+  );
 };
 
 export const validateUser = async (email: string, password: string): Promise<AuthUser | null> => {

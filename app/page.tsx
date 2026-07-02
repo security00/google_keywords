@@ -185,10 +185,10 @@ export default function Home() {
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
               <Link
-                href="/api-docs"
+                href="/pricing"
                 className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"
               >
-                View API docs
+                View pricing
               </Link>
             </div>
             <div className="mt-5 flex flex-wrap gap-3 text-sm font-semibold text-zinc-700">

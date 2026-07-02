@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,11 +9,38 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next") || "/dashboard/expand";
+  const checkout = searchParams.get("checkout") || "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const continueAfterLogin = async () => {
+    if (checkout === "founding") {
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
+        credentials: "include",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || typeof payload.url !== "string") {
+        throw new Error(payload?.error || "Unable to start checkout");
+      }
+      window.location.href = payload.url;
+      return;
+    }
+    router.replace(nextPath.startsWith("/") ? nextPath : "/dashboard/expand");
+  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -22,11 +49,19 @@ export default function LoginPage() {
       });
       const payload = await response.json();
       if (response.ok && payload?.user) {
-        router.replace("/dashboard/expand");
+        await continueAfterLogin().catch((err) => {
+          setError(err instanceof Error ? err.message : "Unable to continue");
+        });
       }
     };
     checkSession();
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const oauthError = searchParams.get("error");
+    if (oauthError) setError(oauthError);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +83,7 @@ export default function LoginPage() {
       if (!response.ok) {
         throw new Error(payload?.error || "登录失败");
       }
-      router.replace("/dashboard/expand");
+      await continueAfterLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : "认证失败");
     } finally {
@@ -64,6 +99,18 @@ export default function LoginPage() {
           <CardDescription>使用已开通账号登录，或使用邀请码注册。</CardDescription>
         </CardHeader>
         <CardContent>
+          <a href={`/api/auth/google/start?next=${encodeURIComponent(nextPath)}${checkout ? `&checkout=${encodeURIComponent(checkout)}` : ""}`} className="mb-4 block">
+            <Button type="button" variant="outline" className="w-full">
+              Continue with Google
+            </Button>
+          </a>
+
+          <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            <span>or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">邮箱</Label>

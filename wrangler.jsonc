@@ -36,6 +36,8 @@
     "SERP_DEVICE": "desktop",
     "SERP_OS": "windows",
     "SERP_DEPTH": "10",
+    "NEXT_PUBLIC_APP_URL": "https://www.discoverkeywords.co",
+    "APP_URL": "https://www.discoverkeywords.co",
     "D1_DATABASE_NAME": "ai-trends"
   },
   "d1_databases": [

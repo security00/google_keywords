@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { generateApiKey, listApiKeys, revokeApiKey } from '@/lib/api_keys';
+import { getSaasEntitlement } from '@/lib/entitlements';
 import { checkStudentAccess } from '@/lib/usage';
 
 export const dynamic = 'force-dynamic';
@@ -25,10 +26,13 @@ export async function POST(req: NextRequest) {
 
     const access = await checkStudentAccess(String(user.id));
     if (!access.allowed) {
-        return NextResponse.json(
-            { error: access.reason, code: access.code },
-            { status: 403 }
-        );
+        const entitlement = await getSaasEntitlement(String(user.id));
+        if (!entitlement.allowed) {
+            return NextResponse.json(
+                { error: access.reason, code: access.code },
+                { status: 403 }
+            );
+        }
     }
 
     let body: { name?: string } = {};

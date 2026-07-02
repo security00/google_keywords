@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAuthUser } from "@/lib/auth";
+import { getSaasEntitlement } from "@/lib/entitlements";
 import { checkStudentAccess } from "@/lib/usage";
 
 export const runtime = "nodejs";
@@ -15,6 +16,17 @@ export async function GET() {
     }
 
     const access = await checkStudentAccess(user.id);
+    const entitlement = access.allowed ? null : await getSaasEntitlement(user.id);
+    if (!access.allowed && entitlement?.allowed) {
+      return NextResponse.json({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        trial: { active: true, daysLeft: 0, expiresAt: entitlement.expiresAt },
+        quota: { used: entitlement.briefUsed, limit: entitlement.briefLimit },
+        blocked: false,
+      });
+    }
 
     return NextResponse.json({
       userId: user.id,

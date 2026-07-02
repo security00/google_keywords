@@ -53,6 +53,7 @@ function Navigation({
 
   // 学员菜单
   const studentSteps: NavItem[] = [
+    { href: "/dashboard/opportunities", label: "Opportunity Radar", icon: Radar, active: pathname === "/dashboard/opportunities" },
     { href: "/dashboard/expand", label: "1. 新词扩展", active: pathname.includes("/expand") && !pathname.includes("/expand/") },
     { href: "/dashboard/candidates", label: "2. 候选筛选", active: pathname.includes("/candidates") },
     { href: "/dashboard/analysis", label: "3. 趋势对比", active: pathname.includes("/analysis") },
@@ -92,7 +93,7 @@ function Navigation({
       label: "新词管线",
       icon: Search,
       items: visibleStudentSteps.filter((step) =>
-        ["/dashboard/expand", "/dashboard/candidates", "/dashboard/analysis"].includes(step.href)
+        ["/dashboard/opportunities", "/dashboard/expand", "/dashboard/candidates", "/dashboard/analysis"].includes(step.href)
       ),
     },
     {

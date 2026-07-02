@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Copy,
   Plus,
@@ -36,8 +37,23 @@ interface ApiKeyItem {
   active: number;
 }
 
-export default function SettingsPage() {
+interface BillingStatus {
+  entitlement: {
+    allowed: boolean;
+    source: string;
+    planKey: string | null;
+    status: string;
+    expiresAt: string | null;
+    briefLimit: number;
+    briefUsed: number;
+    reason?: string;
+  };
+}
+
+function SettingsPageContent() {
+  const searchParams = useSearchParams();
   const [access, setAccess] = useState<AccessInfo | null>(null);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [newKeyName, setNewKeyName] = useState("");
@@ -49,25 +65,57 @@ export default function SettingsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [accessRes, keysRes] = await Promise.all([
-        fetch("/api/auth/access"),
-        fetch("/api/auth/keys"),
+      const [accessRes, keysRes, billingRes] = await Promise.all([
+        fetch("/api/auth/access", { credentials: "include", cache: "no-store" }),
+        fetch("/api/auth/keys", { credentials: "include", cache: "no-store" }),
+        fetch("/api/billing/status", { credentials: "include", cache: "no-store" }),
       ]);
-      if (!accessRes.ok || !keysRes.ok) throw new Error("Unauthorized");
+      if (accessRes.status === 401 || keysRes.status === 401) throw new Error("请先登录");
+      if (!accessRes.ok) {
+        const payload = await accessRes.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to load account access");
+      }
+      if (!keysRes.ok) {
+        const payload = await keysRes.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to load API keys");
+      }
       const accessData = await accessRes.json();
       const keysData = await keysRes.json();
       setAccess(accessData);
       setKeys(keysData.keys || []);
-    } catch {
-      setError("请先登录");
+      if (billingRes.ok) {
+        setBilling(await billingRes.json());
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load settings");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const syncCheckout = async () => {
+      const sessionId = searchParams.get("session_id");
+      if (searchParams.get("billing") === "success") {
+        setLoading(true);
+        setError(null);
+        const response = await fetch("/api/billing/sync", {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId }),
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          setError(payload?.error || "Payment succeeded, but subscription sync is still pending.");
+        }
+      }
+      await fetchData();
+    };
+
+    syncCheckout();
+  }, [fetchData, searchParams]);
 
   const handleGenerateKey = async () => {
     setActionLoading(true);
@@ -117,6 +165,23 @@ export default function SettingsPage() {
 
   const canManageApiKeys = access ? !access.blocked : false;
 
+  const openBillingUrl = async (endpoint: "/api/billing/checkout" | "/api/billing/portal") => {
+    setActionLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(endpoint, { method: "POST", credentials: "include" });
+      const payload = await response.json();
+      if (!response.ok || typeof payload.url !== "string") {
+        throw new Error(payload?.error || "Billing action failed");
+      }
+      window.location.href = payload.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Billing action failed");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -139,6 +204,55 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-2 sm:py-6">
       <h2 className="text-2xl font-bold">账号设置</h2>
+
+      <div className="rounded-xl border border-border/80 bg-card/90 p-5 shadow-sm shadow-black/5 backdrop-blur-sm dark:shadow-black/25">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">SaaS access</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {billing?.entitlement.allowed
+                ? `Active via ${billing.entitlement.source}`
+                : billing?.entitlement.reason || "Subscription required after trial."}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={actionLoading}
+              onClick={() => openBillingUrl("/api/billing/checkout")}
+            >
+              Subscribe
+            </Button>
+            {billing?.entitlement.source === "stripe" && (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={actionLoading}
+                onClick={() => openBillingUrl("/api/billing/portal")}
+              >
+                Manage billing
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+          <div className="rounded-lg border bg-muted/30 px-3 py-2">
+            <div className="text-xs text-muted-foreground">Plan</div>
+            <div className="font-medium">{billing?.entitlement.planKey || "-"}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/30 px-3 py-2">
+            <div className="text-xs text-muted-foreground">Status</div>
+            <div className="font-medium">{billing?.entitlement.status || "-"}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/30 px-3 py-2">
+            <div className="text-xs text-muted-foreground">Build Briefs</div>
+            <div className="font-medium">
+              {billing ? `${billing.entitlement.briefUsed} / ${billing.entitlement.briefLimit}` : "-"}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 账号状态 */}
       {access.blocked ? (
@@ -337,5 +451,13 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20 text-muted-foreground">Loading settings...</div>}>
+      <SettingsPageContent />
+    </Suspense>
   );
 }

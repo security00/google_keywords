@@ -29,6 +29,9 @@ export function MarketingHeader() {
           <Link href="/api-docs" className="hover:text-zinc-950">
             API docs
           </Link>
+          <Link href="/pricing" className="hover:text-zinc-950">
+            Pricing
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
@@ -64,6 +67,9 @@ export function MarketingFooter() {
           ))}
           <Link href="/api-docs" className="hover:text-zinc-950">
             API docs
+          </Link>
+          <Link href="/pricing" className="hover:text-zinc-950">
+            Pricing
           </Link>
           <Link href="/login" className="hover:text-zinc-950">
             Login
