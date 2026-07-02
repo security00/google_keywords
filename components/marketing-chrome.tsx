@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { MarketingAuthActions } from "@/components/marketing-auth-actions";
 
 export const solutionLinks = [
   { href: "/keyword-opportunity-platform", label: "Opportunity platform" },
@@ -33,20 +34,7 @@ export function MarketingHeader() {
             Pricing
           </Link>
         </nav>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-white hover:text-zinc-950"
-          >
-            Login
-          </Link>
-          <Link
-            href="/register"
-            className="whitespace-nowrap rounded-md bg-zinc-950 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
-          >
-            Request access
-          </Link>
-        </div>
+        <MarketingAuthActions />
       </div>
     </header>
   );
