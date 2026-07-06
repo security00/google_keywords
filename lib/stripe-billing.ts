@@ -15,7 +15,21 @@ const requiredEnv = (name: string) => {
   return value;
 };
 
-export const getStripe = () => new Stripe(requiredEnv("STRIPE_SECRET_KEY"));
+export const getStripeSecretKey = () => {
+  const value = requiredEnv("STRIPE_SECRET_KEY");
+  if (/\s/.test(value)) {
+    throw new Error("STRIPE_SECRET_KEY must be a single line without spaces or line breaks");
+  }
+  if (!/^(sk|rk)_(test|live)_/.test(value)) {
+    throw new Error("STRIPE_SECRET_KEY must be a Stripe test or live secret key");
+  }
+  return value;
+};
+
+export const getStripe = () =>
+  new Stripe(getStripeSecretKey(), {
+    httpClient: Stripe.createFetchHttpClient(),
+  });
 
 export const getAppUrl = () => {
   const value = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
@@ -23,7 +37,13 @@ export const getAppUrl = () => {
   return value.replace(/\/$/, "");
 };
 
-export const getFoundingPriceId = () => requiredEnv("STRIPE_FOUNDING_PRICE_ID");
+export const getFoundingPriceId = () => {
+  const value = requiredEnv("STRIPE_FOUNDING_PRICE_ID");
+  if (!value.startsWith("price_")) {
+    throw new Error("STRIPE_FOUNDING_PRICE_ID must be a Stripe Price ID that starts with price_");
+  }
+  return value;
+};
 
 export async function getStripeCustomerIdForUser(userId: string) {
   const stored = await d1Query<CustomerRow>(
