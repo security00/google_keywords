@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Gamepad2, TrendingUp, Flame, Target, SkipForward, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
+import { useCallback, useState, useEffect, useMemo } from "react";
+import { Gamepad2, TrendingUp, Flame, Target, SkipForward, RefreshCw, ChevronDown, ChevronRight, Eye } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  ResponsiveContainer,
 } from "recharts";
 
 type TrendSeries = {
@@ -34,6 +34,7 @@ const recIcon: Record<string, React.ReactNode> = {
   "🔥 hot": <Flame className="h-4 w-4 text-red-500" />,
   "📈 rising": <TrendingUp className="h-4 w-4 text-orange-500" />,
   "🎯 niche": <Target className="h-4 w-4 text-green-500" />,
+  "👀 watchlist": <Eye className="h-4 w-4 text-blue-500" />,
   "⏭️ skip": <SkipForward className="h-4 w-4 text-gray-400" />,
 };
 
@@ -42,7 +43,7 @@ export default function GameKeywordsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filter, setFilter] = useState<"all" | "recommended">("recommended");
+  const [filter, setFilter] = useState<"all" | "recommended" | "watchlist">("all");
   const [loading, setLoading] = useState(true);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
@@ -51,14 +52,10 @@ export default function GameKeywordsPage() {
     setExpandedKeys(new Set());
   }, [filter]);
 
-  useEffect(() => {
-    load();
-  }, [page, filter]);
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const f = filter === "recommended" ? "&filter=recommended" : "";
+      const f = filter === "recommended" || filter === "watchlist" ? `&filter=${filter}` : "";
       const r = await fetch(`/api/admin/game-keywords?page=${page}&pageSize=20${f}`);
       const d = await r.json();
       setItems(d.items || []);
@@ -72,6 +69,22 @@ export default function GameKeywordsPage() {
     } finally {
       setLoading(false);
     }
+  }, [filter, page]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function toggleExpanded(keyword: string) {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(keyword)) {
+        next.delete(keyword);
+      } else {
+        next.add(keyword);
+      }
+      return next;
+    });
   }
 
   const recommended = items.filter((i) => i.recommendation !== "⏭️ skip");
@@ -92,11 +105,12 @@ export default function GameKeywordsPage() {
         <div className="flex items-center gap-2">
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as "all" | "recommended")}
+            onChange={(e) => setFilter(e.target.value as "all" | "recommended" | "watchlist")}
             className="rounded-md border px-3 py-1.5 text-sm"
           >
-            <option value="recommended">仅推荐</option>
             <option value="all">全部扫描候选（含跳过）</option>
+            <option value="recommended">仅推荐</option>
+            <option value="watchlist">观察名单</option>
           </select>
           <button onClick={load} className="rounded-md border p-2 hover:bg-muted">
             <RefreshCw className="h-4 w-4" />
@@ -110,16 +124,17 @@ export default function GameKeywordsPage() {
           <span className="flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500" /> <strong>🔥 Hot</strong> — ratio ≥ 2.0，流量远超基准</span>
           <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" /> <strong>📈 Rising</strong> — ratio ≥ 0.5 且 slope{'>'} 0，有权威站竞争</span>
           <span className="flex items-center gap-1.5"><Target className="h-4 w-4 text-green-500" /> <strong>🎯 Niche</strong> — 低竞争机会（无/少权威站）</span>
+          <span className="flex items-center gap-1.5"><Eye className="h-4 w-4 text-blue-500" /> <strong>👀 Watch</strong> — 已通过游戏相关性但趋势还小，等待复查</span>
           <span className="flex items-center gap-1.5"><SkipForward className="h-4 w-4 text-gray-400" /> <strong>⏭️ Skip</strong> — 未通过趋势 / SERP 游戏相关性验证，不会发给学生</span>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label={filter === "all" ? "扫描候选" : "已验证推荐"} value={total} />
+        <StatCard label={filter === "recommended" ? "已验证推荐" : filter === "watchlist" ? "观察名单" : "扫描候选"} value={total} />
         <StatCard label="🔥 Hot" value={items.filter((i) => i.recommendation === "🔥 hot").length} color="text-red-500" />
         <StatCard label="📈 Rising" value={items.filter((i) => i.recommendation === "📈 rising").length} color="text-orange-500" />
-        <StatCard label="🎯 Niche" value={items.filter((i) => i.recommendation === "🎯 niche").length} color="text-green-500" />
+        <StatCard label={filter === "watchlist" ? "👀 Watch" : "🎯 Niche"} value={filter === "watchlist" ? items.filter((i) => i.recommendation === "👀 watchlist").length : items.filter((i) => i.recommendation === "🎯 niche").length} color={filter === "watchlist" ? "text-blue-500" : "text-green-500"} />
       </div>
 
       {/* Table */}
@@ -150,7 +165,7 @@ export default function GameKeywordsPage() {
                   key={item.keyword + item.source_site}
                   item={item}
                   expanded={expandedKeys.has(item.keyword)}
-                  onToggle={() => setExpandedKeys(prev => { const next = new Set(prev); next.has(item.keyword) ? next.delete(item.keyword) : next.add(item.keyword); return next })}
+                  onToggle={() => toggleExpanded(item.keyword)}
                 />
               ))}
               {filter === "all" && skipped.length > 0 && (
@@ -166,7 +181,7 @@ export default function GameKeywordsPage() {
                       item={item}
                       dimmed
                       expanded={expandedKeys.has(item.keyword)}
-                      onToggle={() => setExpandedKeys(prev => { const next = new Set(prev); next.has(item.keyword) ? next.delete(item.keyword) : next.add(item.keyword); return next })}
+                      onToggle={() => toggleExpanded(item.keyword)}
                     />
                   ))}
                 </>

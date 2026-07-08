@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import urllib.error
 from unittest.mock import MagicMock, patch
 
 
@@ -46,6 +47,38 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
             ],
         )
 
+    def test_fetch_steam_top_sellers_keeps_recent_hot_games(self):
+        scanner = load_scanner()
+
+        search_payload = {
+            "results_html": """
+              <a href="https://store.steampowered.com/app/4704690/MECCHA_CHAMELEON/"
+                 data-ds-appid="4704690" class="search_result_row">
+                <span class="title">MECCHA CHAMELEON</span>
+              </a>
+              <a href="https://store.steampowered.com/app/730/CounterStrike_2/"
+                 data-ds-appid="730" class="search_result_row">
+                <span class="title">Counter-Strike 2</span>
+              </a>
+            """
+        }
+        responses = []
+        for payload in [
+            search_payload,
+            {"4704690": {"success": True, "data": {"release_date": {"coming_soon": False, "date": "9 Jun, 2026"}}}},
+            {"730": {"success": True, "data": {"release_date": {"coming_soon": False, "date": "21 Aug, 2012"}}}},
+        ]:
+            response = MagicMock()
+            response.__enter__.return_value.read.return_value = scanner.json.dumps(payload).encode("utf-8")
+            responses.append(response)
+
+        with patch.object(scanner.urllib.request, "urlopen", side_effect=responses), \
+             patch.object(scanner, "is_recent_steam_release", side_effect=lambda date: date == "9 Jun, 2026"), \
+             patch.object(scanner.time, "sleep"):
+            games = scanner.fetch_steam_top_sellers()
+
+        self.assertEqual(games, [{"name": "MECCHA CHAMELEON", "source": "steam-topsellers", "steam_id": "4704690"}])
+
     def test_fetch_roblox_search_extracts_game_results(self):
         scanner = load_scanner()
 
@@ -80,21 +113,44 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
 
         self.assertEqual(games, [{"name": "Fresh Roblox Planet", "source": "roblox", "roblox_place_id": 123}])
 
+    def test_fetch_roblox_search_continues_after_query_429(self):
+        scanner = load_scanner()
+        payload = {
+            "searchResults": [
+                {
+                    "contentGroupType": "Game",
+                    "contents": [{"name": "Fresh Roblox Planet", "rootPlaceId": 123}],
+                }
+            ]
+        }
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = scanner.json.dumps(payload).encode("utf-8")
+        rate_limited = urllib.error.HTTPError("https://roblox.test", 429, "Too Many Requests", {}, None)
+
+        with patch.object(scanner.urllib.request, "urlopen", side_effect=[rate_limited, response]), \
+             patch.object(scanner.time, "sleep"), \
+             patch.object(scanner, "ROBLOX_SEARCH_QUERIES", ["new roblox game", "new simulator"]):
+            games = scanner.fetch_roblox_search()
+
+        self.assertEqual(games, [{"name": "Fresh Roblox Planet", "source": "roblox", "roblox_place_id": 123}])
+
     def test_select_games_to_check_weights_sources_after_daily_floor(self):
         scanner = load_scanner()
 
         games = (
             [{"name": f"Crazy {i}", "source": "crazygames"} for i in range(10)]
             + [{"name": f"Steam {i}", "source": "steam"} for i in range(4)]
+            + [{"name": "Top Seller 0", "source": "steam-topsellers"}]
+            + [{"name": "Top Seller 1", "source": "steam-topsellers"}]
             + [{"name": f"Poki {i}", "source": "poki"} for i in range(4)]
         )
 
-        selected = scanner.select_games_to_check(games, checked_names=set(), max_keywords=6)
+        selected = scanner.select_games_to_check(games, checked_names=set(), max_keywords=7)
 
-        self.assertEqual(len(selected), 6)
+        self.assertEqual(len(selected), 7)
         self.assertEqual(
             [game["source"] for game in selected],
-            ["crazygames", "steam", "poki", "steam", "steam", "steam"],
+            ["crazygames", "steam", "steam-topsellers", "poki", "steam-topsellers", "steam", "steam"],
         )
 
     def test_select_games_to_check_keeps_one_floor_for_low_weight_sources(self):

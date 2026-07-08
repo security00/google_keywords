@@ -24,6 +24,7 @@ Game Trend Scanner — 从所有 sitemap 源发现新游戏，对比 GPTS 趋势
 
 import argparse
 import hashlib
+import html
 import json
 import os
 import re
@@ -32,6 +33,7 @@ import time
 import subprocess
 import urllib.request
 import urllib.parse
+import urllib.error
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -106,6 +108,7 @@ SERP_MIN_RATIO = 0.05
 WATCHLIST_MIN_RATIO = 0.05
 WATCHLIST_RECHECK_SHARE = 0.2
 SOURCE_SELECTION_WEIGHTS = {
+    "steam-topsellers": 3.8,
     "steam": 3.0,
     "steam-new": 3.0,
     "poki": 2.2,
@@ -118,6 +121,11 @@ SOURCE_SELECTION_WEIGHTS = {
     "itchio-free": 0.45,
     "itchio-new-free": 0.45,
 }
+STEAM_TOP_SELLERS_URL = (
+    "https://store.steampowered.com/search/results/?query&start=0&count=50&dynamic_data="
+    "&sort_by=_ASC&snr=1_7_7_230_7&filter=topsellers&infinite=1"
+)
+STEAM_TOP_SELLER_MAX_AGE_DAYS = 60
 
 GENERIC_KEYWORDS = {
     "beauty", "art", "io", "fun", "run", "car", "bus", "pop", "box", "tap",
@@ -527,6 +535,97 @@ def fetch_steam_new_releases():
         return []
 
 
+def parse_steam_release_date(date_text):
+    cleaned = str(date_text or "").strip()
+    for fmt in ("%d %b, %Y", "%b %d, %Y"):
+        try:
+            return datetime.strptime(cleaned, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def is_recent_steam_release(date_text, max_age_days=STEAM_TOP_SELLER_MAX_AGE_DAYS):
+    released_at = parse_steam_release_date(date_text)
+    if not released_at:
+        return False
+    age_days = (datetime.now(timezone.utc) - released_at).days
+    return 0 <= age_days <= max_age_days
+
+
+def extract_steam_search_items(results_html):
+    items = []
+    for match in re.finditer(r"<a\s+[^>]*class=\"[^\"]*search_result_row[^\"]*\"[^>]*>.*?</a>", results_html, re.S):
+        block = match.group(0)
+        app_match = re.search(r"data-ds-appid=\"(\d+)\"", block)
+        title_match = re.search(r"<span class=\"title\">(.*?)</span>", block, re.S)
+        if not app_match or not title_match:
+            continue
+        name = html.unescape(re.sub(r"<.*?>", " ", title_match.group(1)))
+        name = re.sub(r"\s+", " ", name).strip()
+        if name:
+            items.append((app_match.group(1), name))
+    return items
+
+
+def fetch_steam_app_release_date(app_id):
+    url = f"https://store.steampowered.com/api/appdetails?appids={app_id}&filters=release_date,basic"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    app_data = data.get(str(app_id), {})
+    if not app_data.get("success"):
+        return None
+    release_date = app_data.get("data", {}).get("release_date", {})
+    if release_date.get("coming_soon"):
+        return None
+    return release_date.get("date")
+
+
+def fetch_steam_top_sellers():
+    """Fetch recent Steam top sellers so newly hot games are not missed."""
+    print("\n🎮 Phase 1b: Steam Top Sellers", flush=True)
+    try:
+        req = urllib.request.Request(
+            STEAM_TOP_SELLERS_URL,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+        results_html = str(data.get("results_html") or "")
+
+        games = []
+        seen = set()
+        for app_id, name in extract_steam_search_items(results_html):
+            name_lower = name.lower()
+            if any(token in name_lower for token in [
+                "hentai", "🔞", "nsfw", "18+", "sex", "porn", "futanari", "oneeshota",
+                "waifu", "adult", "nude", "erotic", "bdsm", "pleasure", "brothel",
+                "succubus", "strip", "lust", "horny",
+            ]):
+                continue
+            if not is_game_name_valid(name):
+                continue
+            release_date = fetch_steam_app_release_date(app_id)
+            if not release_date or not is_recent_steam_release(release_date):
+                continue
+            key = name_lower
+            if key in seen:
+                continue
+            seen.add(key)
+            games.append({"name": name, "source": "steam-topsellers", "steam_id": app_id})
+            time.sleep(0.1)
+
+        print(f"  Found {len(games)} recent Steam top sellers", flush=True)
+        return games
+    except Exception as e:
+        print(f"  ❌ Steam Top Sellers fetch failed: {e}", flush=True)
+        return []
+
+
 # ─── Poki /new Page ─────────────────────────────────────────────
 
 def fetch_poki_new():
@@ -681,11 +780,8 @@ def fetch_itchio_free():
 
 ROBLOX_SEARCH_QUERIES = [
     "new roblox game",
-    "upcoming roblox game",
-    "new obby",
     "new simulator",
     "new tycoon",
-    "new anime game",
 ]
 
 
@@ -698,17 +794,22 @@ def clean_roblox_name(name):
 def fetch_roblox_search():
     """Fetch Roblox experience candidates from public search API."""
     print("\n🎮 Phase 1f: Roblox Search", flush=True)
-    try:
-        games = []
-        seen = set()
-        for query in ROBLOX_SEARCH_QUERIES:
+    games = []
+    seen = set()
+    failures = []
+    for query in ROBLOX_SEARCH_QUERIES:
+        try:
             params = urllib.parse.urlencode({
                 "searchQuery": query,
                 "sessionId": "game-trend-scanner",
             })
             req = urllib.request.Request(
                 f"https://apis.roblox.com/search-api/omni-search?{params}",
-                headers={"User-Agent": "Mozilla/5.0 (compatible; GameTrendScanner/1.0)"}
+                headers={
+                    "Accept": "application/json, text/plain, */*",
+                    "Referer": "https://www.roblox.com/discover",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                }
             )
             with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read())
@@ -732,13 +833,22 @@ def fetch_roblox_search():
                         continue
                     seen.add(key)
                     games.append({"name": name, "source": "roblox", "roblox_place_id": root_place_id})
-            time.sleep(0.2)
-
+            time.sleep(1.5)
+        except urllib.error.HTTPError as e:
+            failures.append(f"{query}: HTTP {e.code}")
+            if e.code == 429:
+                time.sleep(5)
+            continue
+        except Exception as e:
+            failures.append(f"{query}: {e}")
+            continue
+    if failures:
+        print(f"  ⚠️ Roblox partial failures: {'; '.join(failures)}", flush=True)
+    if games:
         print(f"  Found {len(games)} Roblox games", flush=True)
         return games
-    except Exception as e:
-        print(f"  ❌ Roblox fetch failed: {e}", flush=True)
-        return []
+    print("  ❌ Roblox fetch failed: no usable game results", flush=True)
+    return []
 
 
 def fetch_crazygames_new():
@@ -1431,6 +1541,7 @@ def main():
     # In cron mode, --max-sources 0 means this scanner must only use the
     # primary CrazyGames /new feed and skip all auxiliary discovery sources.
     if args.max_sources == 0:
+        steam_top_sellers = []
         steam_new = []
         poki_new = []
         ag_new = []
@@ -1438,7 +1549,8 @@ def main():
         itchio_free = []
         roblox_new = []
     else:
-        # ── Phase 1b: Steam new releases ──
+        # ── Phase 1b: Steam top sellers and new releases ──
+        steam_top_sellers = fetch_steam_top_sellers()
         steam_new = fetch_steam_new_releases()
 
         # ── Phase 1c: Poki new games ──
@@ -1459,13 +1571,13 @@ def main():
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in crazygames_new + steam_new + poki_new + ag_new + itchio_new + itchio_free + roblox_new:
+    for g in crazygames_new + steam_top_sellers + steam_new + poki_new + ag_new + itchio_new + itchio_free + roblox_new:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
             all_games.append(g)
 
-    source_label = "CrazyGames /new" if args.max_sources == 0 else "CrazyGames + Steam + Poki + Addicting Games + itch.io + Roblox"
+    source_label = "CrazyGames /new" if args.max_sources == 0 else "CrazyGames + Steam Top Sellers + Steam New Releases + Poki + Addicting Games + itch.io + Roblox"
     print(f"\n📋 Combined: {len(all_games)} unique new games ({source_label})", flush=True)
 
     # ── Filter out already trend-checked ──
