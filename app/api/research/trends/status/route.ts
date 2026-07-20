@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authenticate } from "@/lib/auth_middleware";
+import { isAuthzError, requireEffectiveUser } from "@/lib/authz";
 import { getReadyTaskIds, getComparisonResults } from "@/lib/keyword-research";
-import { d1Query } from "@/lib/d1";
-import { getJob } from "@/lib/research-jobs";
+import {
+  claimOwnedJob,
+  completeOwnedJobWithPayload,
+  getOwnedJob,
+  getOwnedJobStatusSnapshot,
+  isLegacyStatusGetExecutionEnabled,
+} from "@/lib/research-jobs";
 import { setCache } from "@/lib/cache";
 
 export const runtime = "nodejs";
@@ -13,10 +18,13 @@ export const dynamic = "force-dynamic";
 // Single non-blocking poll of DataForSEO tasks_ready
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticate(request);
-    if (!auth.authenticated) {
-      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    if (request.method === "GET" && isLegacyStatusGetExecutionEnabled()) {
+      console.warn(JSON.stringify({ event: "legacy_status_get_execution", jobType: "trends" }));
     }
+    const principal = await requireEffectiveUser(request, {
+      allowLegacyQueryKey: true,
+    });
+    if (isAuthzError(principal)) return principal;
 
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get("jobId");
@@ -24,7 +32,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "jobId is required" }, { status: 400 });
     }
 
-    const job = await getJob(jobId, auth.userId || "anonymous");
+    if (request.method === "GET" && !isLegacyStatusGetExecutionEnabled()) {
+      const snapshot = await getOwnedJobStatusSnapshot(
+        jobId,
+        principal.userId,
+        "trends",
+      );
+      return snapshot
+        ? NextResponse.json(snapshot)
+        : NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    const job = await getOwnedJob(jobId, principal.userId, "trends");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
@@ -57,6 +76,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const claim = await claimOwnedJob(job.id, principal.userId, "trends");
+    if (!claim) {
+      return NextResponse.json({
+        status: "processing",
+        progress: `${readyIds.length}/${taskIds.length} tasks ready`,
+      });
+    }
+
     // All tasks ready — fetch results
     const benchmark = (job.payload?.benchmark as string) || "gpts";
     const results = await getComparisonResults(taskIds, benchmark);
@@ -79,14 +106,24 @@ export async function GET(request: NextRequest) {
     // Cache results
     const cacheKey = job.payload?.cacheKey as string;
     if (cacheKey && mappedResults.length > 0) {
-      await setCache(cacheKey, { results: mappedResults });
+      await setCache(cacheKey, { results: mappedResults }, {
+        namespace: "trends-result",
+      });
     }
 
     // Update job
-    await d1Query(
-      `UPDATE research_jobs SET status = 'complete', payload = ?, updated_at = datetime('now') WHERE id = ?`,
-      [JSON.stringify({ ...job.payload, results: mappedResults }), jobId]
+    const finished = await completeOwnedJobWithPayload(
+      jobId,
+      principal.userId,
+      claim.token,
+      {
+        ...job.payload,
+        results: mappedResults,
+      },
     );
+    if (!finished) {
+      throw new Error("Trends job claim lost before completion");
+    }
 
     return NextResponse.json({
       status: "complete",
@@ -98,3 +135,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export const POST = GET;

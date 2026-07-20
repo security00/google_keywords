@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     // Only direct-result APIs should populate query_cache here.
     // expand/compare cache slots store jobId and must not be overwritten.
     if (cacheKey && (apiType === "serp" || apiType === "trends")) {
-      await setCache(cacheKey, parsed);
+      await setCache(cacheKey, parsed, { namespace: "provider-direct" });
     }
 
     return NextResponse.json({ ok: true });

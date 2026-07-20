@@ -87,6 +87,7 @@ describe("getGameOpportunityReport", () => {
           hot_count: 0,
           rising_count: 1,
           niche_count: 1,
+          watchlist_count: 0,
           skip_count: 8,
           avg_trend_ratio: 2,
           avg_trend_slope: 1,

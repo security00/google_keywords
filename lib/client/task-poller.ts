@@ -18,6 +18,7 @@ type PollTaskOptions = {
   maxWaitMs: number;
   pollIntervalMs: number;
   maxPollIntervalMs?: number;
+  method?: "GET" | "POST";
   credentials?: RequestCredentials;
   requestErrorMessage?: string;
   failedErrorMessage?: string;
@@ -49,6 +50,7 @@ export async function pollTaskUntilComplete<T extends Record<string, unknown>>(
     maxWaitMs,
     pollIntervalMs,
     maxPollIntervalMs = Math.max(pollIntervalMs, pollIntervalMs * 3),
+    method = "POST",
     credentials = "include",
     requestErrorMessage = "任务轮询失败",
     failedErrorMessage = "任务失败",
@@ -70,6 +72,7 @@ export async function pollTaskUntilComplete<T extends Record<string, unknown>>(
     let response: Response;
     try {
       response = await fetch(url, {
+        method,
         credentials,
         cache: "no-store",
       });

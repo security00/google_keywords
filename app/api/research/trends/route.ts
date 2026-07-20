@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authenticate } from "@/lib/auth_middleware";
-import { checkStudentAccess } from "@/lib/usage";
-import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
 import {
-  submitComparisonTasksWithCost,
-  resolveComparisonDateRange,
-} from "@/lib/keyword-research";
-import { buildCacheKey, getCached, setCache } from "@/lib/cache";
+  isAuthzError,
+  requireEffectiveUser,
+  requirePaidApiPermission,
+} from "@/lib/authz";
+import { submitComparisonTasksWithCost } from "@/lib/keyword-research";
+import { buildCacheKey, getCached } from "@/lib/cache";
 import { createJob } from "@/lib/research-jobs";
 
 export const runtime = "nodejs";
@@ -19,18 +18,10 @@ export const dynamic = "force-dynamic";
 // Cache miss → submit async → return { jobId, status: "processing" }
 export async function POST(request: NextRequest) {
   try {
-    const auth = await authenticate(request);
-    if (!auth.authenticated) {
-      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
-    }
-
-    const access = await checkStudentAccess(auth.userId!);
-    if (!access.allowed) {
-      return NextResponse.json(
-        { error: access.reason, code: access.code },
-        { status: access.code === "trial_expired" ? 403 : 429 }
-      );
-    }
+    const principal = await requireEffectiveUser(request, {
+      allowLegacyQueryKey: true,
+    });
+    if (isAuthzError(principal)) return principal;
 
     const body = await request.json().catch(() => ({}));
     const keywords = Array.isArray(body?.keywords) ? body.keywords : [];
@@ -52,7 +43,9 @@ export async function POST(request: NextRequest) {
 
     // Check cache — if hit, return immediately (backward compatible!)
     const cacheKey = buildCacheKey("trends", keywords, { dateFrom, dateTo, benchmark: benchmark ?? "gpts" });
-    const cached = await getCached<{ results: unknown[] }>(cacheKey);
+    const cached = await getCached<{ results: unknown[] }>(cacheKey, {
+      namespace: "trends-result",
+    });
     if (cached) {
       return NextResponse.json({ results: cached.results, fromCache: true });
     }
@@ -74,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create job for tracking
-    const userId = auth.userId || "anonymous";
+    const userId = principal.userId;
     const jobId = await createJob(
       userId,
       "trends",

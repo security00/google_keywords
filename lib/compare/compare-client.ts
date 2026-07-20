@@ -8,13 +8,9 @@ import {
   MIN_RECENT_MEAN,
   roundTo,
   safeDivide,
-  TASK_POST_URL,
-  TASK_GET_URL,
   resolveComparisonSignalConfig,
   normalizeDate,
   buildPostbackUrl,
-  buildAuthHeaders,
-  requestWithRetry,
   extractDataForSeoCost,
   mergeCostSummaries,
 } from "../dataforseo-client";
@@ -22,14 +18,34 @@ import { createBatches } from "../keyword-utils";
 import type { SerpSummary } from "../serp";
 import { mean, stdDev, linearSlope, countCrossings, nearOne, normalizeTrendTimestamp } from "./trend-math";
 import { adjustVerdictForNewKeywordPipeline, classifyVerdict, buildFreshnessSignal, buildVerdictExplanation, resolveFallbackIntent } from "./verdict-engine";
+import {
+  DATAFORSEO_ENDPOINTS,
+  getPlatformDataForSeoClient,
+  type DataForSeoClient,
+} from "../providers/dataforseo";
+import type { ChatCompletionClient } from "../providers/llm";
+import { getPlatformOpenRouterClient } from "../providers/openrouter";
+
+type ComparisonClientOptions = {
+  postbackUrl?: string;
+  cacheKey?: string;
+  providerClient?: DataForSeoClient;
+};
+
+type IntentEnrichmentOptions = {
+  enableIntentLlm?: boolean;
+  providerClient?: DataForSeoClient;
+  llmClient?: ChatCompletionClient | null;
+};
 
 export const submitComparisonTasksWithCost = async (
   keywords: string[],
   dateFrom: string,
   dateTo: string,
   benchmark = "gpts",
-  options?: { postbackUrl?: string; cacheKey?: string }
+  options?: ComparisonClientOptions
 ) => {
+  const providerClient = options?.providerClient ?? getPlatformDataForSeoClient();
   const batches = createBatches(keywords, 4);
   const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "compare");
   const requestBatches = createBatches(batches, 25);
@@ -45,8 +61,7 @@ export const submitComparisonTasksWithCost = async (
       ...(postback ? { postback_url: postback } : {}),
     }));
 
-    const result = await requestWithRetry("post", TASK_POST_URL, {
-      headers: buildAuthHeaders(),
+    const result = await providerClient.request("post", DATAFORSEO_ENDPOINTS.trendsTaskPost, {
       body: JSON.stringify(payload),
     });
 
@@ -71,7 +86,7 @@ export const submitComparisonTasks = async (
   dateFrom: string,
   dateTo: string,
   benchmark = "gpts",
-  options?: { postbackUrl?: string; cacheKey?: string }
+  options?: ComparisonClientOptions
 ) => {
   const submission = await submitComparisonTasksWithCost(keywords, dateFrom, dateTo, benchmark, options);
   return submission.taskIds;
@@ -79,7 +94,7 @@ export const submitComparisonTasks = async (
 
 export const enrichComparisonResultsWithIntent = async (
   results: ComparisonResult[],
-  options: { enableIntentLlm?: boolean } = {}
+  options: IntentEnrichmentOptions = {}
 ): Promise<ComparisonResult[]> => {
   if (results.length === 0) return results;
   const fallbackResults = results.map((item) => ({
@@ -108,8 +123,10 @@ export const enrichComparisonResultsWithIntent = async (
   const keywords = Array.from(keywordMap.values());
   if (keywords.length === 0) return fallbackResults;
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
+  const llmClient = options.llmClient === undefined
+    ? getPlatformOpenRouterClient()
+    : options.llmClient;
+  if (!llmClient) {
     return fallbackResults;
   }
 
@@ -117,14 +134,15 @@ export const enrichComparisonResultsWithIntent = async (
     const { submitSerpTasks, waitForSerpTasks, getSerpResults } = await import("../serp");
     const { inferIntentWithModel } = await import("../ai-intent");
 
-    const taskIds = await submitSerpTasks(keywords);
-    const completed = await waitForSerpTasks(taskIds);
-    const summariesMap = await getSerpResults(completed);
+    const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
+    const taskIds = await submitSerpTasks(keywords, { providerClient });
+    const completed = await waitForSerpTasks(taskIds, { providerClient });
+    const summariesMap = await getSerpResults(completed, { providerClient });
     const summaries = keywords
       .map((keyword) => summariesMap.get(keyword.toLowerCase()))
       .filter(Boolean) as SerpSummary[];
 
-    const intentMap = await inferIntentWithModel(summaries);
+    const intentMap = await inferIntentWithModel(summaries, { llmClient });
 
     return results.map((item) => {
       const key = item.keyword.toLowerCase();
@@ -143,7 +161,7 @@ export const getComparisonResultsFromTasks = async (
   taskPayloads: Array<Record<string, unknown>>,
   benchmark = "gpts",
   signalConfig: Partial<ComparisonSignalConfig> = {},
-  options: { enableIntentLlm?: boolean } = {}
+  options: IntentEnrichmentOptions = {}
 ) => {
   const config = resolveComparisonSignalConfig(signalConfig);
   const results: ComparisonResult[] = [];
@@ -389,14 +407,16 @@ export const getComparisonResults = async (
   taskIds: string[],
   benchmark = "gpts",
   signalConfig: Partial<ComparisonSignalConfig> = {},
-  options: { enableIntentLlm?: boolean } = {}
+  options: IntentEnrichmentOptions = {}
 ) => {
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
   const taskPayloads: Record<string, unknown>[] = [];
 
   for (const taskId of taskIds) {
-    const result = await requestWithRetry("get", `${TASK_GET_URL}/${taskId}`, {
-      headers: buildAuthHeaders(),
-    });
+    const result = await providerClient.request(
+      "get",
+      `${DATAFORSEO_ENDPOINTS.trendsTaskGet}/${taskId}`,
+    );
 
     if (result?.status_code !== 20000 || !Array.isArray(result?.tasks)) continue;
 

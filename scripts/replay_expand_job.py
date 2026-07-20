@@ -56,7 +56,7 @@ def fetch_status(site_url: str, job_id: str, api_key: str, timeout: int):
             "Accept": "application/json",
             "User-Agent": "Mozilla/5.0 (compatible; keyword-research-replay/1.0)",
         },
-        method="GET",
+        method="POST",
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:

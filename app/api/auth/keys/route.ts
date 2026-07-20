@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { generateApiKey, listApiKeys, revokeApiKey } from '@/lib/api_keys';
-import { getSaasEntitlement } from '@/lib/entitlements';
-import { checkStudentAccess } from '@/lib/usage';
+import { getEffectiveEntitlement } from '@/lib/entitlements';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/auth/keys — list current user's API keys (masked)
-export async function GET(_req: NextRequest) {
+export async function GET() {
     const user = await getAuthUser();
     if (!user) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -24,15 +23,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const access = await checkStudentAccess(String(user.id));
-    if (!access.allowed) {
-        const entitlement = await getSaasEntitlement(String(user.id));
-        if (!entitlement.allowed) {
-            return NextResponse.json(
-                { error: access.reason, code: access.code },
-                { status: 403 }
-            );
-        }
+    const entitlement = await getEffectiveEntitlement(String(user.id));
+    if (!entitlement.allowed) {
+        return NextResponse.json(
+            { error: entitlement.reason || 'Activation or subscription required.', code: 'entitlement_required' },
+            { status: 403 }
+        );
     }
 
     let body: { name?: string } = {};

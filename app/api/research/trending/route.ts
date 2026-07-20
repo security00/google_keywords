@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticate } from "@/lib/auth_middleware";
+import { isAuthzError, requireEffectiveUser } from "@/lib/authz";
 import { d1Query } from "@/lib/d1";
 
 export const runtime = "nodejs";
@@ -10,10 +10,10 @@ export const dynamic = "force-dynamic";
  * Get keywords that first appeared recently, sorted by current value
  */
 export async function GET(request: NextRequest) {
-  const auth = await authenticate(request);
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requireEffectiveUser(request, {
+    allowLegacyQueryKey: true,
+  });
+  if (isAuthzError(principal)) return principal;
 
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get("days") ?? "3", 10);

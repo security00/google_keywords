@@ -6,9 +6,15 @@ import {
   inferIntentWithModel,
 } from "@/lib/keyword-research";
 import type { CompareResponse, ComparisonResult } from "@/lib/types";
-import { authenticate } from "@/lib/auth_middleware";
+import { isAuthzError, requireEffectiveUser } from "@/lib/authz";
 import { setCache } from "@/lib/cache";
-import { getJobById, updateJobStatus } from "@/lib/research-jobs";
+import {
+  claimOwnedJob,
+  finishClaimedJob,
+  getOwnedJob,
+  getOwnedJobStatusSnapshot,
+  isLegacyStatusGetExecutionEnabled,
+} from "@/lib/research-jobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,10 +28,13 @@ const safeCompareResponse = (value: unknown): CompareResponse | null => {
 
 export async function GET(request: Request) {
   try {
-    const auth = await authenticate(request as Parameters<typeof authenticate>[0]);
-    if (!auth.authenticated) {
-      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    if (request.method === "GET" && isLegacyStatusGetExecutionEnabled()) {
+      console.warn(JSON.stringify({ event: "legacy_status_get_execution", jobType: "intent" }));
     }
+    const principal = await requireEffectiveUser(request, {
+      allowLegacyQueryKey: true,
+    });
+    if (isAuthzError(principal)) return principal;
 
     const url = new URL(request.url);
     const jobId = url.searchParams.get("jobId");
@@ -33,7 +42,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
     }
 
-    const job = await getJobById(jobId, "intent");
+    if (request.method === "GET" && !isLegacyStatusGetExecutionEnabled()) {
+      const snapshot = await getOwnedJobStatusSnapshot(
+        jobId,
+        principal.userId,
+        "intent",
+      );
+      return snapshot
+        ? NextResponse.json(snapshot)
+        : NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    const job = await getOwnedJob(jobId, principal.userId, "intent");
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
@@ -57,7 +77,15 @@ export async function GET(request: Request) {
       });
     }
 
-    await updateJobStatus(job.id, "processing");
+    const claim = await claimOwnedJob(job.id, principal.userId, "intent");
+    if (!claim) {
+      return NextResponse.json({
+        status: "pending",
+        stage: "processing",
+        ready: taskIdsToFetch.length,
+        total: job.task_ids.length,
+      });
+    }
 
     const payload = job.payload ?? {};
     const resultCacheKey =
@@ -65,7 +93,13 @@ export async function GET(request: Request) {
     const compareResult = safeCompareResponse(payload.compareResult);
     if (!resultCacheKey || !compareResult) {
       const error = "Missing intent job payload";
-      await updateJobStatus(job.id, "failed", { error });
+      await finishClaimedJob(
+        job.id,
+        principal.userId,
+        claim.token,
+        "failed",
+        { error },
+      );
       return NextResponse.json({ status: "failed", error }, { status: 500 });
     }
 
@@ -90,12 +124,24 @@ export async function GET(request: Request) {
       results: refreshedResults,
     };
 
-    await setCache(resultCacheKey, {
-      ...refreshedResponse,
-      fromCache: false,
-      intentRefreshed: true,
-    });
-    await updateJobStatus(job.id, "complete");
+    await setCache(
+      resultCacheKey,
+      {
+        ...refreshedResponse,
+        fromCache: false,
+        intentRefreshed: true,
+      },
+      { namespace: "compare-result" },
+    );
+    const finished = await finishClaimedJob(
+      job.id,
+      principal.userId,
+      claim.token,
+      "complete",
+    );
+    if (!finished) {
+      throw new Error("Intent job claim lost before completion");
+    }
 
     return NextResponse.json({
       status: "complete",
@@ -109,3 +155,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ status: "failed", error: message }, { status: 500 });
   }
 }
+
+export const POST = GET;

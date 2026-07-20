@@ -64,26 +64,26 @@ def main() -> int:
     assert_order(
         "app/api/research/trends-quick/route.ts",
         "requirePaidApiPermission(request)",
-        "fetch(`${DATAFORSEO_BASE}",
+        'providerClient.request("post", DATAFORSEO_ENDPOINTS.trendsLive',
     )
     assert_order(
         "app/api/research/keyword-suggestions/route.ts",
         "requirePaidApiPermission(request)",
-        "fetch(`${DATAFORSEO_BASE}",
+        'providerClient.request("post", DATAFORSEO_ENDPOINTS.keywordSuggestionsLive',
     )
     assert_order(
         "app/api/research/compare/intent/route.ts",
-        "if (!isCronAuthorized(request))",
+        "if (!(await isCronRequest(request)))",
         "const taskSubmission = await submitSerpTasksWithCost",
     )
     assert_order(
         "app/api/game-keywords/route.ts",
-        "const access = await checkStudentAccess",
+        "const principal = await requireEffectiveUser",
         "FROM game_keyword_pipeline",
     )
     assert_order(
         "app/api/old-keywords/route.ts",
-        "const access = await checkStudentAccess",
+        "const principal = await requireEffectiveUser",
         "FROM old_keyword_opportunities",
     )
 

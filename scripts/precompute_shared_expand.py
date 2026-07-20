@@ -5,7 +5,7 @@ Precompute the shared default expand result end-to-end.
 Flow:
 1. Load shared default keywords
 2. Submit /api/research/expand with useCache=false
-3. Poll /api/research/expand/status until complete
+3. POST the expand finalize/status executor until complete
 4. Optionally refine with LLM and write shared expand cache
 5. Submit one shared /api/research/compare precompute job for the recommended pool
 
@@ -23,9 +23,23 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
-    from scripts.pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
+    from scripts.pipeline_runtime import (
+        fail_pipeline_task,
+        pipeline_run,
+        record_cost_event,
+        start_pipeline_task,
+        succeed_pipeline_task,
+        update_pipeline_run,
+    )
 except ModuleNotFoundError:
-    from pipeline_runtime import pipeline_run, record_cost_event, update_pipeline_run
+    from pipeline_runtime import (
+        fail_pipeline_task,
+        pipeline_run,
+        record_cost_event,
+        start_pipeline_task,
+        succeed_pipeline_task,
+        update_pipeline_run,
+    )
 
 GK_SITE_URL = os.environ.get("GK_SITE_URL", "https://discoverkeywords.co")
 
@@ -455,6 +469,12 @@ def refine_with_llm(expand_response):
         file=sys.stderr,
     )
     for idx, batch in enumerate(batches(candidates_for_model, LLM_BATCH_SIZE), start=1):
+        task_id = start_pipeline_task(
+            stage="shared-expand.llm-filter",
+            idempotency_key=f"llm-filter:{idx}",
+            payload={"batch_index": idx, "keywords": [item["keyword"] for item in batch]},
+            metadata={"model": OPENROUTER_MODEL, "candidate_count": len(batch)},
+        )
         body = {
             "model": OPENROUTER_MODEL,
             "temperature": 0,
@@ -488,12 +508,20 @@ def refine_with_llm(expand_response):
             ],
             "max_tokens": 1400,
         }
-        result = post_json(
-            f"{OPENROUTER_BASE_URL}/chat/completions",
-            {"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
-            body,
-            timeout=120,
-        )
+        try:
+            result = post_json(
+                f"{OPENROUTER_BASE_URL}/chat/completions",
+                {"Authorization": f"Bearer {OPENROUTER_API_KEY}"},
+                body,
+                timeout=120,
+            )
+        except Exception as exc:
+            fail_pipeline_task(
+                task_id,
+                error=str(exc),
+                metadata={"batch_index": idx, "candidate_count": len(batch)},
+            )
+            raise
         actual_cost = extract_usage_cost(result)
         record_cost_event(
             provider="openrouter",
@@ -502,6 +530,7 @@ def refine_with_llm(expand_response):
             unit_count=1,
             unit_price_usd=OPENROUTER_LLM_BATCH_UNIT_PRICE_USD,
             actual_cost_usd=actual_cost,
+            task_id=task_id,
             idempotency_key=f"llm-filter:{idx}",
             metadata={
                 "batch_index": idx,
@@ -523,6 +552,11 @@ def refine_with_llm(expand_response):
             for keyword in blocked_list:
                 if isinstance(keyword, str):
                     blocked.add(keyword.lower().strip())
+        succeed_pipeline_task(
+            task_id,
+            result={"candidate_count": len(batch), "blocked_count": len(blocked_list or [])},
+            metadata={"batch_index": idx, "model": OPENROUTER_MODEL},
+        )
         print(f"   LLM batch {idx}: blocked={len(blocked_list or [])}", file=sys.stderr)
 
     if not blocked:
@@ -565,6 +599,7 @@ def write_shared_cache(expand_response):
 
 
 def precompute_shared_compare(expand_response, resume_job_id=""):
+    submission_task_id = None
     if not ENABLE_COMPARE_PRECOMPUTE:
         print("ℹ️  Compare precompute disabled by GK_PRECOMPUTE_COMPARE", file=sys.stderr)
         return None
@@ -584,21 +619,37 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
         submit = {"jobId": resume_job_id}
         print(f"↩️  Resuming compare job: {resume_job_id}", file=sys.stderr)
     else:
-        submit = curl_json(
-            "POST",
-            "/api/research/compare",
-            {
-                "keywords": selected,
-                "dateFrom": expand_response.get("dateFrom"),
-                "dateTo": expand_response.get("dateTo"),
-                "benchmark": COMPARE_BENCHMARK,
-                "minRuleScore": RECOMMENDED_MIN_SCORE,
-            },
-            timeout=120,
-            extra_headers={"x-cron-secret": GK_CRON_SECRET},
+        submission_task_id = start_pipeline_task(
+            stage="shared-expand.compare-trends",
+            idempotency_key=f"compare-trends:{COMPARE_BENCHMARK}:{','.join(selected)}",
+            payload={"keywords": selected, "benchmark": COMPARE_BENCHMARK},
+            metadata={"keyword_count": len(selected)},
         )
+        try:
+            submit = curl_json(
+                "POST",
+                "/api/research/compare",
+                {
+                    "keywords": selected,
+                    "dateFrom": expand_response.get("dateFrom"),
+                    "dateTo": expand_response.get("dateTo"),
+                    "benchmark": COMPARE_BENCHMARK,
+                    "minRuleScore": RECOMMENDED_MIN_SCORE,
+                },
+                timeout=120,
+                extra_headers={"x-cron-secret": GK_CRON_SECRET},
+            )
+        except Exception as exc:
+            fail_pipeline_task(submission_task_id, error=str(exc), metadata={"keyword_count": len(selected)})
+            raise
 
     if submit.get("status") == "complete":
+        succeed_pipeline_task(
+            submission_task_id,
+            status="skipped",
+            result={"cached": True, "results": len(submit.get("results") or [])},
+            metadata={"keyword_count": len(selected), "benchmark": COMPARE_BENCHMARK},
+        )
         print(f"✅ Shared compare already cached: {len(submit.get('results') or [])} results", file=sys.stderr)
         save_state(stage="compare_complete", compareCompletedAt=utc_now_iso())
         precompute_compare_intent(expand_response, selected)
@@ -622,13 +673,20 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
         unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or 0) or ((len(selected) + 3) // 4),
         unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
+        task_id=submission_task_id,
         research_job_id=job_id,
         metadata={"job_id": job_id, "benchmark": COMPARE_BENCHMARK, "cost": submit.get("cost")},
+    )
+    succeed_pipeline_task(
+        submission_task_id,
+        result={"job_id": job_id, "submitted_tasks": submit.get("total")},
+        metadata={"keyword_count": len(selected), "benchmark": COMPARE_BENCHMARK},
+        output_ref=job_id,
     )
     started_at = time.time()
     while time.time() - started_at < MAX_WAIT_SECONDS:
         status = curl_json(
-            "GET",
+            "POST",
             f"/api/research/compare/status?jobId={job_id}",
             body=None,
             timeout=COMPARE_STATUS_TIMEOUT_SECONDS,
@@ -664,6 +722,7 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
 
 
 def precompute_compare_intent(expand_response, selected, resume_job_id=""):
+    submission_task_id = None
     if not ENABLE_COMPARE_INTENT:
         print("ℹ️  Compare intent precompute disabled by GK_PRECOMPUTE_COMPARE_INTENT", file=sys.stderr)
         return None
@@ -673,21 +732,37 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
         submit = {"jobId": resume_job_id}
         print(f"↩️  Resuming intent job: {resume_job_id}", file=sys.stderr)
     else:
-        submit = curl_json(
-            "POST",
-            "/api/research/compare/intent",
-            {
-                "keywords": selected,
-                "dateFrom": expand_response.get("dateFrom"),
-                "dateTo": expand_response.get("dateTo"),
-                "benchmark": COMPARE_BENCHMARK,
-                "minRuleScore": RECOMMENDED_MIN_SCORE,
-            },
-            timeout=120,
-            extra_headers={"x-cron-secret": GK_CRON_SECRET},
+        submission_task_id = start_pipeline_task(
+            stage="shared-expand.compare-intent",
+            idempotency_key=f"compare-intent:{COMPARE_BENCHMARK}:{','.join(selected)}",
+            payload={"keywords": selected, "benchmark": COMPARE_BENCHMARK},
+            metadata={"keyword_count": len(selected)},
         )
+        try:
+            submit = curl_json(
+                "POST",
+                "/api/research/compare/intent",
+                {
+                    "keywords": selected,
+                    "dateFrom": expand_response.get("dateFrom"),
+                    "dateTo": expand_response.get("dateTo"),
+                    "benchmark": COMPARE_BENCHMARK,
+                    "minRuleScore": RECOMMENDED_MIN_SCORE,
+                },
+                timeout=120,
+                extra_headers={"x-cron-secret": GK_CRON_SECRET},
+            )
+        except Exception as exc:
+            fail_pipeline_task(submission_task_id, error=str(exc), metadata={"keyword_count": len(selected)})
+            raise
 
     if submit.get("status") == "complete":
+        succeed_pipeline_task(
+            submission_task_id,
+            status="skipped",
+            result={"cached": True, "results": submit.get("results")},
+            metadata={"keyword_count": len(selected)},
+        )
         print(f"✅ Shared compare intent complete: {submit.get('results')} results", file=sys.stderr)
         save_state(stage="complete", intentCompletedAt=utc_now_iso())
         return submit
@@ -714,13 +789,20 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
         unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or intent_keywords),
         unit_price_usd=DATAFORSEO_SERP_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
+        task_id=submission_task_id,
         research_job_id=job_id,
         metadata={"job_id": job_id, "tasks": submit.get("total"), "cost": submit.get("cost")},
+    )
+    succeed_pipeline_task(
+        submission_task_id,
+        result={"job_id": job_id, "submitted_tasks": submit.get("total")},
+        metadata={"keyword_count": len(selected)},
+        output_ref=job_id,
     )
 
     if not WAIT_FOR_COMPARE_INTENT:
         status = curl_json(
-            "GET",
+            "POST",
             f"/api/research/compare/intent/status?jobId={job_id}",
             body=None,
             timeout=INTENT_STATUS_TIMEOUT_SECONDS,
@@ -758,7 +840,7 @@ def precompute_compare_intent(expand_response, selected, resume_job_id=""):
     started_at = time.time()
     while time.time() - started_at < MAX_WAIT_SECONDS:
         status = curl_json(
-            "GET",
+            "POST",
             f"/api/research/compare/intent/status?jobId={job_id}",
             body=None,
             timeout=INTENT_STATUS_TIMEOUT_SECONDS,
@@ -837,25 +919,42 @@ def main():
         return
 
     resume_expand_job_id = RESUME_EXPAND_JOB_ID or str(state.get("expandJobId") or "")
+    expand_task_id = None
     if resume_expand_job_id:
         submit = {"jobId": resume_expand_job_id}
         print(f"↩️  Resuming expand job: {resume_expand_job_id}", file=sys.stderr)
     else:
-        submit = curl_json(
-            "POST",
-            "/api/research/expand",
-            {
-                "keywords": keywords,
-                "useCache": USE_EXPAND_CACHE,
-                "enableLlmFilter": False,
-            },
-            timeout=120,
-            extra_headers={"x-cron-secret": GK_CRON_SECRET} if GK_CRON_SECRET else None,
+        expand_task_id = start_pipeline_task(
+            stage="shared-expand.expand-trends",
+            idempotency_key=f"expand-trends:{','.join(keywords)}",
+            payload={"keywords": keywords, "use_cache": USE_EXPAND_CACHE},
+            metadata={"keyword_count": len(keywords)},
         )
+        try:
+            submit = curl_json(
+                "POST",
+                "/api/research/expand",
+                {
+                    "keywords": keywords,
+                    "useCache": USE_EXPAND_CACHE,
+                    "enableLlmFilter": False,
+                },
+                timeout=120,
+                extra_headers={"x-cron-secret": GK_CRON_SECRET} if GK_CRON_SECRET else None,
+            )
+        except Exception as exc:
+            fail_pipeline_task(expand_task_id, error=str(exc), metadata={"keyword_count": len(keywords)})
+            raise
         if submit.get("jobId"):
             save_state(stage="expand_pending", expandJobId=submit.get("jobId"), expandStartedAt=utc_now_iso())
 
     if submit.get("status") == "complete":
+        succeed_pipeline_task(
+            expand_task_id,
+            status="skipped",
+            result={"cached": True, "results": len(submit.get("flatList") or [])},
+            metadata={"keyword_count": len(keywords)},
+        )
         refined = refine_with_llm(submit)
         cache_result = write_shared_cache(refined) if refined is not submit else None
         save_expand_response(refined)
@@ -885,14 +984,21 @@ def main():
         unit_count=int(submit.get("total") or len(submit.get("taskIds") or []) or len(keywords)),
         unit_price_usd=DATAFORSEO_TRENDS_TASK_UNIT_PRICE_USD,
         actual_cost_usd=extract_job_actual_cost(submit),
+        task_id=expand_task_id,
         research_job_id=job_id,
         metadata={"job_id": job_id, "keywords": len(keywords), "cost": submit.get("cost")},
+    )
+    succeed_pipeline_task(
+        expand_task_id,
+        result={"job_id": job_id, "submitted_tasks": submit.get("total")},
+        metadata={"keyword_count": len(keywords)},
+        output_ref=job_id,
     )
     started_at = time.time()
 
     while time.time() - started_at < MAX_WAIT_SECONDS:
         status = curl_json(
-            "GET",
+            "POST",
             f"/api/research/expand/finalize?jobId={job_id}",
             body=None,
             timeout=EXPAND_STATUS_TIMEOUT_SECONDS,

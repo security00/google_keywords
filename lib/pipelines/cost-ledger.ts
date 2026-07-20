@@ -20,8 +20,9 @@ export const recordPipelineCostEvent = async (
     `INSERT OR IGNORE INTO pipeline_cost_events
       (run_id, pipeline, provider, endpoint, unit_type, unit_count, unit_price_usd,
        estimated_cost_usd, actual_cost_usd, task_id, research_job_id, event_key,
-       provider_request_id, idempotency_key, metadata_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       provider_request_id, idempotency_key, credential_source, execution_mode,
+       owner_id, metadata_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.runId,
       input.pipeline,
@@ -37,6 +38,9 @@ export const recordPipelineCostEvent = async (
       input.eventKey ?? null,
       input.providerRequestId ?? null,
       input.idempotencyKey ?? null,
+      input.credentialSource ?? "platform",
+      input.executionMode ?? "platform",
+      input.ownerId ?? null,
       input.metadata ? JSON.stringify(input.metadata) : null,
     ]
   );

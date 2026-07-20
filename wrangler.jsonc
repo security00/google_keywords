@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
   "name": "google-keywords",
-  "compatibility_date": "2025-04-05",
+  "compatibility_date": "2026-07-20",
   "compatibility_flags": [
     "nodejs_compat",
     "global_fetch_strictly_public"
@@ -18,7 +18,8 @@
     }
   ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 0.1
   },
   "vars": {
     "BENCHMARK_KEYWORD": "gpts",
@@ -31,6 +32,7 @@
     "OPENROUTER_APP_NAME": "keyword-research",
     "NEXT_PUBLIC_FILTER_TERMS": "gambling,betting,casino,news,celebrity,movie,film,lottery,博彩,赌博,赌场,投注,新闻,名人,电影",
     "DEBUG_API_LOGS": "true",
+    "RESEARCH_STATUS_GET_EXECUTION_COMPAT": "true",
     "SERP_LOCATION_NAME": "United States",
     "SERP_LANGUAGE_CODE": "en",
     "SERP_DEVICE": "desktop",

@@ -16,10 +16,9 @@ const allowedEntitlement: SaasEntitlement = {
   status: "active",
   planKey: "founding",
   reason: "Active subscription",
+  expiresAt: "2026-08-01T00:00:00Z",
   briefLimit: 20,
-  reportLimit: 20,
-  trialExpiresAt: null,
-  subscriptionEndsAt: "2026-08-01T00:00:00Z",
+  briefUsed: 0,
 };
 
 const blockedEntitlement: SaasEntitlement = {
@@ -28,10 +27,9 @@ const blockedEntitlement: SaasEntitlement = {
   status: "expired",
   planKey: null,
   reason: "Subscription required",
+  expiresAt: "2026-04-01T00:00:00Z",
   briefLimit: 0,
-  reportLimit: 0,
-  trialExpiresAt: "2026-04-01T00:00:00Z",
-  subscriptionEndsAt: null,
+  briefUsed: 0,
 };
 
 describe("listKeywordOpportunities", () => {

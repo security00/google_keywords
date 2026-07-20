@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { GET } from "@/app/api/game-keywords/route";
 import { d1Query } from "@/lib/d1";
-import { checkStudentAccess } from "@/lib/usage";
+import { requireEffectiveUser } from "@/lib/authz";
 
 const allowedAccess = {
   allowed: true as const,
@@ -16,14 +16,24 @@ const allowedAccess = {
   },
   quota: { used: 0, limit: 999 },
   trial: { active: true, daysLeft: 60, expiresAt: "2026-08-01T00:00:00Z" },
+  entitlement: {
+    allowed: true as const,
+    source: "course" as const,
+    planKey: "course" as const,
+    status: "trialing" as const,
+    expiresAt: "2026-08-01T00:00:00Z",
+  },
 };
 
-vi.mock("@/lib/auth_middleware", () => ({
-  authenticate: vi.fn(async () => ({ authenticated: true, userId: "user-1" })),
-}));
-
-vi.mock("@/lib/usage", () => ({
-  checkStudentAccess: vi.fn(async () => allowedAccess),
+vi.mock("@/lib/authz", () => ({
+  isAuthzError: vi.fn((value) => value instanceof Response),
+  requireEffectiveUser: vi.fn(async () => ({
+    userId: "user-1",
+    role: "student",
+    authMethod: "api_key",
+    scopes: ["cache:read"],
+    access: allowedAccess,
+  })),
 }));
 
 vi.mock("@/lib/d1", () => ({
@@ -35,12 +45,18 @@ vi.mock("@/config/business-rules", () => ({
 }));
 
 const mockD1Query = vi.mocked(d1Query);
-const mockCheckStudentAccess = vi.mocked(checkStudentAccess);
+const mockRequireEffectiveUser = vi.mocked(requireEffectiveUser);
 
 describe("GET /api/game-keywords", () => {
   beforeEach(() => {
     mockD1Query.mockReset();
-    mockCheckStudentAccess.mockResolvedValue(allowedAccess);
+    mockRequireEffectiveUser.mockResolvedValue({
+      userId: "user-1",
+      role: "student",
+      authMethod: "api_key",
+      scopes: ["cache:read"],
+      access: allowedAccess,
+    });
   });
 
   it("queries only fully verified recommended game keywords", async () => {
@@ -74,16 +90,20 @@ describe("GET /api/game-keywords", () => {
   });
 
   it("blocks pending students before reading game recommendations", async () => {
-    mockCheckStudentAccess.mockResolvedValue({
-      allowed: false,
-      reason: "账号已注册，等待管理员开通 90 天使用期",
-      code: "trial_inactive",
-    });
+    mockRequireEffectiveUser.mockResolvedValue(
+      NextResponse.json(
+        {
+          error: "账号已注册，等待管理员开通 90 天使用期",
+          code: "trial_inactive",
+        },
+        { status: 403 },
+      ),
+    );
 
     const response = await GET(new NextRequest("https://example.com/api/game-keywords"));
     const body = await response.json();
 
-    expect(response.status).toBe(429);
+    expect(response.status).toBe(403);
     expect(body.code).toBe("trial_inactive");
     expect(mockD1Query).not.toHaveBeenCalled();
   });

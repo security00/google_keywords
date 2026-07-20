@@ -11,8 +11,9 @@ vi.mock("@/lib/authz", () => ({
   requirePaidApiPermission: vi.fn(),
 }));
 
-vi.mock("@/lib/usage", () => ({
-  checkStudentAccess: vi.fn(async () => ({ allowed: true })),
+vi.mock("@/lib/entitlements", () => ({
+  accessDeniedStatus: vi.fn(() => 403),
+  checkEffectiveAccess: vi.fn(async () => ({ allowed: true })),
 }));
 
 vi.mock("@/lib/cache", () => ({
@@ -40,8 +41,8 @@ const mockGetSerpResults = vi.mocked(getSerpResults);
 describe("POST /api/research/serp", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetPrincipal.mockResolvedValue({ authMethod: "cron" });
-    mockRequirePaidApiPermission.mockResolvedValue({ authMethod: "cron" });
+    mockGetPrincipal.mockResolvedValue({ authMethod: "cron", scopes: [] });
+    mockRequirePaidApiPermission.mockResolvedValue({ authMethod: "cron", scopes: [] });
     mockGetCached.mockResolvedValue(null);
     mockGetLiveSerpResultsWithCost.mockResolvedValue({
       summaries:
@@ -109,7 +110,11 @@ describe("POST /api/research/serp", () => {
     expect(mockSetCache).toHaveBeenCalledTimes(1);
   });
   it("falls back to direct task_get when tasks_ready returns no completed ids", async () => {
-    mockGetPrincipal.mockResolvedValue({ authMethod: "api_key", userId: "user-1" });
+    mockGetPrincipal.mockResolvedValue({
+      authMethod: "api_key",
+      userId: "user-1",
+      scopes: ["cache:read"],
+    });
     mockWaitForSerpTasks.mockResolvedValue([]);
 
     const response = await POST(

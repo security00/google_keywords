@@ -184,7 +184,7 @@ def call_trends_api(api_url: str, api_key: str, keywords: list[str], *, days: in
     status_url = api_url.rstrip("/") + f"/api/research/trends/status?jobId={urllib.parse.quote(str(job_id))}"
     print(f"  trends job {job_id}", flush=True)
     while time.time() < deadline:
-        status = request_json(status_url, api_key=api_key, timeout=20)
+        status = request_json(status_url, api_key=api_key, method="POST", timeout=20)
         print(f"  trends status {status.get('status', 'unknown')}", flush=True)
         if status.get("status") == "complete" or status.get("results") is not None:
             return list(status.get("results") or [])

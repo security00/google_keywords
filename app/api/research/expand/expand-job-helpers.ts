@@ -1,20 +1,13 @@
-import { NextResponse } from "next/server";
-
 import {
-  buildFilterCacheKey,
   normalizeKeywords,
   organizeCandidates,
   flattenOrganizedCandidates,
-  resolveFilterConfig,
-  resolveDateRange,
-  submitExpansionTasks,
 } from "@/lib/keyword-research";
 import type { ExpandResponse } from "@/lib/types";
 import sharedKeywordDefaults from "@/config/shared-keyword-defaults.json";
 
-import { buildCacheKey, getCached, setCache } from "@/lib/cache";
-import { createJob, getJob } from "@/lib/research-jobs";
 import { d1Query } from "@/lib/d1";
+import { isCronRequest } from "@/lib/authz";
 
 const MAX_FALLBACK_EXPAND_RESPONSE_BYTES = 1_000_000;
 
@@ -38,21 +31,7 @@ const getGameKeywords = async () => {
   }
 };
 
-export const isCronAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET;
-  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
-  if (!secret && !externalSecret) return false;
-
-  const headerSecret = request.headers.get("x-cron-secret");
-  if (secret && headerSecret === secret) return true;
-  if (externalSecret && headerSecret === externalSecret) return true;
-
-  const authHeader = request.headers.get("authorization");
-  if (secret && authHeader === `Bearer ${secret}`) return true;
-  if (externalSecret && authHeader === `Bearer ${externalSecret}`) return true;
-
-  return false;
-};
+export const isCronAuthorized = isCronRequest;
 
 export const DEFAULT_SHARED_KEYWORDS = normalizeKeywords(
   Array.isArray(sharedKeywordDefaults.defaultKeywords)
@@ -81,6 +60,8 @@ export const parseResponseLimit = (value: unknown) => {
  */
 export const findCachedExpandFallback = async (keywords: string[]) => {
   const expected = toComparableKeywordList(keywords);
+  const now = new Date().toISOString();
+  const legacyCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { rows: trimRows } = await d1Query<{
     response_data: string;
@@ -90,8 +71,14 @@ export const findCachedExpandFallback = async (keywords: string[]) => {
     `SELECT response_data, cache_key, created_at
      FROM query_cache
      WHERE cache_key LIKE '%:expand_result:%:_trimmed'
+       AND cache_scope = 'shared'
+       AND (
+         (namespace = 'expand-result' AND expires_at > ?)
+         OR (namespace = 'legacy' AND created_at > ?)
+       )
      ORDER BY created_at DESC
-     LIMIT 10`
+     LIMIT 10`,
+    [now, legacyCutoff]
   );
 
   for (const row of trimRows) {
@@ -123,8 +110,14 @@ export const findCachedExpandFallback = async (keywords: string[]) => {
     `SELECT response_data, cache_key, created_at
      FROM query_cache
      WHERE cache_key LIKE '%:expand_result:%' AND cache_key NOT LIKE '%:_trimmed'
+       AND cache_scope = 'shared'
+       AND (
+         (namespace = 'expand-result' AND expires_at > ?)
+         OR (namespace = 'legacy' AND created_at > ?)
+       )
      ORDER BY created_at DESC
-     LIMIT 20`
+     LIMIT 20`,
+    [now, legacyCutoff]
   );
 
   for (const row of fullRows) {

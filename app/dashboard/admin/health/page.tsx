@@ -19,6 +19,40 @@ type HealthItem = {
   intentJobId?: string | null;
 };
 
+type PipelineRunHealth = {
+  pipeline: string;
+  run_id: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  duration_seconds: number | null;
+  error: string | null;
+  actual_cost_usd: number | null;
+  estimated_cost_usd: number | null;
+  accounted_cost_usd: number | null;
+  cost_event_count: number;
+  failed_task_count: number;
+};
+
+type OperationsHealth = {
+  available: boolean;
+  latestRuns: PipelineRunHealth[];
+  totals: {
+    running_count: number;
+    failed_runs_24h: number;
+    failed_tasks_24h: number;
+    actual_cost_24h: number | null;
+    estimated_cost_24h: number | null;
+    accounted_cost_24h: number | null;
+    platform_cost_24h: number | null;
+    user_cost_24h: number | null;
+    stale_running_count: number;
+    orphan_task_cost_count: number;
+    missing_event_key_24h: number;
+  } | null;
+  error?: string;
+};
+
 const statusConfig: Record<
   string,
   { label: string; icon: typeof CheckCircle2; className: string }
@@ -40,9 +74,13 @@ const statusConfig: Record<
 const formatTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString("zh-CN", { hour12: false }) : "-";
 
+const formatCost = (value?: number | null) =>
+  value === null || value === undefined ? "-" : `$${Number(value).toFixed(4)}`;
+
 export default function AdminHealthPage() {
   const [latest, setLatest] = useState<HealthItem | null>(null);
   const [items, setItems] = useState<HealthItem[]>([]);
+  const [operations, setOperations] = useState<OperationsHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +100,7 @@ export default function AdminHealthPage() {
       }
       setLatest(data.latest ?? null);
       setItems(Array.isArray(data.items) ? data.items : []);
+      setOperations(data.operations ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "加载失败");
     } finally {
@@ -106,6 +145,40 @@ export default function AdminHealthPage() {
       </div>
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">{error}</div>}
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">管线运行概况</h3>
+          <p className="text-sm text-muted-foreground">只读汇总最近运行、失败任务和过去 24 小时成本。</p>
+        </div>
+        {!operations?.available ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            管线账本暂不可用：{operations?.error || "暂无数据"}
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <HealthStat label="运行中" value={operations.totals?.running_count ?? 0} />
+              <HealthStat label="24h 失败 run" value={operations.totals?.failed_runs_24h ?? 0} warning={(operations.totals?.failed_runs_24h ?? 0) > 0} />
+              <HealthStat label="24h 失败 task" value={operations.totals?.failed_tasks_24h ?? 0} warning={(operations.totals?.failed_tasks_24h ?? 0) > 0} />
+              <HealthStat label="24h 计入成本" value={formatCost(operations.totals?.accounted_cost_24h)} />
+              <HealthStat label="陈旧运行 (>2h)" value={operations.totals?.stale_running_count ?? 0} warning={(operations.totals?.stale_running_count ?? 0) > 0} />
+              <HealthStat label="孤立成本事件" value={operations.totals?.orphan_task_cost_count ?? 0} warning={(operations.totals?.orphan_task_cost_count ?? 0) > 0} />
+              <HealthStat label="24h 无幂等键成本" value={operations.totals?.missing_event_key_24h ?? 0} warning={(operations.totals?.missing_event_key_24h ?? 0) > 0} />
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-border/70 bg-card/90 shadow-sm">
+              <table className="w-full min-w-[820px] text-sm">
+                <thead><tr className="border-b bg-muted/40">
+                  <th className="px-4 py-3 text-left">Pipeline</th><th className="px-4 py-3 text-left">状态</th><th className="px-4 py-3 text-left">最近开始</th><th className="px-4 py-3 text-left">耗时</th><th className="px-4 py-3 text-left">失败任务</th><th className="px-4 py-3 text-left">成本</th><th className="px-4 py-3 text-left">错误</th>
+                </tr></thead>
+                <tbody>{operations.latestRuns.length === 0 ? <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">暂无最近运行记录</td></tr> : operations.latestRuns.map((run) => <tr key={run.run_id} className="border-b last:border-b-0">
+                  <td className="px-4 py-3 font-medium">{run.pipeline}</td><td className="px-4 py-3">{run.status}</td><td className="px-4 py-3 whitespace-nowrap">{formatTime(run.started_at)}</td><td className="px-4 py-3">{run.duration_seconds ?? "-"}s</td><td className="px-4 py-3">{run.failed_task_count}</td><td className="px-4 py-3">{formatCost(run.accounted_cost_usd)}</td><td className="max-w-[280px] truncate px-4 py-3 text-red-600" title={run.error || ""}>{run.error || "-"}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
 
       <div className="rounded-2xl border border-border/70 bg-card/90 p-5 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -175,4 +248,8 @@ export default function AdminHealthPage() {
       </div>
     </div>
   );
+}
+
+function HealthStat({ label, value, warning = false }: { label: string; value: string | number; warning?: boolean }) {
+  return <div className={`rounded-xl border p-4 ${warning ? "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/40" : "border-border/70 bg-card/90"}`}><div className="text-sm text-muted-foreground">{label}</div><div className={`mt-1 text-2xl font-semibold ${warning ? "text-amber-700 dark:text-amber-300" : ""}`}>{value}</div></div>;
 }

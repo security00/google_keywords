@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authenticate } from "@/lib/auth_middleware";
+import { isAuthzError, requireUser } from "@/lib/authz";
 import { createPasswordHash, verifyPassword } from "@/lib/auth";
 import { d1Query } from "@/lib/d1";
 
@@ -9,10 +9,8 @@ export const dynamic = "force-dynamic";
 
 // POST /api/auth/change-password
 export async function POST(req: NextRequest) {
-  const auth = await authenticate(req);
-  if (!auth.authenticated || !auth.userId) {
-    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requireUser(req);
+  if (isAuthzError(principal)) return principal;
 
   const body = await req.json().catch(() => ({}));
   const { currentPassword, newPassword } = body;
@@ -26,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const { rows } = await d1Query<{ password_hash: string }>(
     "SELECT password_hash FROM auth_users_v2 WHERE id = ?",
-    [auth.userId]
+    [principal.userId]
   );
   if (!rows || rows.length === 0) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -38,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   const hash = await createPasswordHash(newPassword);
-  await d1Query("UPDATE auth_users_v2 SET password_hash = ? WHERE id = ?", [hash, auth.userId]);
+  await d1Query("UPDATE auth_users_v2 SET password_hash = ? WHERE id = ?", [hash, principal.userId]);
 
   return NextResponse.json({ success: true });
 }

@@ -26,7 +26,25 @@ jobs:
         run: npm test
 
       - name: Run Python tests
-        run: python3 -m unittest discover tests
+        run: npm run test:python
+
+      - name: Check student paid-provider guards
+        run: npm run check:student-paid-guards
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check D1 migrations
+        run: npm run check:migrations
+
+      - name: Check Cloudflare binding types
+        run: npm run check:cf-types
+
+      - name: Audit dependencies
+        run: npm run check:audit
 
       - name: Check business rules sync
         run: node scripts/check-business-rules.mjs
@@ -35,7 +53,7 @@ jobs:
         run: npx opennextjs-cloudflare build
 
       - name: Deploy to Cloudflare
-        run: npx wrangler@4.83.0 deploy --config wrangler.jsonc
+        run: npx wrangler deploy --config wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

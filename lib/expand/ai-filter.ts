@@ -3,26 +3,29 @@ import {
   OPENROUTER_REQUEST_TIMEOUT_MS,
   OPENROUTER_BATCH_SIZE,
   SERP_LLM_RESULTS,
-  requestWithRetry,
 } from "../dataforseo-client";
 import { createBatches } from "../keyword-utils";
 import { submitSerpTasks, waitForSerpTasks, getSerpResults } from "../serp";
 import {
   type FilterConfig,
   type SerpSummary,
-  getOpenRouterConfig,
-  buildOpenRouterHeaders,
   extractJsonBlock,
   extractResponseText,
   ruleBasedBlockKeyword,
   shouldUseSerpForKeyword,
 } from "./expand-helpers";
+import type { DataForSeoClient } from "../providers/dataforseo";
+import { getPlatformDataForSeoClient } from "../providers/dataforseo";
+import type { ChatCompletionClient } from "../providers/llm";
+import { getPlatformOpenRouterClient } from "../providers/openrouter";
 
 export const filterCandidatesWithModel = async (
   candidates: Candidate[],
   config: FilterConfig,
   options: {
     debug?: boolean;
+    providerClient?: DataForSeoClient;
+    llmClient?: ChatCompletionClient | null;
   } = {}
 ) => {
   const log = (message: string, meta?: Record<string, unknown>) => {
@@ -50,12 +53,15 @@ export const filterCandidatesWithModel = async (
     return { filtered: candidates, blocked: [] as Candidate[], summary };
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
+  const llmClient = options.llmClient === undefined
+    ? getPlatformOpenRouterClient()
+    : options.llmClient;
+  if (!llmClient) {
     summary.skippedReason = "OPENROUTER_API_KEY is not configured";
     log("[filter] skipped", { reason: "missing_api_key" });
     return { filtered: candidates, blocked: [] as Candidate[], summary };
   }
+  summary.model = llmClient.model;
 
   const uniqueKeywords = new Map<string, Candidate>();
   for (const candidate of candidates) {
@@ -91,7 +97,7 @@ export const filterCandidatesWithModel = async (
     preBlocked: preBlocked.size,
     serp: serpKeywords.length,
     keepDirect: keepDirect.length,
-    model: config.model,
+    model: llmClient.model,
     serpSample: sampleList(serpKeywords),
     keepSample: sampleList(keepDirect),
     filterTermsCount: config.terms.length,
@@ -100,7 +106,6 @@ export const filterCandidatesWithModel = async (
 
   const blocked = new Set<string>(preBlocked);
 
-  const { baseUrl, model } = getOpenRouterConfig();
   const baseSystemPrompt = [
     "You are a keyword filtering assistant for discovering NEW, EMERGING keywords with commercial potential.",
     "Your primary job is to distinguish between SUSTAINED DEMAND (keep) and SHORT-TERM HYPE (block).",
@@ -144,8 +149,7 @@ export const filterCandidatesWithModel = async (
         sample: sampleList(batch.map((item) => item.keyword)),
       });
 
-      const payload = {
-        model,
+      const payload: import("../providers/llm").ChatCompletionInput = {
         temperature: 0,
         messages: [
           {
@@ -183,16 +187,10 @@ export const filterCandidatesWithModel = async (
 
       try {
         const beforeBlocked = blocked.size;
-        const result = await requestWithRetry(
-          "post",
-          `${baseUrl}/chat/completions`,
-          {
-            headers: buildOpenRouterHeaders(),
-            body: JSON.stringify(payload),
-          },
-          3,
-          OPENROUTER_REQUEST_TIMEOUT_MS
-        );
+        const result = await llmClient.complete(payload, {
+          maxRetries: 3,
+          timeoutMs: OPENROUTER_REQUEST_TIMEOUT_MS,
+        });
 
         const content =
           result?.choices?.[0]?.message?.content ??
@@ -246,11 +244,12 @@ export const filterCandidatesWithModel = async (
       sample: sampleList(serpKeywords),
     });
     try {
-      const taskIds = await submitSerpTasks(serpKeywords);
+      const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
+      const taskIds = await submitSerpTasks(serpKeywords, { providerClient });
       log("[filter] serp tasks submitted", { taskCount: taskIds.length });
-      const completed = await waitForSerpTasks(taskIds);
+      const completed = await waitForSerpTasks(taskIds, { providerClient });
       log("[filter] serp tasks ready", { readyCount: completed.length });
-      const summaries = await getSerpResults(completed);
+      const summaries = await getSerpResults(completed, { providerClient });
       log("[filter] serp results", { summaries: summaries.size });
 
       const summariesForModel: SerpSummary[] = [];
@@ -309,6 +308,7 @@ export const filterCandidatesWithKeywordModel = async (
     debug?: boolean;
     batchSize?: number;
     maxCandidates?: number;
+    llmClient?: ChatCompletionClient | null;
   } = {}
 ) => {
   const log = (message: string, meta?: Record<string, unknown>) => {
@@ -333,10 +333,14 @@ export const filterCandidatesWithKeywordModel = async (
     return { filtered: candidates, blocked: [] as Candidate[], summary };
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  const llmClient = options.llmClient === undefined
+    ? getPlatformOpenRouterClient()
+    : options.llmClient;
+  if (!llmClient) {
     summary.skippedReason = "OPENROUTER_API_KEY is not configured";
     return { filtered: candidates, blocked: [] as Candidate[], summary };
   }
+  summary.model = llmClient.model;
 
   const uniqueCandidates = new Map<string, Candidate>();
   for (const candidate of candidates) {
@@ -352,7 +356,6 @@ export const filterCandidatesWithKeywordModel = async (
   const candidatesForModel = Array.from(uniqueCandidates.values()).slice(0, maxCandidates);
   const batches = createBatches(candidatesForModel, batchSize);
   const blocked = new Set<string>();
-  const { baseUrl, model } = getOpenRouterConfig();
   const startedAt = Date.now();
 
   const systemPrompt = [
@@ -367,8 +370,7 @@ export const filterCandidatesWithKeywordModel = async (
 
   for (let index = 0; index < batches.length; index += 1) {
     const batch = batches[index];
-    const payload = {
-      model,
+    const payload: import("../providers/llm").ChatCompletionInput = {
       temperature: 0,
       messages: [
         {
@@ -401,16 +403,10 @@ export const filterCandidatesWithKeywordModel = async (
     };
 
     try {
-      const response = await requestWithRetry(
-        "post",
-        `${baseUrl}/chat/completions`,
-        {
-          headers: buildOpenRouterHeaders(),
-          body: JSON.stringify(payload),
-        },
-        2,
-        OPENROUTER_REQUEST_TIMEOUT_MS
-      );
+      const response = await llmClient.complete(payload, {
+        maxRetries: 2,
+        timeoutMs: OPENROUTER_REQUEST_TIMEOUT_MS,
+      });
       const content = extractResponseText(response);
       const parsed = extractJsonBlock(content);
       const blockedList = Array.isArray(parsed?.blocked) ? parsed.blocked : [];

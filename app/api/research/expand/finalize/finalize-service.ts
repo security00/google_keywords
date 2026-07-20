@@ -7,27 +7,16 @@ import {
 } from "@/lib/keyword-research";
 import type { Candidate, ExpandResponse } from "@/lib/types";
 import { d1Query } from "@/lib/d1";
-import { getJobById, updateJobStatus } from "@/lib/research-jobs";
+import {
+  claimInternalJob,
+  finishInternalClaimedJob,
+  getInternalJobById,
+} from "@/lib/research-jobs";
 import { batchScoreKeywords, classifyKeywordPipeline } from "@/lib/rule-engine";
 import { setCache } from "@/lib/cache";
+import { isCronRequest } from "@/lib/authz";
 
 const D1_IN_QUERY_CHUNK_SIZE = 100;
-
-const isCronAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET;
-  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
-  if (!secret && !externalSecret) return false;
-
-  const headerSecret = request.headers.get("x-cron-secret");
-  if (secret && headerSecret === secret) return true;
-  if (externalSecret && headerSecret === externalSecret) return true;
-
-  const authHeader = request.headers.get("authorization");
-  if (secret && authHeader === `Bearer ${secret}`) return true;
-  if (externalSecret && authHeader === `Bearer ${externalSecret}`) return true;
-
-  return false;
-};
 
 const loadPostbackResults = async (taskIds: string[]) => {
   const rows: { task_id: string; result_data: string }[] = [];
@@ -106,7 +95,7 @@ const parseCandidatesFromPostbacks = (postbackResults: string[]) => {
 };
 
 export async function handleFinalizeGet(request: Request) {
-  if (!isCronAuthorized(request)) {
+  if (!(await isCronRequest(request))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -116,9 +105,12 @@ export async function handleFinalizeGet(request: Request) {
     return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
   }
 
-  const job = await getJobById(jobId, "expand");
+  const job = await getInternalJobById(jobId, "expand");
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  }
+  if (job.status === "failed") {
+    return NextResponse.json({ status: "failed", error: job.error ?? "Job failed" });
   }
 
   const payload = job.payload ?? {};
@@ -151,6 +143,19 @@ export async function handleFinalizeGet(request: Request) {
     return NextResponse.json({
       status: "pending",
       ready: availableIds.length,
+      total: job.task_ids.length,
+    });
+  }
+
+  const claim =
+    job.status === "complete"
+      ? null
+      : await claimInternalJob(job.id, "expand");
+  if (job.status !== "complete" && !claim) {
+    return NextResponse.json({
+      status: "pending",
+      stage: "processing",
+      ready: postbackResults.length,
       total: job.task_ids.length,
     });
   }
@@ -201,11 +206,23 @@ export async function handleFinalizeGet(request: Request) {
     },
   };
 
-  if (sharedResultCacheKey) {
-    await setCache(sharedResultCacheKey, response);
+  if (sharedResultCacheKey && claim) {
+    await setCache(sharedResultCacheKey, response, {
+      namespace: "expand-result",
+    });
   }
 
-  await updateJobStatus(job.id, "complete", { sessionId: null });
+  if (claim) {
+    const finished = await finishInternalClaimedJob(
+      job.id,
+      claim.token,
+      "complete",
+      { sessionId: null },
+    );
+    if (!finished) {
+      throw new Error("Finalize job claim lost before completion");
+    }
+  }
 
   return NextResponse.json({
     status: "complete",

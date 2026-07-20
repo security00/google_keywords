@@ -1,4 +1,4 @@
-import type { CompareResponse, ComparisonSignalConfig } from "@/lib/types";
+import type { ComparisonSignalConfig } from "@/lib/types";
 import { d1Query } from "@/lib/d1";
 
 export const METRICS_VERSION = "v1";

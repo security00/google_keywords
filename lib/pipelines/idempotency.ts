@@ -58,19 +58,20 @@ export const makePipelineTaskKey = (input: {
   )}:${hashPayload(input.payload ?? {}).slice(0, 24)}`;
 
 export const makeCostEventKey = (input: {
+  runId?: string | null;
   provider: string;
   endpoint: string;
   idempotencyKey?: string | null;
   taskId?: string | null;
+  researchJobId?: string | null;
   providerRequestId?: string | null;
   payload?: unknown;
 }) => {
-  const basis =
-    input.providerRequestId ||
-    input.idempotencyKey ||
-    input.taskId ||
-    hashPayload(input.payload ?? {});
-  return `cost:${normalizePart(input.provider)}:${normalizePart(input.endpoint)}:${hashPayload(
+  const localBasis =
+    input.idempotencyKey || input.taskId || hashPayload(input.payload ?? {});
+  const basis = input.providerRequestId || input.researchJobId ||
+    (input.runId ? `${input.runId}:${localBasis}` : localBasis);
+  return `cost:${normalizePart(input.provider)}:${normalizePart(input.endpoint)}:${sha256Hex(
     basis
   ).slice(0, 24)}`;
 };

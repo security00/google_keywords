@@ -1,11 +1,17 @@
 import type { SerpSummary } from "../serp";
 import {
   FILTER_CACHE_VERSION,
-  DEFAULT_OPENROUTER_BASE_URL,
-  DEFAULT_OPENROUTER_MODEL,
   DEFAULT_FILTER_TERMS,
 } from "../dataforseo-client";
 import { normalizeFilterTerms } from "../keyword-utils";
+import {
+  DEFAULT_OPENROUTER_MODEL,
+  getPlatformOpenRouterSettings,
+} from "../providers/openrouter";
+import {
+  extractChatResponseText,
+  extractJsonObject,
+} from "../providers/chat-response";
 
 export type FilterConfig = {
   enabled: boolean;
@@ -18,30 +24,35 @@ export const resolveFilterConfig = ({
   useFilter,
   overrideTerms,
   prompt,
+  model: modelOverride,
 }: {
   useFilter: boolean;
   overrideTerms?: string[];
   prompt?: string;
+  model?: string;
 }) => {
   const terms = overrideTerms?.length
     ? normalizeFilterTerms(overrideTerms)
     : getFilterTerms();
   const cleanedPrompt =
     typeof prompt === "string" && prompt.trim() ? prompt.trim() : undefined;
+  const resolvedModel =
+    typeof modelOverride === "string" && modelOverride.trim()
+      ? modelOverride.trim()
+      : getOpenRouterConfig().model;
 
   if (!useFilter) {
     return {
       enabled: false,
-      model: DEFAULT_OPENROUTER_MODEL,
+      model: resolvedModel || DEFAULT_OPENROUTER_MODEL,
       terms,
       prompt: cleanedPrompt,
     } satisfies FilterConfig;
   }
 
-  const { model } = getOpenRouterConfig();
   return {
     enabled: true,
-    model,
+    model: resolvedModel,
     terms,
     prompt: cleanedPrompt,
   } satisfies FilterConfig;
@@ -92,73 +103,12 @@ export const getSerpCacheKeyPart = () => {
 };
 
 export const getOpenRouterConfig = () => {
-  const baseUrl = (process.env.OPENROUTER_BASE_URL || DEFAULT_OPENROUTER_BASE_URL)
-    .replace(/\/+$/, "");
-  const model = process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL;
-  return { baseUrl, model };
+  const settings = getPlatformOpenRouterSettings();
+  return { model: settings.model || DEFAULT_OPENROUTER_MODEL };
 };
 
-export const buildOpenRouterHeaders = () => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing OPENROUTER_API_KEY in environment variables.");
-  }
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-  };
-
-  const referer = process.env.OPENROUTER_SITE_URL;
-  const title = process.env.OPENROUTER_APP_NAME;
-
-  if (referer) headers["HTTP-Referer"] = referer;
-  if (title) headers["X-Title"] = title;
-
-  return headers satisfies HeadersInit;
-};
-
-export const extractJsonBlock = (text: string) => {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]);
-  } catch {
-    return null;
-  }
-};
-
-export const extractResponseText = (result: unknown) => {
-  const response = result as {
-    output_text?: string;
-    output?: Array<{
-      type?: string;
-      content?: Array<{ type?: string; text?: string }>;
-    }>;
-    choices?: Array<{ message?: { content?: string }; text?: string }>;
-  };
-
-  if (typeof response?.output_text === "string" && response.output_text) {
-    return response.output_text;
-  }
-
-  const output = response?.output;
-  if (Array.isArray(output)) {
-    for (const item of output) {
-      if (item?.type !== "message" || !Array.isArray(item.content)) continue;
-      const text = item.content.find(
-        (content) => content?.type === "output_text"
-      )?.text;
-      if (text) return text;
-    }
-  }
-
-  return (
-    response?.choices?.[0]?.message?.content ??
-    response?.choices?.[0]?.text ??
-    ""
-  );
-};
+export const extractJsonBlock = extractJsonObject;
+export const extractResponseText = extractChatResponseText;
 
 const AI_HINTS = [
   "ai", "gpt", "llm", "agent", "chatbot", "prompt", "model", "rag",

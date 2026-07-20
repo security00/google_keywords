@@ -3,7 +3,13 @@ import "server-only";
 import { randomUUID } from "crypto";
 
 import { d1Query } from "@/lib/d1";
-import { getUserWithMeta, isTrialActive } from "@/lib/usage";
+import {
+  checkApiQuota,
+  checkStudentAccess,
+  getUserWithMeta,
+  isTrialActive,
+  type AccessCheckResult,
+} from "@/lib/usage";
 
 export type PlanKey = "founding" | "scout" | "builder" | "studio" | "course" | "admin";
 export type EntitlementSource = "stripe" | "course" | "admin" | "none";
@@ -19,6 +25,19 @@ export type SaasEntitlement = {
   briefUsed: number;
   reason?: string;
 };
+
+export type EffectiveEntitlement = Omit<
+  SaasEntitlement,
+  "briefLimit" | "briefUsed"
+>;
+
+export type EffectiveAccessResult =
+  | (Extract<AccessCheckResult, { allowed: true }> & {
+      entitlement: EffectiveEntitlement;
+    })
+  | (Extract<AccessCheckResult, { allowed: false }> & {
+      entitlement: EffectiveEntitlement;
+    });
 
 type SubscriptionRow = {
   plan_key: string;
@@ -102,7 +121,9 @@ export async function getActiveStripeSubscription(userId: string) {
   };
 }
 
-export async function getSaasEntitlement(userId: string): Promise<SaasEntitlement> {
+export async function getEffectiveEntitlement(
+  userId: string,
+): Promise<EffectiveEntitlement> {
   const user = await getUserWithMeta(userId);
   if (!user) {
     return {
@@ -111,53 +132,39 @@ export async function getSaasEntitlement(userId: string): Promise<SaasEntitlemen
       planKey: null,
       status: "none",
       expiresAt: null,
-      briefLimit: 0,
-      briefUsed: 0,
       reason: "User not found",
     };
   }
 
   if (user.role === "admin") {
-    const limit = briefLimitFor("admin", "admin");
-    const usage = await getBriefUsage(userId, limit);
     return {
       allowed: true,
       source: "admin",
       planKey: "admin",
       status: "active",
       expiresAt: null,
-      briefLimit: usage.limit,
-      briefUsed: usage.used,
     };
   }
 
   const stripe = await getActiveStripeSubscription(userId);
   if (stripe?.active) {
-    const limit = briefLimitFor(stripe.planKey, "stripe");
-    const usage = await getBriefUsage(userId, limit);
     return {
       allowed: true,
       source: "stripe",
       planKey: stripe.planKey,
       status: stripe.status as EntitlementStatus,
       expiresAt: stripe.expiresAt,
-      briefLimit: usage.limit,
-      briefUsed: usage.used,
     };
   }
 
   const trial = isTrialActive(user);
   if (trial.active) {
-    const limit = briefLimitFor("course", "course");
-    const usage = await getBriefUsage(userId, limit);
     return {
       allowed: true,
       source: "course",
       planKey: "course",
       status: "trialing",
       expiresAt: trial.expiresAt,
-      briefLimit: usage.limit,
-      briefUsed: usage.used,
     };
   }
 
@@ -167,8 +174,84 @@ export async function getSaasEntitlement(userId: string): Promise<SaasEntitlemen
     planKey: stripe?.planKey ?? null,
     status: (stripe?.status as EntitlementStatus | undefined) ?? "expired",
     expiresAt: stripe?.expiresAt ?? user.trialExpiresAt,
-    briefLimit: 0,
-    briefUsed: 0,
     reason: user.trialExpiresAt ? "Trial expired. Subscription required." : "Activation or subscription required.",
+  };
+}
+
+export async function checkEffectiveAccess(
+  userId: string,
+): Promise<EffectiveAccessResult> {
+  const entitlement = await getEffectiveEntitlement(userId);
+
+  if (!entitlement.allowed) {
+    const access = await checkStudentAccess(userId);
+    return { ...access, entitlement };
+  }
+
+  if (entitlement.source !== "stripe") {
+    const access = await checkStudentAccess(userId);
+    return { ...access, entitlement };
+  }
+
+  const user = await getUserWithMeta(userId);
+  if (!user) {
+    return {
+      allowed: false,
+      reason: "用户不存在",
+      code: "unauthorized",
+      entitlement: {
+        allowed: false,
+        source: "none",
+        planKey: null,
+        status: "none",
+        expiresAt: null,
+        reason: "User not found",
+      },
+    };
+  }
+
+  const quota = await checkApiQuota(userId);
+  if (!quota.allowed) {
+    return {
+      allowed: false,
+      reason: `今日 API 调用已达上限（${quota.used}/${quota.limit}），明天再来`,
+      code: "quota_exceeded",
+      entitlement,
+    };
+  }
+
+  return {
+    allowed: true,
+    user,
+    quota,
+    trial: isTrialActive(user),
+    entitlement,
+  };
+}
+
+export function accessDeniedStatus(
+  code: Extract<EffectiveAccessResult, { allowed: false }>["code"],
+): 401 | 403 | 429 {
+  if (code === "unauthorized") return 401;
+  if (code === "quota_exceeded") return 429;
+  return 403;
+}
+
+export async function getSaasEntitlement(userId: string): Promise<SaasEntitlement> {
+  const entitlement = await getEffectiveEntitlement(userId);
+  if (!entitlement.allowed || !entitlement.planKey) {
+    return {
+      ...entitlement,
+      briefLimit: 0,
+      briefUsed: 0,
+    };
+  }
+
+  const limit = briefLimitFor(entitlement.planKey, entitlement.source);
+  const usage = await getBriefUsage(userId, limit);
+  return {
+    ...entitlement,
+    briefLimit: usage.limit,
+    briefUsed: usage.used,
   };
 }

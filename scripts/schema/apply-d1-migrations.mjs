@@ -54,7 +54,11 @@ async function d1(sql, params = []) {
 }
 
 function checksum(content) {
-  return createHash("sha256").update(content).digest("hex");
+  // Migration files are immutable, but Git may materialize them with CRLF on
+  // Windows. Hash the canonical LF representation so the same migration has
+  // one checksum across developer machines and CI runners.
+  const canonicalContent = content.replace(/\r\n/g, "\n");
+  return createHash("sha256").update(canonicalContent).digest("hex");
 }
 
 const files = readdirSync(migrationsDir)

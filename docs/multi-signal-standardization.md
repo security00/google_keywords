@@ -57,9 +57,11 @@ Each evidence item contains:
 
 ## Next Implementation Slice
 
-Improve the review workflow before adding new platforms:
+Review actions are now implemented in the admin API and page. The next slice is
+to improve their operational visibility before adding new platforms:
 
-- Add explicit review actions before candidates reach paid expand.
+- Add queue-age, approve/reject-rate, rejection-reason, and bridge-conversion
+  metrics.
 - Treat X and Facebook as adapter design work first, not production ingestion.
 
 ## Extraction Quality Status
@@ -72,7 +74,8 @@ Improve the review workflow before adding new platforms:
 ## Review Queue Status
 
 - `scripts/signal_review_queue.py` provides a read-only CLI for status distribution, rejected reason counts, and top candidates.
-- `/dashboard/admin/signal-review` provides a read-only admin page backed by `/api/admin/signal-review`.
-- Both surfaces do not update `signal_candidates`.
+- `/dashboard/admin/signal-review` is backed by `/api/admin/signal-review`.
+- The admin API/page support authorized approve/reject actions; the CLI remains read-only.
 - Both surfaces support legacy provider-map `signal_sources` JSON and standardized evidence JSON.
-- The admin page is the safe precursor to future approve/reject actions.
+- Approval is still only a gate for `signal_bridge.py`; it does not directly
+  create student recommendations.

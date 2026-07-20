@@ -123,12 +123,22 @@ Open <http://localhost:3000>.
 ### Validate
 
 ```bash
-npm run build
+npm test
+npm run test:python
 npm run lint
+npm run check:student-paid-guards
+npm run typecheck
+npm run check:migrations
+npm run check:cf-types
+npm run check:audit
 node scripts/check-business-rules.mjs
+npm run build
 ```
 
-`npm run build` is the minimum required gate before merging or deploying code changes.
+The Python npm scripts discover `py -3`, `python3`, or `python` and force
+UTF-8 console output so the same commands work on Windows and Linux. The full
+set above is the required local gate for changes that touch research, auth,
+caching, Pipeline, or Provider behavior.
 
 ## Environment variables
 
@@ -192,9 +202,10 @@ GitHub Actions workflow: `.github/workflows/deploy.yml`
 Pipeline:
 
 1. `npm ci`
-2. `node scripts/check-business-rules.mjs`
-3. `npx opennextjs-cloudflare build`
-4. `npx wrangler deploy --config wrangler.jsonc`
+2. Vitest and Python unittest
+3. `node scripts/check-business-rules.mjs`
+4. `npx opennextjs-cloudflare build`
+5. `npx wrangler deploy --config wrangler.jsonc`
 
 Useful commands:
 
@@ -256,7 +267,11 @@ Do not commit:
 
 ## Related docs
 
+- [`CONTEXT.md`](./CONTEXT.md) — domain language and non-negotiable boundaries
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — detailed system architecture
+- [`docs/adr/`](./docs/adr/) — accepted architecture decisions
+- [`docs/execution-roadmap.md`](./docs/execution-roadmap.md) — ordered delivery status
+- [`docs/technical-debt-register.md`](./docs/technical-debt-register.md) — debt evidence and closure criteria
 - [`CHANGELOG.md`](./CHANGELOG.md) — project change history
 - [`FILTER_RULES.md`](./FILTER_RULES.md) — filtering/business rule notes
 - [`SESSION_HANDOFF_2026-04-18.md`](./SESSION_HANDOFF_2026-04-18.md) — historical handoff context
