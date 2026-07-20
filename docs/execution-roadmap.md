@@ -36,6 +36,16 @@ the browser.
 
 ## Execution Log
 
+- 2026-07-20, repository-driven production delivery: merged PR #1 at
+  `47fcbe19873df8b9111e3d351a1da9ca5e382397`. The first main workflow stopped
+  safely before Worker deployment because migration 0019 had a verified legacy
+  production checksum. PR #2 added a fail-closed checksum alias without
+  changing D1 data and was merged at
+  `1c1634f199abedb1839b04384049709b06a9285a`. The follow-up workflow completed
+  migration verification, a 100% deployment, and no-cost smoke checks. Worker
+  version `3adcfc18-8ab2-454e-9b90-91af4925b099` is the current production
+  version; `54604d83-bbc6-4a35-8878-55f3f9cf24e4` is the preceding healthy
+  application version.
 - 2026-07-20, production rollout: reconciled the remote migration ledger,
   captured a D1 Time Travel rollback bookmark, and applied migrations 0016-0019
   in order before changing Worker traffic. Built the application in Linux after
