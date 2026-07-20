@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-
 import {
   organizeCandidates,
   flattenOrganizedCandidates,
@@ -7,6 +5,7 @@ import {
 import type { ExpandResponse } from "@/lib/types";
 import type { FilterConfig } from "@/lib/keyword-research";
 import { d1Query } from "@/lib/d1";
+import { isCronRequest } from "@/lib/authz";
 
 export const D1_IN_QUERY_CHUNK_SIZE = 100;
 export const EXPAND_PARTIAL_COMPLETE_MIN_TOTAL = 20;
@@ -183,18 +182,4 @@ export const parseFilterConfig = (value: unknown): FilterConfig | null => {
   };
 };
 
-export const isCronAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET;
-  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
-  if (!secret && !externalSecret) return false;
-
-  const headerSecret = request.headers.get("x-cron-secret");
-  if (secret && headerSecret === secret) return true;
-  if (externalSecret && headerSecret === externalSecret) return true;
-
-  const authHeader = request.headers.get("authorization");
-  if (secret && authHeader === `Bearer ${secret}`) return true;
-  if (externalSecret && authHeader === `Bearer ${externalSecret}`) return true;
-
-  return false;
-};
+export const isCronAuthorized = isCronRequest;

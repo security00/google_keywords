@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authenticate } from "@/lib/auth_middleware";
+import { isAuthzError, requireEffectiveUser } from "@/lib/authz";
 import { fetchSessionPayload } from "@/lib/session-store";
 
 export const runtime = "nodejs";
@@ -8,15 +8,12 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticate(request);
-    if (!auth.authenticated) { return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 }); }
-    const user = { id: auth.userId! };
+    const principal = await requireEffectiveUser(request, {
+      allowLegacyQueryKey: true,
+    });
+    if (isAuthzError(principal)) return principal;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await fetchSessionPayload(user.id);
+    const payload = await fetchSessionPayload(principal.userId);
     if (!payload) {
       return NextResponse.json({ session: null });
     }

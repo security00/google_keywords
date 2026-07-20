@@ -22,9 +22,9 @@ const authOptions = [
     code: "Authorization: Bearer gk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
   },
   {
-    title: "Query parameter",
-    text: "Supported for simple polling and lightweight integrations.",
-    code: "GET /api/research/expand/status?jobId=...&api_key=gk_live_xxx",
+    title: "Bearer polling",
+    text: "Use the same Authorization header when polling asynchronous job status.",
+    code: "POST /api/research/expand/status?jobId=...\nAuthorization: Bearer gk_live_xxx",
   },
   {
     title: "Session cookie",
@@ -49,9 +49,9 @@ const endpoints = [
     group: "Research",
     items: [
       ["POST", "/api/research/expand", "Submit keyword expansion jobs."],
-      ["GET", "/api/research/expand/status", "Poll expansion job status and final cached results."],
+      ["POST", "/api/research/expand/status", "Advance an owned expansion job and return its status."],
       ["POST", "/api/research/compare", "Compare keyword groups and trend movement."],
-      ["GET", "/api/research/compare/status", "Poll compare job status."],
+      ["POST", "/api/research/compare/status", "Advance an owned compare job and return its status."],
       ["POST", "/api/research/serp", "Run guarded SERP analysis for validated research flows."],
       ["POST", "/api/research/trends", "Submit trend checks."],
     ],
@@ -92,7 +92,7 @@ const developerFaqs = [
   {
     question: "How should async research jobs be consumed?",
     answer:
-      "Submit the job through the protected endpoint, store the returned job id, and poll the matching status endpoint until cached final results are ready.",
+      "Submit the job through the protected endpoint, store the returned job id, and POST the matching status endpoint until cached final results are ready. Legacy GET execution remains temporarily available during migration.",
   },
   {
     question: "Can unauthenticated visitors call research APIs from this page?",
@@ -160,7 +160,7 @@ export default function ApiDocsPage() {
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-sky-700">Authentication</p>
             <h2 className="mt-3 text-3xl font-semibold text-zinc-950 sm:text-4xl">
-              Three supported ways to authenticate protected requests.
+              Supported authentication for protected requests.
             </h2>
           </div>
           <div className="mt-8 grid gap-4 lg:grid-cols-3">

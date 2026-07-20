@@ -5,6 +5,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type CostEvent = {
+  task_id: string | null;
   provider: string;
   endpoint: string;
   unit_type: string;
@@ -12,7 +13,20 @@ type CostEvent = {
   unit_price_usd: number | null;
   estimated_cost_usd: number | null;
   actual_cost_usd: number | null;
+  credential_source: string;
+  execution_mode: string;
+  owner_id: string | null;
   created_at: string;
+};
+
+type PipelineTask = {
+  task_id: string;
+  stage: string;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error: string | null;
+  output_ref: string | null;
 };
 
 type PipelineRun = {
@@ -26,8 +40,11 @@ type PipelineRun = {
   saved_count: number | null;
   estimated_cost_usd: number | null;
   actual_cost_usd: number | null;
+  accounted_cost_usd: number | null;
+  cost_basis: "actual" | "mixed" | "estimated" | "none";
   cost_event_count: number | null;
   cost_events?: CostEvent[];
+  tasks?: PipelineTask[];
   error: string | null;
 };
 
@@ -67,6 +84,13 @@ const primaryCost = (actual: number | null, estimated: number | null) => {
     return { value: estimated, label: "估算", isActual: false };
   }
   return { value: null, label: "-", isActual: false };
+};
+
+const costBasisLabel = (basis: PipelineRun["cost_basis"]) => {
+  if (basis === "actual") return "全部真实";
+  if (basis === "mixed") return "真实 + 估算";
+  if (basis === "estimated") return "全部估算";
+  return "-";
 };
 
 export default function AdminPipelineRunsPage() {
@@ -143,7 +167,8 @@ export default function AdminPipelineRunsPage() {
               ) : runs.length === 0 ? (
                 <tr><td className="px-4 py-8 text-center text-muted-foreground" colSpan={10}>暂无运行记录</td></tr>
               ) : runs.map((run) => {
-                const cost = primaryCost(run.actual_cost_usd, run.estimated_cost_usd);
+                const accountedCost = run.accounted_cost_usd ??
+                  primaryCost(run.actual_cost_usd, run.estimated_cost_usd).value;
                 return (
                 <Fragment key={run.run_id}>
                   <tr className="border-t align-top">
@@ -159,10 +184,10 @@ export default function AdminPipelineRunsPage() {
                     <td className="px-4 py-3">{run.duration_seconds ?? "-"}s</td>
                     <td className="px-4 py-3">{run.checked_count ?? "-"} / {run.saved_count ?? "-"}</td>
                     <td className="px-4 py-3">
-                      <div className={cost.isActual ? "font-medium text-emerald-600 dark:text-emerald-400" : "font-medium text-amber-600 dark:text-amber-400"}>
-                        {formatCost(cost.value)}
+                      <div className={run.cost_basis === "actual" ? "font-medium text-emerald-600 dark:text-emerald-400" : "font-medium text-amber-600 dark:text-amber-400"}>
+                        {formatCost(accountedCost)}
                       </div>
-                      <div className="text-xs text-muted-foreground">{cost.label}</div>
+                      <div className="text-xs text-muted-foreground">{costBasisLabel(run.cost_basis)}</div>
                     </td>
                     <td className="px-4 py-3">
                       <button
@@ -188,9 +213,11 @@ export default function AdminPipelineRunsPage() {
                               <table className="w-full min-w-[720px] text-xs">
                                 <thead className="bg-muted/60 text-left text-muted-foreground">
                                   <tr>
+                                    <th className="px-3 py-2">Task</th>
                                     <th className="px-3 py-2">时间</th>
                                     <th className="px-3 py-2">Provider</th>
                                     <th className="px-3 py-2">Endpoint</th>
+                                    <th className="px-3 py-2">凭证/模式</th>
                                     <th className="px-3 py-2">单位</th>
                                     <th className="px-3 py-2">数量</th>
                                     <th className="px-3 py-2">单价</th>
@@ -201,14 +228,47 @@ export default function AdminPipelineRunsPage() {
                                 <tbody>
                                   {(run.cost_events || []).map((event, index) => (
                                     <tr key={`${run.run_id}-${index}`} className="border-t">
+                                      <td className="px-3 py-2 font-mono text-[11px]">{event.task_id || "-"}</td>
                                       <td className="px-3 py-2 whitespace-nowrap">{formatDate(event.created_at)}</td>
                                       <td className="px-3 py-2">{event.provider}</td>
                                       <td className="px-3 py-2">{event.endpoint}</td>
+                                      <td className="px-3 py-2">{event.credential_source} / {event.execution_mode}</td>
                                       <td className="px-3 py-2">{event.unit_type}</td>
                                       <td className="px-3 py-2">{event.unit_count}</td>
                                       <td className="px-3 py-2">{formatCost(event.unit_price_usd)}</td>
                                       <td className="px-3 py-2">{formatCost(primaryCost(event.actual_cost_usd, event.estimated_cost_usd).value)}</td>
                                       <td className="px-3 py-2">{primaryCost(event.actual_cost_usd, event.estimated_cost_usd).label}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          <div className="pt-3 text-sm font-medium">任务明细</div>
+                          {(run.tasks || []).length === 0 ? (
+                            <div className="text-sm text-muted-foreground">暂无任务记录</div>
+                          ) : (
+                            <div className="overflow-x-auto rounded-lg border bg-background">
+                              <table className="w-full min-w-[760px] text-xs">
+                                <thead className="bg-muted/60 text-left text-muted-foreground">
+                                  <tr>
+                                    <th className="px-3 py-2">Stage</th>
+                                    <th className="px-3 py-2">状态</th>
+                                    <th className="px-3 py-2">开始</th>
+                                    <th className="px-3 py-2">结束</th>
+                                    <th className="px-3 py-2">输出</th>
+                                    <th className="px-3 py-2">错误</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(run.tasks || []).map((task) => (
+                                    <tr key={task.task_id} className="border-t">
+                                      <td className="px-3 py-2 font-mono">{task.stage}</td>
+                                      <td className="px-3 py-2">{task.status}</td>
+                                      <td className="px-3 py-2 whitespace-nowrap">{formatDate(task.started_at)}</td>
+                                      <td className="px-3 py-2 whitespace-nowrap">{formatDate(task.completed_at)}</td>
+                                      <td className="max-w-[180px] truncate px-3 py-2 font-mono" title={task.output_ref || ""}>{task.output_ref || "-"}</td>
+                                      <td className="max-w-[240px] truncate px-3 py-2 text-red-600" title={task.error || ""}>{task.error || "-"}</td>
                                     </tr>
                                   ))}
                                 </tbody>

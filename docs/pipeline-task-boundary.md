@@ -9,6 +9,8 @@ reuse the same stages and idempotency keys instead of inventing a second model.
 
 - `scripts/old_word_pipeline.py` still runs sequentially under cron.
 - `scripts/game_trend_scanner.py` still runs sequentially under cron.
+- `scripts/precompute_shared_expand.py` still runs sequentially under cron and
+  records all four shared-expansion task stages below.
 - `scripts/pipeline_runtime.py` owns best-effort writes to:
   - `pipeline_runs`
   - `pipeline_tasks`
@@ -32,9 +34,24 @@ reuse the same stages and idempotency keys instead of inventing a second model.
 | `game.serp` | one SERP batch | `serp:{keyword_csv}` | `dataforseo / serp_organic` |
 | `game.classify` | one final classification pass | `classify:{keyword_csv}` | none |
 
+## Shared Expand Stages
+
+| Stage | Unit | Idempotency key | Paid events |
+| --- | --- | --- | --- |
+| `shared-expand.expand-trends` | one shared expansion submission | `expand-trends:{keyword_csv}` | `dataforseo / expand_trends` |
+| `shared-expand.llm-filter` | one LLM candidate batch | `llm-filter:{batch_index}` | `openrouter / chat_completions_llm_filter` |
+| `shared-expand.compare-trends` | one shared comparison submission | `compare-trends:{benchmark}:{keyword_csv}` | `dataforseo / compare_trends` |
+| `shared-expand.compare-intent` | one shared intent submission | `compare-intent:{benchmark}:{keyword_csv}` | `dataforseo / compare_intent_serp` |
+
 Cost events should include `task_id` whenever a paid call happens inside a task.
 This makes run-level cost reporting, task-level debugging, and future retry
 logic line up on the same ledger.
+
+`contracts/pipeline-contract-v1.json` is the runtime-neutral contract for the
+TypeScript and Python implementations. It fixes the current status/stage
+vocabulary and golden Run/Task/Cost keys. Migration 0019 also requires each
+new cost event to state `credential_source` and `execution_mode`; current Cron
+events default to `platform` and `platform`.
 
 ## Future Queue Message
 
@@ -58,6 +75,8 @@ logic line up on the same ledger.
 
 - Student/API-key user paths stay cache-first and must not create paid provider tasks.
 - Paid provider calls are recorded in `pipeline_cost_events` with a stable `event_key`.
+- Cost totals sum each event as `actual_cost_usd ?? estimated_cost_usd`; a run
+  with mixed actual and estimated events must not drop either part.
 - Re-running a whole pipeline creates a new `run_id`; task idempotency is scoped to the run.
 - A failed seed/trend task may be recorded as failed while the current cron driver continues.
 - Queue consumers should claim/update `pipeline_tasks` before performing paid work.

@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticate } from "@/lib/auth_middleware";
+import { isAuthzError, requireUser } from "@/lib/authz";
 import { d1Query } from "@/lib/d1";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const auth = await authenticate(req);
-  if (!auth.authenticated) {
-    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
-  }
+  const principal = await requireUser(req, { allowLegacyQueryKey: true });
+  if (isAuthzError(principal)) return principal;
 
-  const userId = auth.userId!;
+  const userId = principal.userId!;
 
   try {
     const { rows } = await d1Query<{ role: string; email: string }>(

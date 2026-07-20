@@ -1,11 +1,19 @@
 import "server-only";
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 
 import { d1Query } from "@/lib/d1";
 
 export type JobStatus = "pending" | "processing" | "complete" | "failed";
 export type JobType = "expand" | "compare" | "intent" | "trends";
+export type JobExecutionMode = "platform" | "byok";
+export type JobCredentialSource = "platform" | "user";
+
+type CreateJobOptions = {
+  executionMode?: JobExecutionMode;
+  credentialSource?: JobCredentialSource;
+  idempotencyKey?: string | null;
+};
 
 export type ResearchJob = {
   id: string;
@@ -16,6 +24,12 @@ export type ResearchJob = {
   payload: Record<string, unknown> | null;
   session_id: string | null;
   error: string | null;
+  execution_mode: JobExecutionMode;
+  credential_source: JobCredentialSource;
+  idempotency_key: string | null;
+  claim_token: string | null;
+  lease_expires_at: string | null;
+  attempt_count: number;
   created_at: string;
   updated_at: string;
 };
@@ -29,6 +43,12 @@ type JobRow = {
   payload: string | null;
   session_id: string | null;
   error: string | null;
+  execution_mode: JobExecutionMode | null;
+  credential_source: JobCredentialSource | null;
+  idempotency_key: string | null;
+  claim_token: string | null;
+  lease_expires_at: string | null;
+  attempt_count: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -56,21 +76,40 @@ const toJob = (row: JobRow): ResearchJob => ({
   payload: parseJson<Record<string, unknown>>(row.payload),
   session_id: row.session_id,
   error: row.error,
+  execution_mode: row.execution_mode ?? "platform",
+  credential_source: row.credential_source ?? "platform",
+  idempotency_key: row.idempotency_key,
+  claim_token: row.claim_token,
+  lease_expires_at: row.lease_expires_at,
+  attempt_count: Number(row.attempt_count ?? 0),
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
+
+const buildJobRequestKey = (
+  userId: string,
+  jobType: JobType,
+  logicalKey: string,
+) =>
+  createHash("sha256")
+    .update(JSON.stringify({ userId, jobType, logicalKey }))
+    .digest("hex");
 
 export const createJob = async (
   userId: string,
   jobType: JobType,
   taskIds: string[],
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  options: CreateJobOptions = {},
 ) => {
   const id = randomUUID();
   const now = new Date().toISOString();
 
   await d1Query(
-    "INSERT INTO research_jobs (id, user_id, job_type, status, task_ids, payload, session_id, error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    `INSERT INTO research_jobs
+     (id, user_id, job_type, status, task_ids, payload, session_id, error,
+      execution_mode, credential_source, idempotency_key, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       userId,
@@ -80,6 +119,9 @@ export const createJob = async (
       JSON.stringify(payload),
       null,
       null,
+      options.executionMode ?? "platform",
+      options.credentialSource ?? "platform",
+      options.idempotencyKey ?? null,
       now,
       now,
     ]
@@ -88,36 +130,245 @@ export const createJob = async (
   return id;
 };
 
-export const getJob = async (id: string, userId: string) => {
-  const { rows } = await d1Query<JobRow>(
-    "SELECT * FROM research_jobs WHERE id = ? AND user_id = ? LIMIT 1",
-    [id, userId]
-  );
-  const row = rows[0];
-  return row ? toJob(row) : null;
-};
-
-export const getJobById = async (id: string, jobType?: JobType) => {
-  const params: string[] = [id];
-  const typeClause = jobType ? " AND job_type = ?" : "";
-  if (jobType) params.push(jobType);
-
-  const { rows } = await d1Query<JobRow>(
-    `SELECT * FROM research_jobs WHERE id = ?${typeClause} LIMIT 1`,
-    params
-  );
-  const row = rows[0];
-  return row ? toJob(row) : null;
-};
-
-export const updateJobStatus = async (
+export const getOwnedJob = async (
   id: string,
-  status: JobStatus,
-  fields: { sessionId?: string | null; error?: string | null } = {}
+  userId: string,
+  jobType: JobType,
+) => {
+  const { rows } = await d1Query<JobRow>(
+    "SELECT * FROM research_jobs WHERE id = ? AND user_id = ? AND job_type = ? LIMIT 1",
+    [id, userId, jobType]
+  );
+  const row = rows[0];
+  return row ? toJob(row) : null;
+};
+
+export const getInternalJobById = async (id: string, jobType: JobType) => {
+  const { rows } = await d1Query<JobRow>(
+    "SELECT * FROM research_jobs WHERE id = ? AND job_type = ? LIMIT 1",
+    [id, jobType]
+  );
+  const row = rows[0];
+  return row ? toJob(row) : null;
+};
+
+export const getOwnedJobStatusSnapshot = async (
+  id: string,
+  userId: string,
+  jobType: JobType,
+) => {
+  const job = await getOwnedJob(id, userId, jobType);
+  if (!job) return null;
+
+  const results = Array.isArray(job.payload?.results)
+    ? job.payload.results
+    : undefined;
+  return {
+    status: job.status === "processing" ? "pending" : job.status,
+    stage: job.status === "processing" ? "processing" : undefined,
+    ready: job.status === "complete" ? job.task_ids.length : 0,
+    total: job.task_ids.length,
+    sessionId: job.session_id ?? undefined,
+    error: job.status === "failed" ? job.error ?? "Job failed" : undefined,
+    results,
+  };
+};
+
+export const getJobForRequest = async (
+  userId: string,
+  jobType: JobType,
+  logicalKey: string,
+) => {
+  const requestKey = buildJobRequestKey(userId, jobType, logicalKey);
+  const now = new Date().toISOString();
+  const { rows } = await d1Query<JobRow>(
+    `SELECT j.*
+     FROM research_job_requests r
+     JOIN research_jobs j ON j.id = r.job_id
+     WHERE r.request_key = ? AND r.user_id = ? AND r.job_type = ?
+       AND r.expires_at > ?
+       AND j.user_id = r.user_id AND j.job_type = r.job_type
+     LIMIT 1`,
+    [requestKey, userId, jobType, now],
+  );
+  return rows[0] ? toJob(rows[0]) : null;
+};
+
+export const linkJobToRequest = async (
+  userId: string,
+  jobType: JobType,
+  logicalKey: string,
+  jobId: string,
+  ttlHours = 24,
+) => {
+  const requestKey = buildJobRequestKey(userId, jobType, logicalKey);
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  const boundedTtlHours = Number.isFinite(ttlHours)
+    ? Math.min(24 * 30, Math.max(1, ttlHours))
+    : 24;
+  const expiresAt = new Date(
+    nowMs + boundedTtlHours * 60 * 60 * 1000,
+  ).toISOString();
+  const { meta } = await d1Query(
+    `INSERT INTO research_job_requests
+     (request_key, user_id, job_type, job_id, created_at, expires_at)
+     SELECT ?, ?, ?, j.id, ?, ?
+     FROM research_jobs j
+     WHERE j.id = ? AND j.user_id = ? AND j.job_type = ?
+     ON CONFLICT(request_key) DO UPDATE SET
+       job_id = excluded.job_id,
+       created_at = excluded.created_at,
+       expires_at = excluded.expires_at`,
+    [
+      requestKey,
+      userId,
+      jobType,
+      now,
+      expiresAt,
+      jobId,
+      userId,
+      jobType,
+    ],
+  );
+  return (meta?.changes ?? 0) > 0;
+};
+
+const DEFAULT_JOB_LEASE_MS = 10 * 60 * 1000;
+const LEGACY_PROCESSING_STALE_MS = 2 * 60 * 1000;
+
+export type ResearchJobClaim = {
+  token: string;
+  leaseExpiresAt: string;
+};
+
+export const isLegacyStatusGetExecutionEnabled = () =>
+  String(process.env.RESEARCH_STATUS_GET_EXECUTION_COMPAT ?? "true") !== "false";
+
+export const claimOwnedJob = async (
+  id: string,
+  userId: string,
+  jobType: JobType,
+  leaseMs = DEFAULT_JOB_LEASE_MS,
+): Promise<ResearchJobClaim | null> => {
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  const legacyStaleAt = new Date(nowMs - LEGACY_PROCESSING_STALE_MS).toISOString();
+  const leaseExpiresAt = new Date(nowMs + leaseMs).toISOString();
+  const token = randomUUID();
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = 'processing', claim_token = ?, lease_expires_at = ?,
+         attempt_count = attempt_count + 1, error = NULL, updated_at = ?
+     WHERE id = ? AND user_id = ? AND job_type = ?
+       AND (
+         status = 'pending'
+         OR (
+           status = 'processing'
+           AND (
+             (lease_expires_at IS NOT NULL AND lease_expires_at <= ?)
+             OR (lease_expires_at IS NULL AND updated_at <= ?)
+           )
+         )
+       )`,
+    [token, leaseExpiresAt, now, id, userId, jobType, now, legacyStaleAt],
+  );
+  return (meta?.changes ?? 0) > 0 ? { token, leaseExpiresAt } : null;
+};
+
+export const claimInternalJob = async (
+  id: string,
+  jobType: JobType,
+  leaseMs = DEFAULT_JOB_LEASE_MS,
+): Promise<ResearchJobClaim | null> => {
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  const legacyStaleAt = new Date(nowMs - LEGACY_PROCESSING_STALE_MS).toISOString();
+  const leaseExpiresAt = new Date(nowMs + leaseMs).toISOString();
+  const token = randomUUID();
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = 'processing', claim_token = ?, lease_expires_at = ?,
+         attempt_count = attempt_count + 1, error = NULL, updated_at = ?
+     WHERE id = ? AND job_type = ?
+       AND (
+         status = 'pending'
+         OR (
+           status = 'processing'
+           AND (
+             (lease_expires_at IS NOT NULL AND lease_expires_at <= ?)
+             OR (lease_expires_at IS NULL AND updated_at <= ?)
+           )
+         )
+       )`,
+    [token, leaseExpiresAt, now, id, jobType, now, legacyStaleAt],
+  );
+  return (meta?.changes ?? 0) > 0 ? { token, leaseExpiresAt } : null;
+};
+
+export const finishClaimedJob = async (
+  id: string,
+  userId: string,
+  claimToken: string,
+  status: Extract<JobStatus, "complete" | "failed">,
+  fields: { sessionId?: string | null; error?: string | null } = {},
 ) => {
   const now = new Date().toISOString();
-  await d1Query(
-    "UPDATE research_jobs SET status = ?, session_id = ?, error = ?, updated_at = ? WHERE id = ?",
-    [status, fields.sessionId ?? null, fields.error ?? null, now, id]
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = ?, session_id = ?, error = ?, claim_token = NULL,
+         lease_expires_at = NULL, updated_at = ?
+     WHERE id = ? AND user_id = ? AND claim_token = ?`,
+    [
+      status,
+      fields.sessionId ?? null,
+      fields.error ?? null,
+      now,
+      id,
+      userId,
+      claimToken,
+    ],
   );
+  return (meta?.changes ?? 0) > 0;
+};
+
+export const finishInternalClaimedJob = async (
+  id: string,
+  claimToken: string,
+  status: Extract<JobStatus, "complete" | "failed">,
+  fields: { sessionId?: string | null; error?: string | null } = {},
+) => {
+  const now = new Date().toISOString();
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = ?, session_id = ?, error = ?, claim_token = NULL,
+         lease_expires_at = NULL, updated_at = ?
+     WHERE id = ? AND claim_token = ?`,
+    [
+      status,
+      fields.sessionId ?? null,
+      fields.error ?? null,
+      now,
+      id,
+      claimToken,
+    ],
+  );
+  return (meta?.changes ?? 0) > 0;
+};
+
+export const completeOwnedJobWithPayload = async (
+  id: string,
+  userId: string,
+  claimToken: string,
+  payload: Record<string, unknown>,
+) => {
+  const now = new Date().toISOString();
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = 'complete', payload = ?, error = NULL, claim_token = NULL,
+         lease_expires_at = NULL, updated_at = ?
+     WHERE id = ? AND user_id = ? AND claim_token = ?`,
+    [JSON.stringify(payload), now, id, userId, claimToken],
+  );
+  return (meta?.changes ?? 0) > 0;
 };

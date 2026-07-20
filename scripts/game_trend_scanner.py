@@ -290,7 +290,7 @@ def forget_pending_trends_job(key):
 def poll_trends_status(job_id):
     status_url = f"{API_URL}/api/research/trends/status?jobId={job_id}"
     poll_cmd = [
-        "curl", "-sL", "--max-time", "15", status_url,
+        "curl", "-sL", "--max-time", "15", "-X", "POST", status_url,
         "-H", f"Authorization: Bearer {API_KEY}",
     ]
     poll_result = subprocess.run(poll_cmd, capture_output=True, text=True, timeout=20)
@@ -888,7 +888,7 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d", task
     """Call /api/research/trends with keywords (async with polling).
     
     1. POST /api/research/trends → get jobId (or cached results)
-    2. Poll /api/research/trends/status?jobId=X until complete
+    2. POST /api/research/trends/status?jobId=X until complete
     """
     url = f"{API_URL}/api/research/trends"
     pending_key = trends_pending_key(keywords, days=days, endpoint_label=endpoint_label)
@@ -1720,7 +1720,7 @@ def main():
             elif hist_job_id:
                 for attempt in range(80):
                     time.sleep(3)
-                    poll_cmd = ["curl", "-sL", "--max-time", "15",
+                    poll_cmd = ["curl", "-sL", "--max-time", "15", "-X", "POST",
                                 f"{API_URL}/api/research/trends/status?jobId={hist_job_id}",
                                 "-H", f"Authorization: Bearer {API_KEY}"]
                     poll_r = subprocess.run(poll_cmd, capture_output=True, text=True, timeout=20)

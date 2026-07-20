@@ -15,6 +15,7 @@ import {
 
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
 import { PricingAutoCheckout, PricingCheckoutButton } from "@/components/pricing-cta";
+import { FOUNDING_MEMBER_PLAN } from "@/lib/pricing-copy";
 
 export const dynamic = "force-static";
 
@@ -71,11 +72,12 @@ export default function PricingPage() {
           <div className="flex flex-col justify-center">
             <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Pricing</p>
             <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-zinc-950 sm:text-5xl">
-              Start with a focused plan for finding buildable keyword opportunities.
+              Founding access for builders who use keyword opportunities to decide what to build.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-600">
-              Discover Keywords is moving from an internal course tool into a SaaS product. The first public plan is a
-              Founding Member subscription for builders who want the full Opportunity Radar and practical build briefs.
+              The first public plan is priced to validate serious SaaS demand, not casual keyword lookup. It is for
+              indie hackers, SEO-first builders, and AI tool-site operators who can turn one strong opportunity into a
+              product, page, or campaign.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <PricingCheckoutButton />
@@ -93,15 +95,13 @@ export default function PricingPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-emerald-700" aria-hidden="true" />
-                  <h2 className="text-2xl font-semibold text-zinc-950">Founding Member</h2>
+                  <h2 className="text-2xl font-semibold text-zinc-950">{FOUNDING_MEMBER_PLAN.name}</h2>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Early SaaS access for indie hackers, SEO-first builders, and AI tool-site operators.
-                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-600">{FOUNDING_MEMBER_PLAN.summary}</p>
               </div>
               <div className="text-left sm:text-right">
-                <div className="text-4xl font-semibold text-zinc-950">$49</div>
-                <div className="text-sm font-medium text-zinc-500">per month</div>
+                <div className="text-4xl font-semibold text-zinc-950">{FOUNDING_MEMBER_PLAN.price}</div>
+                <div className="text-sm font-medium text-zinc-500">{FOUNDING_MEMBER_PLAN.interval}</div>
               </div>
             </div>
 
@@ -125,7 +125,7 @@ export default function PricingPage() {
 
             <div className="mt-7">
               <PricingCheckoutButton
-                label="Subscribe for $49/month"
+                label={FOUNDING_MEMBER_PLAN.checkoutLabel}
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:opacity-60"
               />
             </div>
@@ -138,8 +138,12 @@ export default function PricingPage() {
           <div className="max-w-3xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-sky-700">What You Get</p>
             <h2 className="mt-3 text-3xl font-semibold text-zinc-950 sm:text-4xl">
-              A paid layer around opportunity intelligence, not raw API usage.
+              The price is tied to decision value, not raw keyword volume.
             </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
+              $49/month is the early Founding Member price for access to reviewed opportunities, evidence, and brief
+              credits. Lower-cost and higher-limit tiers can come later after the first paid beta proves usage patterns.
+            </p>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getAuthUser } from "@/lib/auth";
-import { getSaasEntitlement } from "@/lib/entitlements";
-import { checkStudentAccess } from "@/lib/usage";
+import { checkEffectiveAccess } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,23 +14,19 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const access = await checkStudentAccess(user.id);
-    const entitlement = access.allowed ? null : await getSaasEntitlement(user.id);
-    if (!access.allowed && entitlement?.allowed) {
-      return NextResponse.json({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        trial: { active: true, daysLeft: 0, expiresAt: entitlement.expiresAt },
-        quota: { used: entitlement.briefUsed, limit: entitlement.briefLimit },
-        blocked: false,
-      });
-    }
+    const access = await checkEffectiveAccess(user.id);
 
     return NextResponse.json({
       userId: user.id,
       email: user.email,
-      role: access.allowed ? access.user.role : user.role,  // 始终返回 role（用于权限检查）
+      role: access.allowed ? access.user.role : user.role,
+      entitlement: {
+        allowed: access.entitlement.allowed,
+        source: access.entitlement.source,
+        planKey: access.entitlement.planKey,
+        status: access.entitlement.status,
+        expiresAt: access.entitlement.expiresAt,
+      },
       trial: access.allowed
         ? { active: access.trial.active, daysLeft: access.trial.daysLeft, expiresAt: access.trial.expiresAt }
         : undefined,

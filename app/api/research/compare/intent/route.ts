@@ -7,28 +7,16 @@ import {
   submitSerpTasksWithCost,
 } from "@/lib/keyword-research";
 import type { CompareResponse } from "@/lib/types";
-import { authenticate } from "@/lib/auth_middleware";
 import { buildCacheKey, getCached } from "@/lib/cache";
 import { createJob } from "@/lib/research-jobs";
 import { batchScoreKeywords } from "@/lib/rule-engine";
+import { isAuthzError, isCronRequest, requireEffectiveUser } from "@/lib/authz";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DEFAULT_MIN_RULE_SCORE = 20;
 const DEFAULT_MAX_INTENT_KEYWORDS = 20;
-
-const isCronAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET;
-  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
-  if (!secret && !externalSecret) return false;
-
-  const headerSecret = request.headers.get("x-cron-secret");
-  if (secret && headerSecret === secret) return true;
-  if (externalSecret && headerSecret === externalSecret) return true;
-
-  return false;
-};
 
 const normalizeInt = (value: unknown, fallback: number, min: number, max: number) => {
   const parsed = Number(value);
@@ -38,14 +26,14 @@ const normalizeInt = (value: unknown, fallback: number, min: number, max: number
 
 export async function POST(request: Request) {
   try {
-    if (!isCronAuthorized(request)) {
+    if (!(await isCronRequest(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const auth = await authenticate(request as Parameters<typeof authenticate>[0]);
-    if (!auth.authenticated) {
-      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
-    }
+    const principal = await requireEffectiveUser(request, {
+      allowLegacyQueryKey: true,
+    });
+    if (isAuthzError(principal)) return principal;
 
     const body = await request.json().catch(() => ({}));
     const minRuleScore = normalizeInt(body?.minRuleScore, DEFAULT_MIN_RULE_SCORE, -100, 100);
@@ -73,7 +61,9 @@ export async function POST(request: Request) {
       dateTo,
       benchmark,
     });
-    const compareResult = await getCached<CompareResponse>(resultCacheKey);
+    const compareResult = await getCached<CompareResponse>(resultCacheKey, {
+      namespace: "compare-result",
+    });
     if (!compareResult?.results?.length) {
       return NextResponse.json(
         { error: "Shared compare_result cache not found", status: "cache_miss" },
@@ -100,7 +90,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No SERP tasks were created" }, { status: 502 });
     }
 
-    const jobId = await createJob(auth.userId!, "intent", taskIds, {
+    const jobId = await createJob(principal.userId, "intent", taskIds, {
       resultCacheKey,
       compareResult,
       intentKeywords,

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
-import { authenticate } from "@/lib/auth_middleware";
-import { getJob } from "@/lib/research-jobs";
+import { isAuthzError, requireEffectiveUser } from "@/lib/authz";
+import {
+  getOwnedJobStatusSnapshot,
+  isLegacyStatusGetExecutionEnabled,
+} from "@/lib/research-jobs";
 import { handleExpandStatus } from "./expand-status-service";
 
 export const runtime = "nodejs";
@@ -19,14 +22,13 @@ export async function GET(request: Request) {
   };
 
   try {
-    const auth = await authenticate(request as Parameters<typeof authenticate>[0]);
-    if (!auth.authenticated) {
-      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    if (request.method === "GET" && isLegacyStatusGetExecutionEnabled()) {
+      console.warn(JSON.stringify({ event: "legacy_status_get_execution", jobType: "expand" }));
     }
-    const user = { id: auth.userId! };
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const principal = await requireEffectiveUser(request, {
+      allowLegacyQueryKey: true,
+    });
+    if (isAuthzError(principal)) return principal;
 
     const url = new URL(request.url);
     const jobId = url.searchParams.get("jobId");
@@ -34,10 +36,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
     }
 
-    const result = await handleExpandStatus(request, user.id, jobId, log);
+    if (request.method === "GET" && !isLegacyStatusGetExecutionEnabled()) {
+      const snapshot = await getOwnedJobStatusSnapshot(
+        jobId,
+        principal.userId,
+        "expand",
+      );
+      return snapshot
+        ? NextResponse.json(snapshot)
+        : NextResponse.json({ error: "Job not found" }, { status: 404 });
+    }
+
+    const result = await handleExpandStatus(request, principal.userId, jobId, log);
     return NextResponse.json(result.response, { status: result.status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ status: "failed", error: message }, { status: 500 });
   }
 }
+
+export const POST = GET;

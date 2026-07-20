@@ -24,6 +24,28 @@ from pathlib import Path
 from typing import Iterator
 
 _CURRENT_RUN: dict[str, object] = {}
+PIPELINE_CONTRACT_VERSION = 1
+PIPELINE_RUN_STATUSES = (
+    "running", "success", "success_with_warnings", "failed", "canceled"
+)
+PIPELINE_TASK_STATUSES = (
+    "queued", "running", "waiting_provider", "retry_scheduled", "succeeded",
+    "success_with_warnings", "failed", "dead_lettered", "skipped",
+)
+CREDENTIAL_SOURCES = ("platform", "user")
+EXECUTION_MODES = ("platform", "byok")
+KNOWN_PIPELINE_NAMES = (
+    "precompute-shared-expand", "old-word-pipeline", "game-trend-scanner",
+    "community-signals",
+)
+KNOWN_PIPELINE_TASK_STAGES = (
+    "run.start", "run.finalize", "shared-expand.expand-trends",
+    "shared-expand.llm-filter", "shared-expand.compare-trends",
+    "shared-expand.compare-intent", "old-word.seed", "old-word.trends",
+    "old-word.finalize", "game.fetch-source", "game.trends-14d",
+    "game.history-90d", "game.serp", "game.serp-relevance-retry",
+    "game.classify",
+)
 
 DEFAULT_STATE_DIR = Path(os.environ.get("GK_PRECOMPUTE_STATE_DIR", "/root/.local/state/google_keywords"))
 DEFAULT_D1_DATABASE_ID = "b40de8a4-75e1-4df6-a84d-3ecd62b70538"
@@ -84,6 +106,45 @@ def _sha256_short(value: str, length: int = 24) -> str:
 def _normalize_key_part(value: str) -> str:
     normalized = re.sub(r"[^a-z0-9._:-]+", "-", value.strip().lower())
     return normalized.strip("-")
+
+
+def hash_payload(value: object) -> str:
+    return hashlib.sha256(_stable_json(value).encode("utf-8")).hexdigest()
+
+
+def make_pipeline_run_key(pipeline: str, business_date: str, extra: object | None = None) -> str:
+    prefix = f"run:{_normalize_key_part(pipeline)}:{_normalize_key_part(business_date)}"
+    return prefix if extra is None else f"{prefix}:{hash_payload(extra)[:16]}"
+
+
+def make_pipeline_task_key(
+    *, pipeline: str, run_key: str, stage: str, payload: object | None = None
+) -> str:
+    return (
+        f"task:{_normalize_key_part(pipeline)}:{_normalize_key_part(run_key)}:"
+        f"{_normalize_key_part(stage)}:{hash_payload(payload or {})[:24]}"
+    )
+
+
+def make_cost_event_key(
+    *,
+    provider: str,
+    endpoint: str,
+    run_id: str | None = None,
+    idempotency_key: str | None = None,
+    task_id: str | None = None,
+    research_job_id: str | None = None,
+    provider_request_id: str | None = None,
+    payload: object | None = None,
+) -> str:
+    local_basis = idempotency_key or task_id or hash_payload(payload or {})
+    basis = provider_request_id or research_job_id or (
+        f"{run_id}:{local_basis}" if run_id else local_basis
+    )
+    return (
+        f"cost:{_normalize_key_part(provider)}:{_normalize_key_part(endpoint)}:"
+        f"{_sha256_short(basis)}"
+    )
 
 
 def _pipeline_env_key(name: str, suffix: str) -> str:
@@ -155,18 +216,32 @@ def _cost_event_key(
     basis = provider_request_id or research_job_id or idempotency_key or task_id
     if not basis:
         return None
-    scope = basis if provider_request_id or research_job_id else f"{run_id}:{basis}"
-    return f"cost:{_normalize_key_part(provider)}:{_normalize_key_part(endpoint)}:{_sha256_short(scope)}"
+    return make_cost_event_key(
+        provider=provider,
+        endpoint=endpoint,
+        run_id=run_id,
+        idempotency_key=idempotency_key,
+        task_id=task_id,
+        research_job_id=research_job_id,
+        provider_request_id=provider_request_id,
+    )
 
 
 def _pipeline_task_key(
     *,
     run_id: str,
+    pipeline: str,
+    run_key: str | None,
     stage: str,
     idempotency_key: str,
 ) -> str:
-    scope = f"{run_id}:{stage}:{idempotency_key}"
-    return f"task-{_sha256_short(scope, 32)}"
+    canonical_key = make_pipeline_task_key(
+        pipeline=pipeline,
+        run_key=run_key or run_id,
+        stage=stage,
+        payload={"idempotencyKey": idempotency_key},
+    )
+    return f"task-{_sha256_short(canonical_key, 32)}"
 
 
 def current_run_id() -> str | None:
@@ -206,7 +281,7 @@ def _record_pipeline_run(
               duration_seconds = excluded.duration_seconds,
               budget_usd = COALESCE(excluded.budget_usd, pipeline_runs.budget_usd),
               error = excluded.error,
-              metadata_json = excluded.metadata_json,
+              metadata_json = COALESCE(excluded.metadata_json, pipeline_runs.metadata_json),
               updated_at = datetime('now')
             """,
             [
@@ -219,7 +294,9 @@ def _record_pipeline_run(
                 duration_seconds,
                 budget_usd,
                 error,
-                json.dumps(metadata or {}, ensure_ascii=False, sort_keys=True),
+                json.dumps(metadata, ensure_ascii=False, sort_keys=True)
+                if metadata is not None
+                else None,
             ],
         )
     except Exception as exc:
@@ -235,7 +312,7 @@ def _record_pipeline_run(
                       completed_at = excluded.completed_at,
                       duration_seconds = excluded.duration_seconds,
                       error = excluded.error,
-                      metadata_json = excluded.metadata_json,
+                      metadata_json = COALESCE(excluded.metadata_json, pipeline_runs.metadata_json),
                       updated_at = datetime('now')
                     """,
                     [
@@ -246,7 +323,9 @@ def _record_pipeline_run(
                         completed_at_iso,
                         duration_seconds,
                         error,
-                        json.dumps(metadata or {}, ensure_ascii=False, sort_keys=True),
+                        json.dumps(metadata, ensure_ascii=False, sort_keys=True)
+                        if metadata is not None
+                        else None,
                     ],
                 )
                 return
@@ -310,8 +389,11 @@ def start_pipeline_task(
     if not run_id or not pipeline:
         return None
     scoped_idempotency_key = f"{run_id}:{stage}:{idempotency_key}"
+    run_key_value = _CURRENT_RUN.get("run_key")
     task_id = _pipeline_task_key(
         run_id=run_id,
+        pipeline=pipeline,
+        run_key=str(run_key_value) if run_key_value else None,
         stage=stage,
         idempotency_key=idempotency_key,
     )
@@ -424,6 +506,9 @@ def record_cost_event(
     event_key: str | None = None,
     provider_request_id: str | None = None,
     idempotency_key: str | None = None,
+    credential_source: str = "platform",
+    execution_mode: str = "platform",
+    owner_id: str | None = None,
     metadata: dict | None = None,
 ) -> None:
     """Best-effort insert of one paid/cost-related event for the active run."""
@@ -431,6 +516,10 @@ def record_cost_event(
     pipeline = current_pipeline_name()
     if not run_id or not pipeline:
         return
+    if credential_source not in CREDENTIAL_SOURCES:
+        raise ValueError(f"Unsupported credential_source: {credential_source}")
+    if execution_mode not in EXECUTION_MODES:
+        raise ValueError(f"Unsupported execution_mode: {execution_mode}")
     if estimated_cost_usd is None and unit_price_usd is not None:
         estimated_cost_usd = int(unit_count) * float(unit_price_usd)
     if actual_cost_usd is not None:
@@ -451,8 +540,9 @@ def record_cost_event(
             INSERT OR IGNORE INTO pipeline_cost_events
               (run_id, pipeline, provider, endpoint, unit_type, unit_count, unit_price_usd,
                estimated_cost_usd, actual_cost_usd, task_id, research_job_id, event_key,
-               provider_request_id, idempotency_key, metadata_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               provider_request_id, idempotency_key, credential_source, execution_mode,
+               owner_id, metadata_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 run_id,
@@ -469,6 +559,9 @@ def record_cost_event(
                 event_key,
                 provider_request_id,
                 idempotency_key,
+                credential_source,
+                execution_mode,
+                owner_id,
                 _stable_json(metadata or {}),
             ],
         )

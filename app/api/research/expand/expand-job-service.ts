@@ -7,8 +7,13 @@ import {
   resolveDateRange,
   submitExpansionTasksWithCost,
 } from "@/lib/keyword-research";
-import { buildCacheKey, getCached, setCache } from "@/lib/cache";
-import { createJob, getJob } from "@/lib/research-jobs";
+import { buildCacheKey, getCached } from "@/lib/cache";
+import {
+  createJob,
+  getJobForRequest,
+  getOwnedJob,
+  linkJobToRequest,
+} from "@/lib/research-jobs";
 
 import {
   DEFAULT_SHARED_KEYWORDS,
@@ -25,7 +30,7 @@ export async function handleExpandPost(request: Request, userId: string, isStude
   const startedAt = Date.now();
 
   const body = await request.json().catch(() => ({}));
-  const allowCreateSharedJob = isCronAuthorized(request);
+  const allowCreateSharedJob = await isCronAuthorized(request);
   const keywordsInput = Array.isArray(body?.keywords) ? body.keywords : [];
   const useCache = body?.useCache !== false;
   const useFilter = body?.useFilter !== false;
@@ -88,7 +93,10 @@ export async function handleExpandPost(request: Request, userId: string, isStude
     dateTo,
   });
   if (useCache) {
-    const sharedCachedResult = await getCached<import("@/lib/types").ExpandResponse>(sharedResultCacheKey);
+    const sharedCachedResult = await getCached<import("@/lib/types").ExpandResponse>(
+      sharedResultCacheKey,
+      { namespace: "expand-result" },
+    );
     if (sharedCachedResult && Array.isArray(sharedCachedResult.flatList)) {
       const gameKws = await getGameKeywords();
       return NextResponse.json({
@@ -135,26 +143,40 @@ export async function handleExpandPost(request: Request, userId: string, isStude
     dateTo,
     userId: userId,
   });
-  const cachedJobId = await getCached<string>(d1CacheKey);
-  if (cachedJobId && typeof cachedJobId === "string" && /^[0-9a-f]{8}-/.test(cachedJobId)) {
-    const cachedJob = await getJob(cachedJobId, userId);
-    if (cachedJob && cachedJob.status !== "failed") {
+  let cachedJob = await getJobForRequest(userId, "expand", d1CacheKey);
+  if (!cachedJob) {
+    const legacyJobId = await getCached<string>(d1CacheKey, {
+      namespace: "expand-result",
+    });
+    if (
+      legacyJobId &&
+      typeof legacyJobId === "string" &&
+      /^[0-9a-f]{8}-/.test(legacyJobId)
+    ) {
+      cachedJob = await getOwnedJob(legacyJobId, userId, "expand");
+      if (cachedJob) {
+        await linkJobToRequest(userId, "expand", d1CacheKey, cachedJob.id);
+      }
+    }
+  }
+  if (cachedJob) {
+    if (cachedJob.status !== "failed") {
       if (debug) {
         console.log("[api/expand] cache hit, existing job", {
-          cachedJobId,
+          cachedJobId: cachedJob.id,
           status: cachedJob.status,
         });
       }
       return NextResponse.json({
-        jobId: cachedJobId,
+        jobId: cachedJob.id,
         status: "pending",
         fromCache: true,
       });
     }
     if (debug) {
       console.log("[api/expand] ignoring stale failed/missing cached job", {
-        cachedJobId,
-        status: cachedJob?.status ?? "missing",
+        cachedJobId: cachedJob.id,
+        status: cachedJob.status,
       });
     }
   }
@@ -203,7 +225,7 @@ export async function handleExpandPost(request: Request, userId: string, isStude
     });
   }
 
-  await setCache(d1CacheKey, jobId);
+  await linkJobToRequest(userId, "expand", d1CacheKey, jobId);
 
   return NextResponse.json({ jobId, status: "pending", cost: taskSubmission.cost, total: taskIds.length });
 }

@@ -1,21 +1,19 @@
 import {
-  SERP_LIVE_ADVANCED_URL,
-  SERP_TASK_POST_URL,
-  SERP_TASKS_READY_URL,
-  SERP_TASK_GET_ADV_URL,
   MAX_WAIT_MS,
   POLL_INTERVAL_MS,
   SERP_TASK_BATCH_SIZE,
   SERP_TOP_RESULTS,
-  normalizeDate,
   buildPostbackUrl,
-  buildAuthHeaders,
-  requestWithRetry,
   sleep,
   extractDataForSeoCost,
   mergeCostSummaries,
 } from "./dataforseo-client";
 import { createBatches } from "./keyword-utils";
+import {
+  DATAFORSEO_ENDPOINTS,
+  getPlatformDataForSeoClient,
+  type DataForSeoClient,
+} from "./providers/dataforseo";
 
 export type SerpSummary = {
   keyword: string;
@@ -29,7 +27,16 @@ export type SerpSummary = {
   }>;
 };
 
-const getSerpConfig = () => {
+export type SerpRequestConfig = {
+  locationCode?: number;
+  locationName: string;
+  languageCode: string;
+  device: string;
+  os: string;
+  depth: number;
+};
+
+export const getPlatformSerpConfig = (): SerpRequestConfig => {
   const locationCodeRaw = process.env.SERP_LOCATION_CODE;
   const locationCode = locationCodeRaw ? Number(locationCodeRaw) : undefined;
   const locationName =
@@ -50,8 +57,10 @@ const getSerpConfig = () => {
   };
 };
 
-const buildSerpTask = (keyword: string) => {
-  const config = getSerpConfig();
+export const buildSerpTask = (
+  keyword: string,
+  config: SerpRequestConfig = getPlatformSerpConfig(),
+) => {
   const task: Record<string, unknown> = {
     keyword,
     language_code: config.languageCode,
@@ -71,8 +80,15 @@ const buildSerpTask = (keyword: string) => {
 
 export const submitSerpTasksWithCost = async (
   keywords: string[],
-  options?: { postbackUrl?: string; cacheKey?: string }
+  options?: {
+    postbackUrl?: string;
+    cacheKey?: string;
+    providerClient?: DataForSeoClient;
+    config?: SerpRequestConfig;
+  }
 ) => {
+  const providerClient = options?.providerClient ?? getPlatformDataForSeoClient();
+  const config = options?.config ?? getPlatformSerpConfig();
   const batches = createBatches(keywords, SERP_TASK_BATCH_SIZE);
   const taskIds: string[] = [];
   const costs = [];
@@ -80,11 +96,10 @@ export const submitSerpTasksWithCost = async (
 
   for (const batch of batches) {
     const payload = batch.map((keyword) => ({
-      ...buildSerpTask(keyword),
+      ...buildSerpTask(keyword, config),
       ...(postback ? { postback_url: postback } : {}),
     }));
-    const result = await requestWithRetry("post", SERP_TASK_POST_URL, {
-      headers: buildAuthHeaders(),
+    const result = await providerClient.request("post", DATAFORSEO_ENDPOINTS.serpTaskPost, {
       body: JSON.stringify(payload),
     });
 
@@ -106,7 +121,12 @@ export const submitSerpTasksWithCost = async (
 
 export const submitSerpTasks = async (
   keywords: string[],
-  options?: { postbackUrl?: string; cacheKey?: string }
+  options?: {
+    postbackUrl?: string;
+    cacheKey?: string;
+    providerClient?: DataForSeoClient;
+    config?: SerpRequestConfig;
+  }
 ) => {
   const submission = await submitSerpTasksWithCost(keywords, options);
   return submission.taskIds;
@@ -114,8 +134,9 @@ export const submitSerpTasks = async (
 
 export const waitForSerpTasks = async (
   taskIds: string[],
-  options: { maxWaitMs?: number } = {}
+  options: { maxWaitMs?: number; providerClient?: DataForSeoClient } = {}
 ) => {
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
   const pending = new Set(taskIds);
   const completed: string[] = [];
   const startedAt = Date.now();
@@ -124,9 +145,10 @@ export const waitForSerpTasks = async (
     : MAX_WAIT_MS;
 
   while (pending.size > 0 && Date.now() - startedAt < maxWaitMs) {
-    const result = await requestWithRetry("get", SERP_TASKS_READY_URL, {
-      headers: buildAuthHeaders(),
-    });
+    const result = await providerClient.request(
+      "get",
+      DATAFORSEO_ENDPOINTS.serpTasksReady,
+    );
 
     if (result?.status_code === 20000) {
       const readyTasks = result?.tasks?.[0]?.result ?? [];
@@ -147,15 +169,20 @@ export const waitForSerpTasks = async (
   return completed;
 };
 
-export const getReadySerpTaskIds = async (taskIds: string[]) => {
+export const getReadySerpTaskIds = async (
+  taskIds: string[],
+  options: { providerClient?: DataForSeoClient } = {},
+) => {
   const pending = new Set(taskIds);
   const completed: string[] = [];
 
   if (pending.size === 0) return completed;
 
-  const result = await requestWithRetry("get", SERP_TASKS_READY_URL, {
-    headers: buildAuthHeaders(),
-  });
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
+  const result = await providerClient.request(
+    "get",
+    DATAFORSEO_ENDPOINTS.serpTasksReady,
+  );
 
   if (result?.status_code === 20000) {
     const readyTasks = result?.tasks?.[0]?.result ?? [];
@@ -212,14 +239,41 @@ export const summarizeSerpResult = (taskResult: Record<string, unknown>): SerpSu
   };
 };
 
-export const getLiveSerpResultsWithCost = async (keywords: string[]) => {
+export const parseSerpSummariesResponse = (response: unknown) => {
+  const summaries = new Map<string, SerpSummary>();
+  const root = response as {
+    status_code?: number;
+    tasks?: Array<{
+      status_code?: number;
+      result?: Array<Record<string, unknown>>;
+    }>;
+  } | null;
+
+  if (root?.status_code !== 20000) return summaries;
+  for (const task of root.tasks ?? []) {
+    if (task?.status_code !== 20000) continue;
+    const taskResult = task.result?.[0];
+    if (!taskResult) continue;
+    const summary = summarizeSerpResult(taskResult);
+    if (summary.keyword) {
+      summaries.set(summary.keyword.toLowerCase(), summary);
+    }
+  }
+  return summaries;
+};
+
+export const getLiveSerpResultsWithCost = async (
+  keywords: string[],
+  options: { providerClient?: DataForSeoClient; config?: SerpRequestConfig } = {},
+) => {
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
+  const config = options.config ?? getPlatformSerpConfig();
   const summaries = new Map<string, SerpSummary>();
   const costs = [];
 
   for (const batch of createBatches(keywords, SERP_TASK_BATCH_SIZE)) {
-    const payload = batch.map((keyword) => buildSerpTask(keyword));
-    const result = await requestWithRetry("post", SERP_LIVE_ADVANCED_URL, {
-      headers: buildAuthHeaders(),
+    const payload = batch.map((keyword) => buildSerpTask(keyword, config));
+    const result = await providerClient.request("post", DATAFORSEO_ENDPOINTS.serpLiveAdvanced, {
       body: JSON.stringify(payload),
     }, 2, 120_000);
 
@@ -229,44 +283,29 @@ export const getLiveSerpResultsWithCost = async (keywords: string[]) => {
 
     costs.push(extractDataForSeoCost(result));
 
-    for (const task of result?.tasks ?? []) {
-      if (task?.status_code !== 20000) continue;
-      const taskResult = task?.result?.[0];
-      if (!taskResult) continue;
-      const summary = summarizeSerpResult(taskResult);
-      if (summary.keyword) {
-        summaries.set(summary.keyword.toLowerCase(), summary);
-      }
+    for (const [key, summary] of parseSerpSummariesResponse(result)) {
+      summaries.set(key, summary);
     }
   }
 
   return { summaries, cost: mergeCostSummaries(costs) };
 };
 
-export const getSerpResults = async (taskIds: string[]) => {
+export const getSerpResults = async (
+  taskIds: string[],
+  options: { providerClient?: DataForSeoClient } = {},
+) => {
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
   const summaries = new Map<string, SerpSummary>();
 
   for (const taskId of taskIds) {
-    const result = await requestWithRetry(
+    const result = await providerClient.request(
       "get",
-      `${SERP_TASK_GET_ADV_URL}/${taskId}`,
-      {
-        headers: buildAuthHeaders(),
-      }
+      `${DATAFORSEO_ENDPOINTS.serpTaskGetAdvanced}/${taskId}`,
     );
 
-    if (result?.status_code !== 20000) {
-      continue;
-    }
-
-    for (const task of result?.tasks ?? []) {
-      if (task?.status_code !== 20000) continue;
-      const taskResult = task?.result?.[0];
-      if (!taskResult) continue;
-      const summary = summarizeSerpResult(taskResult);
-      if (summary.keyword) {
-        summaries.set(summary.keyword.toLowerCase(), summary);
-      }
+    for (const [key, summary] of parseSerpSummariesResponse(result)) {
+      summaries.set(key, summary);
     }
   }
 

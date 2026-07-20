@@ -346,7 +346,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     const [useCache, setUseCache] = useState(true);
     const [useModelFilter, setUseModelFilter] = useState(true);
     const [includeTop, setIncludeTop] = useState(false);
-    const [filterTermsText, setFilterTermsText] = useState(DEFAULT_FILTER_TERMS);
+    const [filterTermsText, setFilterTermsText] = useState<string>(DEFAULT_FILTER_TERMS);
     const [filterPrompt, setFilterPrompt] = useState("");
 
     const [expandData, setExpandData] = useState<ExpandResponse | null>(null);

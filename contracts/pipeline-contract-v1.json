@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "runStatuses": [
+    "running",
+    "success",
+    "success_with_warnings",
+    "failed",
+    "canceled"
+  ],
+  "taskStatuses": [
+    "queued",
+    "running",
+    "waiting_provider",
+    "retry_scheduled",
+    "succeeded",
+    "success_with_warnings",
+    "failed",
+    "dead_lettered",
+    "skipped"
+  ],
+  "credentialSources": ["platform", "user"],
+  "executionModes": ["platform", "byok"],
+  "pipelineNames": [
+    "precompute-shared-expand",
+    "old-word-pipeline",
+    "game-trend-scanner",
+    "community-signals"
+  ],
+  "taskStages": [
+    "run.start",
+    "run.finalize",
+    "shared-expand.expand-trends",
+    "shared-expand.llm-filter",
+    "shared-expand.compare-trends",
+    "shared-expand.compare-intent",
+    "old-word.seed",
+    "old-word.trends",
+    "old-word.finalize",
+    "game.fetch-source",
+    "game.trends-14d",
+    "game.history-90d",
+    "game.serp",
+    "game.serp-relevance-retry",
+    "game.classify"
+  ],
+  "keyFixture": {
+    "pipeline": "Precompute Shared Expand",
+    "businessDate": "2026-07-20",
+    "runExtra": {
+      "region": "US",
+      "seeds": ["Alpha", "Beta"]
+    },
+    "stage": "shared-expand.submit",
+    "payload": {
+      "keywords": ["Alpha", "Beta"],
+      "limit": 20,
+      "options": { "enabled": true }
+    },
+    "runId": "run-20260720",
+    "provider": "DataForSEO",
+    "endpoint": "trends_task_post",
+    "expected": {
+      "stablePayload": "{\"keywords\":[\"Alpha\",\"Beta\"],\"limit\":20,\"options\":{\"enabled\":true}}",
+      "payloadHash": "b84d13667847ee9401329d1bece86b76fa229c6803167759446db46b1896e480",
+      "runKey": "run:precompute-shared-expand:2026-07-20:91a20bf3eceeaedf",
+      "taskKey": "task:precompute-shared-expand:run:precompute-shared-expand:2026-07-20:91a20bf3eceeaedf:shared-expand.submit:b84d13667847ee9401329d1b",
+      "costEventKey": "cost:dataforseo:trends_task_post:062e9694d9cc7874f0de624a"
+    }
+  }
+}

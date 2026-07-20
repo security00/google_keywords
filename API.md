@@ -12,21 +12,19 @@ https://discoverkeywords.co
 
 所有 API 请求需要认证（除登录/注册接口外）：
 
-### 方式一：Bearer Token（推荐）
+### 方式一：Bearer Token
 
 ```http
 Authorization: Bearer gk_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-### 方式二：Query Parameter
-
-```http
-GET /api/research/expand/status?jobId=xxx&api_key=gk_live_xxx
-```
-
-### 方式三：Cookie（网页使用）
+### 方式二：Cookie（网页使用）
 
 登录后自动携带 session cookie，无需手动传递。
+
+API Key 必须放在 Authorization Header 中。URL Query 中携带 API Key
+属于待退役兼容能力，不应用于新客户端；未来任何计费执行接口都不会
+接受 URL 中的凭证。
 
 ---
 
@@ -36,6 +34,9 @@ GET /api/research/expand/status?jobId=xxx&api_key=gk_live_xxx
 - **学员**：每天 3 次综合 API 调用（expand/compare/serp/trends 合计）
 - **缓存命中**：不计入配额
 - **试用期**：90 天，到期后需续费
+
+学生请求默认读取平台预计算的共享缓存，不因缓存未命中而触发平台
+DataForSEO、OpenRouter、SERP 或 Trends 计费。实时 BYOK 尚未上线。
 
 ---
 
@@ -164,11 +165,15 @@ POST /api/auth/keys
 ```json
 {
   "key": "gk_live_8a7b6c5d4e3f2a1b9c8d7e6f5a4b3c2d",
-  "id": 1
+  "message": "Save this key securely. It will not be shown again."
 }
 ```
 
 **限制：** 每个用户最多 5 个激活的 Key
+
+新生成的 Key 默认只有 `cache:read` Scope。它不能触发平台 DataForSEO、
+OpenRouter 或其他真实计费接口；未来 BYOK 上线后，实时执行将使用单独授权的
+`provider:execute` Scope，并且只消耗用户自己的 Provider 额度。
 
 ---
 
@@ -185,14 +190,18 @@ GET /api/auth/keys
   "keys": [
     {
       "id": 1,
-      "key": "gk_live_8a7b6c5d4e3f2a1b9c8d7e6f5a4b3c2d",
+      "key": "gk_live_8a7b...b3c2",
       "name": "skill-001",
       "created_at": "2026-04-10T06:00:00.000Z",
-      "active": 1
+      "expires_at": null,
+      "active": 1,
+      "scopes": ["cache:read"]
     }
   ]
 }
 ```
+
+完整 Key 只在创建成功时返回一次，列表接口只返回掩码。
 
 ---
 
@@ -234,7 +243,7 @@ POST /api/research/expand
 
 - 该接口现在采用异步任务模式
 - `POST /api/research/expand` 只负责提交任务并返回 `jobId`
-- 调用方必须继续轮询 `GET /api/research/expand/status?jobId=...` 获取最终结果
+- 调用方必须继续调用 `POST /api/research/expand/status?jobId=...` 推进并获取最终结果
 - 缓存命中时也会优先返回已有 `jobId`，而不是直接同步回完整数据
 
 **响应（提交成功）：**
@@ -264,8 +273,11 @@ POST /api/research/expand
 ### 2. 查询扩展状态
 
 ```http
-GET /api/research/expand/status?jobId=123e4567-e89b-12d3-a456-426614174000
+POST /api/research/expand/status?jobId=123e4567-e89b-12d3-a456-426614174000
 ```
+
+状态推进使用带 owner 校验和执行租约的 POST。带副作用的 GET 暂时只作为
+迁移兼容入口并记录退役遥测；新客户端不得依赖 GET 推进任务。
 
 **响应（进行中）：**
 
@@ -317,7 +329,7 @@ POST /api/research/compare
 
 - compare 也采用异步任务模式
 - `POST /api/research/compare` 返回 `jobId`
-- 最终结果通过 `GET /api/research/compare/status?jobId=...` 获取
+- 最终结果通过 `POST /api/research/compare/status?jobId=...` 推进并获取
 
 **响应（提交成功）：**
 
@@ -651,10 +663,11 @@ curl -X POST https://discoverkeywords.co/api/research/expand \
   -H "Content-Type: application/json" \
   -d '{"seeds":["ai tattoo generator"]}'
 
-# SERP 分析（Query Parameter）
+# SERP 分析（Bearer API Key）
 curl -X POST https://discoverkeywords.co/api/research/serp \
+  -H "Authorization: Bearer gk_live_xxx" \
   -H "Content-Type: application/json" \
-  -d '{"keywords":["ai tattoo generator"]}&api_key=gk_live_xxx'
+  -d '{"keywords":["ai tattoo generator"]}'
 ```
 
 ---

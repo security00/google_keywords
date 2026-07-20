@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getPrincipal, isAuthzError, requirePaidApiPermission } from "@/lib/authz";
-import { checkStudentAccess } from "@/lib/usage";
+import { accessDeniedStatus, checkEffectiveAccess } from "@/lib/entitlements";
 import {
   submitSerpTasksWithCost,
   waitForSerpTasks,
@@ -23,11 +23,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: principal.error || "Unauthorized" }, { status: 401 });
     }
     if (principal.userId) {
-      const access = await checkStudentAccess(principal.userId);
+      const access = await checkEffectiveAccess(principal.userId);
       if (!access.allowed) {
         return NextResponse.json(
           { error: access.reason, code: access.code },
-          { status: access.code === "trial_expired" ? 403 : 429 }
+          { status: accessDeniedStatus(access.code) }
         );
       }
     }
@@ -44,7 +44,10 @@ export async function POST(request: Request) {
 
     // 检查缓存（同关键词同天只调一次 DataForSEO）
     const cacheKey = buildCacheKey("serp", keywords);
-    const cached = await getCached<Record<string, Record<string, unknown>>>(cacheKey);
+    const cached = await getCached<Record<string, Record<string, unknown>>>(
+      cacheKey,
+      { namespace: "serp-result" },
+    );
     if (cached) {
       return NextResponse.json({ results: cached, fromCache: true });
     }
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
     }
 
     // 缓存结果
-    await setCache(cacheKey, results);
+    await setCache(cacheKey, results, { namespace: "serp-result" });
 
     return NextResponse.json({ results, cost: serpResponse.cost, total: keywords.length });
   } catch (error) {

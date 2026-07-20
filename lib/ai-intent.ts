@@ -1,13 +1,13 @@
 import type { ComparisonIntent } from "@/lib/types";
 import type { SerpSummary } from "./serp";
-import {
-  OPENROUTER_REQUEST_TIMEOUT_MS,
-  DEFAULT_OPENROUTER_BASE_URL,
-  DEFAULT_OPENROUTER_MODEL,
-  SERP_LLM_RESULTS,
-  requestWithRetry,
-} from "./dataforseo-client";
+import { OPENROUTER_REQUEST_TIMEOUT_MS, SERP_LLM_RESULTS } from "./dataforseo-client";
 import { createBatches } from "./keyword-utils";
+import type { ChatCompletionClient } from "./providers/llm";
+import { getPlatformOpenRouterClient } from "./providers/openrouter";
+import {
+  extractChatResponseText,
+  extractJsonObject,
+} from "./providers/chat-response";
 
 const INTENT_CATEGORIES = [
   "AI Tools",
@@ -19,75 +19,6 @@ const INTENT_CATEGORIES = [
   "Other",
 ];
 const INTENT_BATCH_SIZE = 6;
-
-const getOpenRouterConfig = () => {
-  const baseUrl = (process.env.OPENROUTER_BASE_URL || DEFAULT_OPENROUTER_BASE_URL)
-    .replace(/\/+$/, "");
-  const model = process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL;
-  return { baseUrl, model };
-};
-
-const buildOpenRouterHeaders = () => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing OPENROUTER_API_KEY in environment variables.");
-  }
-
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-  };
-
-  const referer = process.env.OPENROUTER_SITE_URL;
-  const title = process.env.OPENROUTER_APP_NAME;
-
-  if (referer) headers["HTTP-Referer"] = referer;
-  if (title) headers["X-Title"] = title;
-
-  return headers satisfies HeadersInit;
-};
-
-const extractJsonBlock = (text: string) => {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]);
-  } catch {
-    return null;
-  }
-};
-
-const extractResponseText = (result: unknown) => {
-  const response = result as {
-    output_text?: string;
-    output?: Array<{
-      type?: string;
-      content?: Array<{ type?: string; text?: string }>;
-    }>;
-    choices?: Array<{ message?: { content?: string }; text?: string }>;
-  };
-
-  if (typeof response?.output_text === "string" && response.output_text) {
-    return response.output_text;
-  }
-
-  const output = response?.output;
-  if (Array.isArray(output)) {
-    for (const item of output) {
-      if (item?.type !== "message" || !Array.isArray(item.content)) continue;
-      const text = item.content.find(
-        (content) => content?.type === "output_text"
-      )?.text;
-      if (text) return text;
-    }
-  }
-
-  return (
-    response?.choices?.[0]?.message?.content ??
-    response?.choices?.[0]?.text ??
-    ""
-  );
-};
 
 const normalizeIntentLabel = (label: string) => {
   const cleaned = label.trim();
@@ -118,12 +49,14 @@ const buildIntentPayload = (summaries: SerpSummary[]) => ({
 });
 
 export const inferIntentWithModel = async (
-  summaries: SerpSummary[]
+  summaries: SerpSummary[],
+  options: { llmClient?: ChatCompletionClient | null } = {},
 ): Promise<Map<string, ComparisonIntent>> => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey || summaries.length === 0) return new Map();
+  const llmClient = options.llmClient === undefined
+    ? getPlatformOpenRouterClient()
+    : options.llmClient;
+  if (!llmClient || summaries.length === 0) return new Map();
 
-  const { baseUrl, model } = getOpenRouterConfig();
   const intentMap = new Map<string, ComparisonIntent>();
   const batches = createBatches(summaries, INTENT_BATCH_SIZE);
   const systemPrompt = [
@@ -133,8 +66,7 @@ export const inferIntentWithModel = async (
   ].join("\n");
 
   for (const batch of batches) {
-    const payload = {
-      model,
+    const payload: import("./providers/llm").ChatCompletionInput = {
       temperature: 0,
       messages: [
         {
@@ -149,18 +81,12 @@ export const inferIntentWithModel = async (
     };
 
     try {
-      const result = await requestWithRetry(
-        "post",
-        `${baseUrl}/chat/completions`,
-        {
-          headers: buildOpenRouterHeaders(),
-          body: JSON.stringify(payload),
-        },
-        3,
-        OPENROUTER_REQUEST_TIMEOUT_MS
-      );
-      const content = extractResponseText(result);
-      const parsed = extractJsonBlock(content);
+      const result = await llmClient.complete(payload, {
+        maxRetries: 3,
+        timeoutMs: OPENROUTER_REQUEST_TIMEOUT_MS,
+      });
+      const content = extractChatResponseText(result);
+      const parsed = extractJsonObject(content);
       const intents = Array.isArray(parsed?.intents) ? parsed.intents : [];
       for (const item of intents) {
         const keyword = typeof item?.keyword === "string" ? item.keyword.trim() : "";

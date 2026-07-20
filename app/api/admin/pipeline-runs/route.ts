@@ -52,6 +52,8 @@ export async function GET(request: Request) {
     saved_count: number | null;
     estimated_cost_usd: number | null;
     actual_cost_usd: number | null;
+    accounted_cost_usd: number | null;
+    actual_event_count: number;
     cost_event_count: number | null;
     error: string | null;
     metadata_json: string | null;
@@ -60,6 +62,8 @@ export async function GET(request: Request) {
             pr.checked_count, pr.saved_count,
             COALESCE(SUM(pce.estimated_cost_usd), pr.estimated_cost_usd) as estimated_cost_usd,
             SUM(pce.actual_cost_usd) as actual_cost_usd,
+            COALESCE(SUM(COALESCE(pce.actual_cost_usd, pce.estimated_cost_usd)), pr.estimated_cost_usd) as accounted_cost_usd,
+            SUM(CASE WHEN pce.actual_cost_usd IS NOT NULL THEN 1 ELSE 0 END) as actual_event_count,
             COUNT(pce.id) as cost_event_count,
             pr.error, pr.metadata_json
      FROM pipeline_runs pr
@@ -73,6 +77,7 @@ export async function GET(request: Request) {
 
   const runIds = rows.map((row) => row.run_id);
   const eventsByRun = new Map<string, Array<Record<string, unknown>>>();
+  const tasksByRun = new Map<string, Array<Record<string, unknown>>>();
   if (runIds.length > 0) {
     const placeholders = runIds.map(() => "?").join(",");
     const { rows: eventRows } = await d1Query<{
@@ -84,11 +89,16 @@ export async function GET(request: Request) {
       unit_price_usd: number | null;
       estimated_cost_usd: number | null;
       actual_cost_usd: number | null;
+      credential_source: string;
+      execution_mode: string;
+      owner_id: string | null;
+      task_id: string | null;
       metadata_json: string | null;
       created_at: string;
     }>(
       `SELECT run_id, provider, endpoint, unit_type, unit_count, unit_price_usd,
-              estimated_cost_usd, actual_cost_usd, metadata_json, created_at
+              estimated_cost_usd, actual_cost_usd, credential_source,
+              execution_mode, owner_id, task_id, metadata_json, created_at
        FROM pipeline_cost_events
        WHERE run_id IN (${placeholders})
        ORDER BY created_at DESC`,
@@ -102,13 +112,44 @@ export async function GET(request: Request) {
       });
       eventsByRun.set(event.run_id, list);
     }
+
+    const { rows: taskRows } = await d1Query<{
+      task_id: string;
+      run_id: string;
+      stage: string;
+      status: string;
+      started_at: string | null;
+      completed_at: string | null;
+      error: string | null;
+      output_ref: string | null;
+    }>(
+      `SELECT task_id, run_id, stage, status, started_at, completed_at, error, output_ref
+       FROM pipeline_tasks
+       WHERE run_id IN (${placeholders})
+       ORDER BY created_at ASC`,
+      runIds,
+    );
+    for (const task of taskRows) {
+      const list = tasksByRun.get(task.run_id) || [];
+      list.push(task);
+      tasksByRun.set(task.run_id, list);
+    }
   }
 
   return NextResponse.json({
     runs: rows.map((row) => ({
       ...row,
+      cost_basis:
+        Number(row.cost_event_count || 0) === 0
+          ? "none"
+          : Number(row.actual_event_count || 0) === Number(row.cost_event_count || 0)
+            ? "actual"
+            : Number(row.actual_event_count || 0) > 0
+              ? "mixed"
+              : "estimated",
       metadata: row.metadata_json ? safeParseJson(row.metadata_json) : null,
       cost_events: eventsByRun.get(row.run_id) || [],
+      tasks: tasksByRun.get(row.run_id) || [],
     })),
     total,
     page,

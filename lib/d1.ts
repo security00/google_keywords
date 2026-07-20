@@ -2,11 +2,6 @@ import "server-only";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-type D1ApiError = {
-  code?: number;
-  message: string;
-};
-
 type D1ApiMeta = {
   changes?: number;
   last_row_id?: number;
@@ -17,109 +12,32 @@ type D1ApiMeta = {
   num_tables?: number;
 };
 
-type D1ApiResult<T> = {
-  success: boolean;
-  results?: T[];
-  meta?: D1ApiMeta;
-};
-
-type D1ApiResponse<T> = {
-  success: boolean;
-  errors?: D1ApiError[];
-  messages?: unknown[];
-  result?: D1ApiResult<T>[];
-};
-
-type BoundD1Result<T> = {
-  results?: T[];
-  meta?: D1ApiMeta;
-  success?: boolean;
-};
-
-type BoundD1PreparedStatement = {
-  bind: (...values: unknown[]) => BoundD1PreparedStatement;
-  all: <T = Record<string, unknown>>() => Promise<BoundD1Result<T>>;
-};
-
-type BoundD1Database = {
-  prepare: (sql: string) => BoundD1PreparedStatement;
-};
-
-const getD1Config = () => {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const databaseId = process.env.D1_DATABASE_ID;
-  const token = process.env.CLOUDFLARE_API_TOKEN;
-
-  if (!accountId || !databaseId || !token) {
-    throw new Error("Missing D1 env vars: CLOUDFLARE_ACCOUNT_ID, D1_DATABASE_ID, or CLOUDFLARE_API_TOKEN");
-  }
-
-  return { accountId, databaseId, token };
-};
-
-const buildD1Url = () => {
-  const { accountId, databaseId } = getD1Config();
-  return `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`;
-};
-
 const normalizeParams = (params: unknown[]) =>
   params.map((value) => (value === undefined ? null : value));
 
-const getBoundD1 = async (): Promise<BoundD1Database | null> => {
+const getBoundD1 = async (): Promise<CloudflareEnv["DB"]> => {
   try {
     const { env } = await getCloudflareContext({ async: true });
-    const db = (env as { DB?: BoundD1Database }).DB;
-    return typeof db?.prepare === "function" ? db : null;
-  } catch {
-    return null;
+    if (typeof env.DB?.prepare !== "function") {
+      throw new Error("DB binding is missing");
+    }
+    return env.DB;
+  } catch (error) {
+    throw new Error(
+      "D1 binding DB is unavailable. Worker requests must not fall back to the Cloudflare REST API.",
+      { cause: error },
+    );
   }
 };
 
 const d1QueryViaBinding = async <T = Record<string, unknown>>(
-  db: BoundD1Database,
+  db: CloudflareEnv["DB"],
   sql: string,
   params: unknown[]
 ): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
   const statement = db.prepare(sql).bind(...normalizeParams(params));
   const result = await statement.all<T>();
-  if (result.success === false) {
-    throw new Error("D1 query failed");
-  }
-
-  return { rows: result.results ?? [], meta: result.meta };
-};
-
-const d1QueryViaApi = async <T = Record<string, unknown>>(
-  sql: string,
-  params: unknown[]
-): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
-  const { token } = getD1Config();
-  const response = await fetch(buildD1Url(), {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ sql, params: normalizeParams(params) }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`D1 request failed (${response.status}): ${body}`);
-  }
-
-  const payload = (await response.json()) as D1ApiResponse<T>;
-  if (!payload.success) {
-    const message = payload.errors?.map((err) => err.message).join("; ") || "D1 request failed";
-    throw new Error(message);
-  }
-
-  const result = payload.result?.[0];
-  if (!result?.success) {
-    throw new Error("D1 query failed");
-  }
-
-  return { rows: result.results ?? [], meta: result.meta };
+  return { rows: result.results ?? [], meta: result.meta as D1ApiMeta };
 };
 
 export const d1Query = async <T = Record<string, unknown>>(
@@ -127,11 +45,7 @@ export const d1Query = async <T = Record<string, unknown>>(
   params: unknown[] = []
 ): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
   const boundD1 = await getBoundD1();
-  if (boundD1) {
-    return d1QueryViaBinding<T>(boundD1, sql, params);
-  }
-
-  return d1QueryViaApi<T>(sql, params);
+  return d1QueryViaBinding<T>(boundD1, sql, params);
 };
 
 export const d1InsertMany = async (

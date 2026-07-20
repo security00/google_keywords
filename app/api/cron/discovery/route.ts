@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { d1Query } from "@/lib/d1";
+import { isCronRequest } from "@/lib/authz";
 import {
   DEFAULT_CHECK_INTERVAL_MINUTES,
   ensureSitemapSourcesColumns,
@@ -12,28 +13,8 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const isAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET;
-  const extSecret = process.env.EXTERNAL_CRON_SECRET;
-  if (!secret && !extSecret) return false;
-
-  const authHeader = request.headers.get("authorization");
-  if (secret && authHeader && authHeader === `Bearer ${secret}`) return true;
-  if (extSecret && authHeader && authHeader === `Bearer ${extSecret}`) return true;
-
-  const headerSecret = request.headers.get("x-cron-secret");
-  if (secret && headerSecret && headerSecret === secret) return true;
-  if (extSecret && headerSecret && headerSecret === extSecret) return true;
-
-  const querySecret = new URL(request.url).searchParams.get("secret");
-  if (secret && querySecret === secret) return true;
-  if (extSecret && querySecret === extSecret) return true;
-
-  return false;
-};
-
 const handleCronRun = async (request: Request) => {
-  if (!isAuthorized(request)) {
+  if (!(await isCronRequest(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

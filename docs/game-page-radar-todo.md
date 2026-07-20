@@ -1,5 +1,10 @@
 # Game Page Radar TODO
 
+> Status update (2026-07-14): phases 1-6 have subsequent implementations in
+> migrations, admin routes/pages, and `game_*_radar.py` scripts. Treat this file
+> as the original design record. Current work is P1 quality operations: source
+> funnel metrics, feedback calibration, and controlled source expansion.
+
 ## Goal
 
 Build a clean replacement for the old noisy sitemap discovery chain:

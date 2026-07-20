@@ -8,11 +8,14 @@ import {
 } from "@/lib/keyword-research";
 import type { ExpandResponse } from "@/lib/types";
 import { d1InsertMany, d1Query } from "@/lib/d1";
-import { getJob, updateJobStatus } from "@/lib/research-jobs";
+import {
+  claimOwnedJob,
+  finishClaimedJob,
+  getOwnedJob,
+} from "@/lib/research-jobs";
 import { setCache } from "@/lib/cache";
 import { fetchSessionPayload } from "@/lib/session-store";
 import {
-  D1_IN_QUERY_CHUNK_SIZE,
   EXPAND_PARTIAL_COMPLETE_MIN_TOTAL,
   EXPAND_PARTIAL_COMPLETE_RATIO,
   parseResponseLimit,
@@ -65,7 +68,7 @@ export const handleExpandStatus = async (
 ): Promise<ExpandStatusResult> => {
   const retryD1 = makeRetryD1(log);
 
-  const job = await getJob(jobId, userId);
+  const job = await getOwnedJob(jobId, userId, "expand");
   if (!job) {
     return { response: { error: "Job not found" }, status: 404 };
   }
@@ -165,7 +168,9 @@ export const handleExpandStatus = async (
 
       if (sharedResultCacheKey) {
         try {
-          await setCache(sharedResultCacheKey, response);
+          await setCache(sharedResultCacheKey, response, {
+            namespace: "expand-result",
+          });
         } catch (cacheError) {
           log("shared result cache write failed for completed job", {
             message: cacheError instanceof Error ? cacheError.message : "Unexpected error",
@@ -193,7 +198,7 @@ export const handleExpandStatus = async (
       : "";
   const responseLimit = parseResponseLimit(payload.responseLimit);
   const isSharedPrecomputeRequest =
-    Boolean(sharedResultCacheKey) && isCronAuthorized(request);
+    Boolean(sharedResultCacheKey) && (await isCronAuthorized(request));
 
   // Check postback results
   const postbackResults: string[] = [];
@@ -238,11 +243,23 @@ export const handleExpandStatus = async (
     taskIdsToProcess = availableIds;
   }
 
-  let stage = "mark-processing";
-  try {
-    await retryD1("job processing", () => updateJobStatus(job.id, "processing"));
+  const claim = await retryD1("claim expand job", () =>
+    claimOwnedJob(job.id, userId, "expand")
+  );
+  if (!claim) {
+    return {
+      response: {
+        status: "pending",
+        stage: "processing",
+        ready: taskIdsToProcess.length,
+        total: job.task_ids.length,
+      },
+      status: 200,
+    };
+  }
 
-    stage = "fetch-results";
+  let stage = "fetch-results";
+  try {
     let candidates;
     if (usePostback) {
       stage = "parse-postback";
@@ -352,11 +369,6 @@ export const handleExpandStatus = async (
       await retryD1("persist session", persistSession);
     }
 
-    stage = "job-complete";
-    await retryD1("job complete", () =>
-      updateJobStatus(job.id, "complete", { sessionId: sessionId ?? null })
-    );
-
     const organized = organizeCandidates(enrichedCandidates);
     const gameKws = await getGameKeywords();
     const response: ExpandResponse = {
@@ -380,13 +392,27 @@ export const handleExpandStatus = async (
 
     if (sharedResultCacheKey) {
       try {
-        await setCache(sharedResultCacheKey, response);
+        await setCache(sharedResultCacheKey, response, {
+          namespace: "expand-result",
+        });
       } catch (cacheError) {
         log("shared result cache write failed", {
           message: cacheError instanceof Error ? cacheError.message : "Unexpected error",
         });
       }
     }
+
+    stage = "job-complete";
+    await retryD1("job complete", async () => {
+      const finished = await finishClaimedJob(
+        job.id,
+        userId,
+        claim.token,
+        "complete",
+        { sessionId: sessionId ?? null },
+      );
+      if (!finished) throw new Error("Expand job claim lost before completion");
+    });
 
     return {
       response: { status: "complete", ...trimExpandResponse(response, responseLimit) },
@@ -396,9 +422,16 @@ export const handleExpandStatus = async (
     const message = error instanceof Error ? error.message : "Unexpected error";
     const errorMessage = `${stage}: ${message}`;
     try {
-      await retryD1("job failed", () =>
-        updateJobStatus(job.id, "failed", { error: errorMessage })
-      );
+      await retryD1("job failed", async () => {
+        const finished = await finishClaimedJob(
+          job.id,
+          userId,
+          claim.token,
+          "failed",
+          { error: errorMessage },
+        );
+        if (!finished) throw new Error("Expand job claim lost while recording failure");
+      });
     } catch (updateError) {
       const updateMessage =
         updateError instanceof Error ? updateError.message : "Unexpected error";

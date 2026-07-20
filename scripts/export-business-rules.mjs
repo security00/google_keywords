@@ -8,15 +8,19 @@
  */
 
 import { writeFileSync } from "fs";
-import { pathToFileURL } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { build } from "esbuild";
 
 const outPath = new URL("../config/business-rules.json", import.meta.url);
 const tempModule = new URL("../.tmp-business-rules-export.mjs", import.meta.url);
+const entryPath = fileURLToPath(
+  new URL("../config/business-rules.ts", import.meta.url),
+);
+const tempModulePath = fileURLToPath(tempModule);
 
 await build({
-  entryPoints: [new URL("../config/business-rules.ts", import.meta.url).pathname],
-  outfile: tempModule.pathname,
+  entryPoints: [entryPath],
+  outfile: tempModulePath,
   bundle: true,
   platform: "node",
   format: "esm",
@@ -24,15 +28,15 @@ await build({
 });
 
 try {
-  const mod = await import(pathToFileURL(tempModule.pathname).href + `?t=${Date.now()}`);
+  const mod = await import(pathToFileURL(tempModulePath).href + `?t=${Date.now()}`);
   if (!mod.BUSINESS_RULES_JSON || typeof mod.BUSINESS_RULES_JSON !== "object") {
     throw new Error("BUSINESS_RULES_JSON export not found");
   }
   writeFileSync(outPath, JSON.stringify(mod.BUSINESS_RULES_JSON, null, 2) + "\n");
-  console.log(`✅ Exported business rules to ${outPath.pathname}`);
+  console.log(`✅ Exported business rules to ${fileURLToPath(outPath)}`);
 } finally {
   try {
-    await import("fs").then(({ unlinkSync }) => unlinkSync(tempModule.pathname));
+    await import("fs").then(({ unlinkSync }) => unlinkSync(tempModulePath));
   } catch {
     // ignore cleanup errors
   }

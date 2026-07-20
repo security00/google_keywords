@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { isAuthzError, requirePaidApiPermission } from "@/lib/authz";
-
-const DATAFORSEO_BASE = "https://api.dataforseo.com/v3";
-
-function buildAuthHeader(): string {
-  const login = process.env.DATAFORSEO_LOGIN;
-  const password = process.env.DATAFORSEO_PASSWORD;
-  if (!login || !password) throw new Error("DataForSEO credentials not configured");
-  const encoded = Buffer.from(`${login}:${password}`).toString("base64");
-  return `Basic ${encoded}`;
-}
+import {
+  DATAFORSEO_ENDPOINTS,
+  getPlatformDataForSeoClient,
+} from "@/lib/providers/dataforseo";
+import {
+  extractRootCost,
+  parseLiveTrendsResponse,
+} from "@/lib/providers/dataforseo-parsers";
 
 export async function POST(request: Request) {
   const principal = await requirePaidApiPermission(request);
@@ -24,12 +22,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const response = await fetch(`${DATAFORSEO_BASE}/keywords_data/google_trends/explore/live`, {
-      method: "POST",
-      headers: {
-        "Authorization": buildAuthHeader(),
-        "Content-Type": "application/json",
-      },
+    const providerClient = getPlatformDataForSeoClient();
+    const data = await providerClient.request("post", DATAFORSEO_ENDPOINTS.trendsLive, {
       body: JSON.stringify([{
         keywords: [keyword, benchmark],
         location_code: 2840,
@@ -38,47 +32,9 @@ export async function POST(request: Request) {
         date_to: new Date().toISOString().slice(0, 10),
         type: "web",
       }]),
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      return NextResponse.json({ error: `DataForSEO ${response.status}: ${text}` }, { status: 502 });
-    }
-
-    const data = await response.json();
-
-    // DEBUG: capture raw structure for first item
-    let debugRaw: string | null = null;
-
-    // Build keyword-indexed data
-    // DataForSEO returns one item per keyword position
-    const keywordSeries: Array<{ date: string; value: number }> = [];
-    const benchmarkSeries: Array<{ date: string; value: number }> = [];
-    for (const task of data.tasks || []) {
-      for (const result of task.result || []) {
-        for (const item of result.items || []) {
-          if (item.type !== "google_trends_graph") continue;
-          const kwIdx = (item.keywords as string[])?.indexOf(keyword) ?? -1;
-          const bmIdx = (item.keywords as string[])?.indexOf(benchmark) ?? -1;
-          const points = item.data || [];
-          if (!debugRaw && points.length > 0) {
-            debugRaw = JSON.stringify(points[0]);
-          }
-          for (const point of points) {
-            const date = point.date_from || point.date || "";
-            if (!date) continue;
-            const ds = date.slice(0, 10);
-            const vals = point.values as number[];
-            if (kwIdx >= 0 && vals && vals.length > kwIdx) {
-              keywordSeries.push({ date: ds, value: vals[kwIdx] });
-            }
-            if (bmIdx >= 0 && vals && vals.length > bmIdx) {
-              benchmarkSeries.push({ date: ds, value: vals[bmIdx] });
-            }
-          }
-        }
-      }
-    }
+    }, 1);
+    const { keywordSeries, benchmarkSeries, debugRaw } =
+      parseLiveTrendsResponse(data, keyword, benchmark);
 
     return NextResponse.json({
       keyword, benchmark, months,
@@ -87,7 +43,7 @@ export async function POST(request: Request) {
       benchmarkSeries,
       cost: {
         estimatedCostUsd: null,
-        actualCostUsd: typeof data.cost === "number" ? data.cost : null,
+        actualCostUsd: extractRootCost(data),
       },
       _debug: debugRaw,
     });

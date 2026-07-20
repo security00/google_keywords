@@ -33,7 +33,7 @@ export function MarketingAuthActions() {
   }, []);
 
   if (!loaded) {
-    return <div className="h-9 w-44" aria-hidden="true" />;
+    return <div className="h-9 w-32 sm:w-44" aria-hidden="true" />;
   }
 
   if (user) {
@@ -44,7 +44,7 @@ export function MarketingAuthActions() {
         </span>
         <Link
           href="/dashboard"
-          className="whitespace-nowrap rounded-md bg-zinc-950 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
+          className="whitespace-nowrap rounded-md bg-zinc-950 px-2.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 sm:px-3 sm:text-sm"
         >
           Dashboard
         </Link>
@@ -56,13 +56,13 @@ export function MarketingAuthActions() {
     <div className="flex items-center gap-2">
       <Link
         href="/login"
-        className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-white hover:text-zinc-950"
+        className="whitespace-nowrap rounded-md px-2 py-2 text-xs font-medium text-zinc-700 hover:bg-white hover:text-zinc-950 sm:px-3 sm:text-sm"
       >
         Login
       </Link>
       <Link
         href="/register"
-        className="whitespace-nowrap rounded-md bg-zinc-950 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
+        className="whitespace-nowrap rounded-md bg-zinc-950 px-2.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 sm:px-3 sm:text-sm"
       >
         Request access
       </Link>

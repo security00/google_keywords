@@ -9,9 +9,14 @@ import {
   summarizeResults,
   submitComparisonTasksWithCost,
 } from "@/lib/keyword-research";
-import type { CompareResponse, ComparisonSignalConfig } from "@/lib/types";
+import type { CompareResponse } from "@/lib/types";
 import { buildCacheKey, getCached, setCache } from "@/lib/cache";
-import { createJob } from "@/lib/research-jobs";
+import {
+  createJob,
+  getJobForRequest,
+  getOwnedJob,
+  linkJobToRequest,
+} from "@/lib/research-jobs";
 import { batchScoreKeywords } from "@/lib/rule-engine";
 
 import {
@@ -19,7 +24,6 @@ import {
   MIN_COMPARE_MAX_ITEMS,
   MAX_COMPARE_MAX_ITEMS,
   DEFAULT_COMPARE_MIN_RULE_SCORE,
-  AUTO_COMPARE_POOL_MULTIPLIER,
   isCronAuthorized,
   parseComparisonSignalConfig,
   normalizeStrategy,
@@ -36,7 +40,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
   const startedAt = Date.now();
 
   const body = await request.json().catch(() => ({}));
-  const allowCreateSharedJob = isCronAuthorized(request);
+  const allowCreateSharedJob = await isCronAuthorized(request);
   const refreshIntent = allowCreateSharedJob && body?.refreshIntent === true;
   const enableIntentLlm = allowCreateSharedJob && body?.enableIntentLlm === true;
   const strategy = normalizeStrategy(body?.strategy);
@@ -218,7 +222,10 @@ export async function handleComparePost(request: Request, userId: string, isStud
     selectedKeywords,
     compareCacheParams
   );
-  const cachedCompareResult = await getCached<CompareResponse>(compareResultCacheKey);
+  const cachedCompareResult = await getCached<CompareResponse>(
+    compareResultCacheKey,
+    { namespace: "compare-result" },
+  );
   if (cachedCompareResult?.results?.length) {
     if (refreshIntent && enableIntentLlm) {
       const refreshedResults = await enrichComparisonResultsWithIntent(
@@ -231,10 +238,14 @@ export async function handleComparePost(request: Request, userId: string, isStud
         results: decoratedResults,
         summary: summarizeResults(decoratedResults),
       };
-      await setCache(compareResultCacheKey, {
-        ...refreshedResponse,
-        fromCache: false,
-      });
+      await setCache(
+        compareResultCacheKey,
+        {
+          ...refreshedResponse,
+          fromCache: false,
+        },
+        { namespace: "compare-result" },
+      );
       if (debug) console.log("[api/compare] shared intent cache refreshed", { compareResultCacheKey });
       return NextResponse.json({
         status: "complete",
@@ -255,10 +266,39 @@ export async function handleComparePost(request: Request, userId: string, isStud
   }
 
   const compareCacheKey = buildCacheKey("compare_job", selectedKeywords, compareCacheParams);
-  const cachedCompareJobId = await getCached<string>(compareCacheKey);
-  if (cachedCompareJobId) {
-    if (debug) console.log("[api/compare] cache hit, existing job", { cachedCompareJobId });
-    return NextResponse.json({ jobId: cachedCompareJobId, status: "pending", strategy: appliedStrategy, fromCache: true });
+  let cachedCompareJob = await getJobForRequest(
+    userId,
+    "compare",
+    compareCacheKey,
+  );
+  if (!cachedCompareJob) {
+    const legacyJobId = await getCached<string>(compareCacheKey, {
+      namespace: "compare-result",
+    });
+    if (legacyJobId) {
+      cachedCompareJob = await getOwnedJob(legacyJobId, userId, "compare");
+      if (cachedCompareJob) {
+        await linkJobToRequest(
+          userId,
+          "compare",
+          compareCacheKey,
+          cachedCompareJob.id,
+        );
+      }
+    }
+  }
+  if (cachedCompareJob && cachedCompareJob.status !== "failed") {
+    if (debug) {
+      console.log("[api/compare] cache hit, existing job", {
+        cachedCompareJobId: cachedCompareJob.id,
+      });
+    }
+    return NextResponse.json({
+      jobId: cachedCompareJob.id,
+      status: "pending",
+      strategy: appliedStrategy,
+      fromCache: true,
+    });
   }
 
   if (!allowCreateSharedJob) {
@@ -348,7 +388,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
     console.log("[api/compare] tasks submitted", { taskCount: taskIds.length });
   }
 
-    const jobId = await createJob(userId, "compare", taskIds, {
+  const jobId = await createJob(userId, "compare", taskIds, {
     keywords: selectedKeywords,
     keywordIds: selectedKeywordIds,
     strategy: appliedStrategy,
@@ -373,8 +413,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
     });
   }
 
-  // 缓存 jobId（同关键词同天不再调 DataForSEO）
-  await setCache(compareCacheKey, jobId);
+  await linkJobToRequest(userId, "compare", compareCacheKey, jobId);
 
   return NextResponse.json({
     jobId,

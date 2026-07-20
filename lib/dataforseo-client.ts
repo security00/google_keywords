@@ -28,23 +28,6 @@ import {
   DEFAULT_COMPARE_BENCHMARK as _DEFAULT_BENCHMARK,
 } from "@/config/business-rules";
 
-/* ── DataForSEO API URLs ────────────────────────────────────── */
-
-export const TASK_POST_URL =
-  "https://api.dataforseo.com/v3/keywords_data/google_trends/explore/task_post";
-export const TASKS_READY_URL =
-  "https://api.dataforseo.com/v3/keywords_data/google_trends/explore/tasks_ready";
-export const TASK_GET_URL =
-  "https://api.dataforseo.com/v3/keywords_data/google_trends/explore/task_get";
-export const SERP_LIVE_ADVANCED_URL =
-  "https://api.dataforseo.com/v3/serp/google/organic/live/advanced";
-export const SERP_TASK_POST_URL =
-  "https://api.dataforseo.com/v3/serp/google/organic/task_post";
-export const SERP_TASKS_READY_URL =
-  "https://api.dataforseo.com/v3/serp/google/organic/tasks_ready";
-export const SERP_TASK_GET_ADV_URL =
-  "https://api.dataforseo.com/v3/serp/google/organic/task_get/advanced";
-
 /* ── Polling / timeout config ───────────────────────────────── */
 
 export const POLL_INTERVAL_MS = (() => {
@@ -57,7 +40,6 @@ export const MAX_WAIT_MS = (() => {
   if (Number.isFinite(raw) && raw > 0) return Math.min(Math.max(60_000, raw), 1_800_000);
   return 600_000;
 })();
-export const REQUEST_TIMEOUT_MS = 30_000;
 export const OPENROUTER_REQUEST_TIMEOUT_MS = 60_000;
 
 /* ── Signal config constants ────────────────────────────────── */
@@ -112,9 +94,6 @@ export const SERP_LLM_RESULTS = 3;
 export const EXPANSION_TASK_POST_BATCH_SIZE = _EXPANSION_BATCH_SIZE;
 export const COMPARISON_TASK_POST_BATCH_SIZE = _COMPARISON_BATCH_SIZE;
 export const OPENROUTER_BATCH_SIZE = _OPENROUTER_BATCH_SIZE;
-export const DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
-export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.2";
-
 export const DEFAULT_FILTER_TERMS = [
   "赌博",
   "博彩",
@@ -331,73 +310,6 @@ export const resolveComparisonSignalConfig = (
 /* ── HTTP helpers ───────────────────────────────────────────── */
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export const buildAuthHeaders = () => {
-  const login = process.env.DATAFORSEO_LOGIN;
-  const password = process.env.DATAFORSEO_PASSWORD;
-
-  if (!login || !password) {
-    throw new Error("Missing DataForSEO credentials in environment variables.");
-  }
-
-  const credentials = Buffer.from(`${login}:${password}`).toString("base64");
-  return {
-    Authorization: `Basic ${credentials}`,
-    "Content-Type": "application/json",
-  } satisfies HeadersInit;
-};
-
-const fetchJsonWithTimeout = async (
-  url: string,
-  options: RequestInit,
-  timeoutMs = REQUEST_TIMEOUT_MS
-) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
-    const text = await response.text();
-    const trimmed = text.trim();
-    const data = trimmed ? JSON.parse(trimmed) : null;
-
-    if (!response.ok) {
-      const message = data?.status_message || response.statusText;
-      throw new Error(message || "Request failed");
-    }
-
-    return data;
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
-export const requestWithRetry = async (
-  method: "get" | "post",
-  url: string,
-  options: RequestInit = {},
-  maxRetries = 3,
-  timeoutMs = REQUEST_TIMEOUT_MS
-) => {
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
-    try {
-      const data = await fetchJsonWithTimeout(url, {
-        ...options,
-        method: method.toUpperCase(),
-      }, timeoutMs);
-      return data;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error("Unknown error");
-      if (attempt < maxRetries - 1) {
-        await sleep((attempt + 1) * 5_000);
-      }
-    }
-  }
-
-  throw lastError ?? new Error("Request failed");
-};
 
 /* ── Misc helpers ───────────────────────────────────────────── */
 

@@ -1,27 +1,34 @@
 import type { Candidate } from "@/lib/types";
 import {
-  TASK_POST_URL,
-  TASKS_READY_URL,
-  TASK_GET_URL,
   MAX_WAIT_MS,
   POLL_INTERVAL_MS,
   EXPANSION_TASK_POST_BATCH_SIZE,
   normalizeDate,
   buildPostbackUrl,
-  buildAuthHeaders,
-  requestWithRetry,
   sleep,
   extractDataForSeoCost,
   mergeCostSummaries,
 } from "../dataforseo-client";
 import { createBatches } from "../keyword-utils";
+import {
+  DATAFORSEO_ENDPOINTS,
+  getPlatformDataForSeoClient,
+  type DataForSeoClient,
+} from "../providers/dataforseo";
+
+type ExpansionClientOptions = {
+  postbackUrl?: string;
+  cacheKey?: string;
+  providerClient?: DataForSeoClient;
+};
 
 export const submitExpansionTasksWithCost = async (
   keywords: string[],
   dateFrom: string,
   dateTo: string,
-  options?: { postbackUrl?: string; cacheKey?: string }
+  options?: ExpansionClientOptions
 ) => {
+  const providerClient = options?.providerClient ?? getPlatformDataForSeoClient();
   const postback = buildPostbackUrl(options?.postbackUrl, options?.cacheKey, "expand");
   const batches = createBatches(keywords, EXPANSION_TASK_POST_BATCH_SIZE);
   const taskIds: string[] = [];
@@ -38,8 +45,7 @@ export const submitExpansionTasksWithCost = async (
       ...(postback ? { postback_url: postback } : {}),
     }));
 
-    const result = await requestWithRetry("post", TASK_POST_URL, {
-      headers: buildAuthHeaders(),
+    const result = await providerClient.request("post", DATAFORSEO_ENDPOINTS.trendsTaskPost, {
       body: JSON.stringify(payload),
     });
 
@@ -89,21 +95,26 @@ export const submitExpansionTasks = async (
   keywords: string[],
   dateFrom: string,
   dateTo: string,
-  options?: { postbackUrl?: string; cacheKey?: string }
+  options?: ExpansionClientOptions
 ) => {
   const submission = await submitExpansionTasksWithCost(keywords, dateFrom, dateTo, options);
   return submission.taskIds;
 };
 
-export const waitForTasks = async (taskIds: string[]) => {
+export const waitForTasks = async (
+  taskIds: string[],
+  options: { providerClient?: DataForSeoClient } = {},
+) => {
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
   const pending = new Set(taskIds);
   const completed: string[] = [];
   const startedAt = Date.now();
 
   while (pending.size > 0 && Date.now() - startedAt < MAX_WAIT_MS) {
-    const result = await requestWithRetry("get", TASKS_READY_URL, {
-      headers: buildAuthHeaders(),
-    });
+    const result = await providerClient.request(
+      "get",
+      DATAFORSEO_ENDPOINTS.trendsTasksReady,
+    );
 
     if (result?.status_code === 20000) {
       const readyTasks = result?.tasks?.[0]?.result ?? [];
@@ -124,15 +135,20 @@ export const waitForTasks = async (taskIds: string[]) => {
   return completed;
 };
 
-export const getReadyTaskIds = async (taskIds: string[]) => {
+export const getReadyTaskIds = async (
+  taskIds: string[],
+  options: { providerClient?: DataForSeoClient } = {},
+) => {
   const pending = new Set(taskIds);
   const completed: string[] = [];
 
   if (pending.size === 0) return completed;
 
-  const result = await requestWithRetry("get", TASKS_READY_URL, {
-    headers: buildAuthHeaders(),
-  });
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
+  const result = await providerClient.request(
+    "get",
+    DATAFORSEO_ENDPOINTS.trendsTasksReady,
+  );
 
   if (result?.status_code === 20000) {
     const readyTasks = result?.tasks?.[0]?.result ?? [];
@@ -147,22 +163,15 @@ export const getReadyTaskIds = async (taskIds: string[]) => {
   return completed;
 };
 
-export const getExpansionResults = async (taskIds: string[]) => {
+export const getExpansionResultsFromTasks = (
+  tasks: Array<Record<string, unknown>>,
+) => {
   const allCandidates: Candidate[] = [];
 
-  for (const taskId of taskIds) {
-    const result = await requestWithRetry("get", `${TASK_GET_URL}/${taskId}`, {
-      headers: buildAuthHeaders(),
-    });
+  for (const task of tasks) {
+      if (Number(task?.status_code ?? 0) !== 20000) continue;
 
-    if (result?.status_code !== 20000) {
-      continue;
-    }
-
-    for (const task of result?.tasks ?? []) {
-      if (task?.status_code !== 20000) continue;
-
-      const taskResult = task?.result?.[0];
+      const taskResult = Array.isArray(task.result) ? task.result[0] : undefined;
       if (!taskResult) continue;
 
       const items = taskResult.items ?? [];
@@ -216,8 +225,30 @@ export const getExpansionResults = async (taskIds: string[]) => {
           }
         }
       }
-    }
   }
 
   return allCandidates;
+};
+
+export const getExpansionResults = async (
+  taskIds: string[],
+  options: { providerClient?: DataForSeoClient } = {},
+) => {
+  const providerClient = options.providerClient ?? getPlatformDataForSeoClient();
+  const tasks: Array<Record<string, unknown>> = [];
+
+  for (const taskId of taskIds) {
+    const result = await providerClient.request(
+      "get",
+      `${DATAFORSEO_ENDPOINTS.trendsTaskGet}/${taskId}`,
+    );
+    if (result?.status_code !== 20000 || !Array.isArray(result?.tasks)) continue;
+    for (const task of result.tasks) {
+      if (task && typeof task === "object") {
+        tasks.push(task as Record<string, unknown>);
+      }
+    }
+  }
+
+  return getExpansionResultsFromTasks(tasks);
 };

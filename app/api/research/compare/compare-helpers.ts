@@ -1,6 +1,7 @@
 import type { CompareResponse, ComparisonSignalConfig } from "@/lib/types";
 import { d1Query } from "@/lib/d1";
 import { groupSemanticKeywordCandidates } from "@/lib/keyword-utils";
+import { isCronRequest } from "@/lib/authz";
 
 export type CompareStrategy = "manual" | "recent" | "priority";
 
@@ -93,21 +94,7 @@ export const COMPARISON_SIGNAL_CONFIG_RANGES: Record<
   nearOneTolerance: [0.01, 0.5],
 };
 
-export const isCronAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET;
-  const externalSecret = process.env.EXTERNAL_CRON_SECRET;
-  if (!secret && !externalSecret) return false;
-
-  const headerSecret = request.headers.get("x-cron-secret");
-  if (secret && headerSecret === secret) return true;
-  if (externalSecret && headerSecret === externalSecret) return true;
-
-  const authHeader = request.headers.get("authorization");
-  if (secret && authHeader === `Bearer ${secret}`) return true;
-  if (externalSecret && authHeader === `Bearer ${externalSecret}`) return true;
-
-  return false;
-};
+export const isCronAuthorized = isCronRequest;
 
 export const parseComparisonSignalConfig = (
   raw: unknown
@@ -169,12 +156,20 @@ export const getLatestSharedCompareResult = async (params: {
   benchmark: string;
 }) => {
   const suffix = `benchmark=${params.benchmark},dateFrom=${params.dateFrom},dateTo=${params.dateTo}`;
+  const now = new Date().toISOString();
+  const legacyCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { rows } = await d1Query<{ response_data: string; cache_key: string; created_at: string }>(
     `SELECT response_data, cache_key, created_at
      FROM query_cache
      WHERE instr(cache_key, ':compare_result:') > 0
+       AND cache_scope = 'shared'
+       AND (
+         (namespace = 'compare-result' AND expires_at > ?)
+         OR (namespace = 'legacy' AND created_at > ?)
+       )
      ORDER BY created_at DESC
-     LIMIT 50`
+     LIMIT 50`,
+    [now, legacyCutoff]
   );
 
   let best: { response: CompareResponse; cacheKey: string; createdAt: string; resultCount: number } | null = null;
@@ -210,6 +205,8 @@ export const getLatestSuccessfulSharedCompareResult = async (params: {
   keywords: string[];
   benchmark: string;
 }) => {
+  const now = new Date().toISOString();
+  const legacyCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { rows } = await d1Query<{
     response_data: string;
     cache_key: string;
@@ -218,8 +215,14 @@ export const getLatestSuccessfulSharedCompareResult = async (params: {
     `SELECT response_data, cache_key, created_at
      FROM query_cache
      WHERE instr(cache_key, ':compare_result:') > 0
+       AND cache_scope = 'shared'
+       AND (
+         (namespace = 'compare-result' AND expires_at > ?)
+         OR (namespace = 'legacy' AND created_at > ?)
+       )
      ORDER BY created_at DESC
-     LIMIT 50`
+     LIMIT 50`,
+    [now, legacyCutoff]
   );
   const expectedKeywords = [...params.keywords].sort();
 
@@ -260,6 +263,8 @@ export const getLatestSuccessfulSharedCompareResult = async (params: {
 };
 
 export const getLatestSuccessfulSharedCompareResultAny = async (benchmark: string) => {
+  const now = new Date().toISOString();
+  const legacyCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { rows } = await d1Query<{
     response_data: string;
     cache_key: string;
@@ -268,8 +273,14 @@ export const getLatestSuccessfulSharedCompareResultAny = async (benchmark: strin
     `SELECT response_data, cache_key, created_at
      FROM query_cache
      WHERE instr(cache_key, ':compare_result:') > 0
+       AND cache_scope = 'shared'
+       AND (
+         (namespace = 'compare-result' AND expires_at > ?)
+         OR (namespace = 'legacy' AND created_at > ?)
+       )
      ORDER BY created_at DESC
-     LIMIT 50`
+     LIMIT 50`,
+    [now, legacyCutoff]
   );
 
   let best: { response: CompareResponse; cacheKey: string; createdAt: string; resultCount: number } | null = null;

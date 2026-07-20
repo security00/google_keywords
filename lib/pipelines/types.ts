@@ -1,10 +1,34 @@
-export type KnownPipelineName =
-  | "precompute-shared-expand"
-  | "old-word-pipeline"
-  | "game-trend-scanner"
-  | "community-signals";
+export const KNOWN_PIPELINE_NAMES = [
+  "precompute-shared-expand",
+  "old-word-pipeline",
+  "game-trend-scanner",
+  "community-signals",
+] as const;
+export type KnownPipelineName = (typeof KNOWN_PIPELINE_NAMES)[number];
 
 export type PipelineName = KnownPipelineName | (string & {});
+
+export const PIPELINE_CONTRACT_VERSION = 1 as const;
+export const PIPELINE_RUN_STATUSES = [
+  "running",
+  "success",
+  "success_with_warnings",
+  "failed",
+  "canceled",
+] as const;
+export const PIPELINE_TASK_STATUSES = [
+  "queued",
+  "running",
+  "waiting_provider",
+  "retry_scheduled",
+  "succeeded",
+  "success_with_warnings",
+  "failed",
+  "dead_lettered",
+  "skipped",
+] as const;
+export const CREDENTIAL_SOURCES = ["platform", "user"] as const;
+export const EXECUTION_MODES = ["platform", "byok"] as const;
 
 export type PipelineTaskStatus =
   | "queued"
@@ -17,21 +41,25 @@ export type PipelineTaskStatus =
   | "dead_lettered"
   | "skipped";
 
+export const KNOWN_PIPELINE_TASK_STAGES = [
+  "run.start",
+  "run.finalize",
+  "shared-expand.expand-trends",
+  "shared-expand.llm-filter",
+  "shared-expand.compare-trends",
+  "shared-expand.compare-intent",
+  "old-word.seed",
+  "old-word.trends",
+  "old-word.finalize",
+  "game.fetch-source",
+  "game.trends-14d",
+  "game.history-90d",
+  "game.serp",
+  "game.serp-relevance-retry",
+  "game.classify",
+] as const;
 export type KnownPipelineTaskStage =
-  | "run.start"
-  | "run.finalize"
-  | "shared-expand.submit"
-  | "shared-expand.finalize"
-  | "shared-expand.compare"
-  | "shared-expand.intent"
-  | "old-word.seed"
-  | "old-word.trends"
-  | "old-word.finalize"
-  | "game.fetch-source"
-  | "game.trends-14d"
-  | "game.history-90d"
-  | "game.serp"
-  | "game.classify";
+  (typeof KNOWN_PIPELINE_TASK_STAGES)[number];
 
 export type PipelineTaskStage = KnownPipelineTaskStage | (string & {});
 
@@ -167,5 +195,8 @@ export type CostEventInput = {
   eventKey?: string | null;
   providerRequestId?: string | null;
   idempotencyKey?: string | null;
+  credentialSource?: (typeof CREDENTIAL_SOURCES)[number];
+  executionMode?: (typeof EXECUTION_MODES)[number];
+  ownerId?: string | null;
   metadata?: Record<string, unknown> | null;
 };

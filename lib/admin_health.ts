@@ -16,6 +16,7 @@ export type PrecomputeHealth = {
 };
 
 const HEALTH_PREFIX = "precompute_health:";
+const HEALTH_TTL_HOURS = 24 * 14;
 
 export const buildPrecomputeHealthCacheKey = (sharedDate: string) =>
   `${HEALTH_PREFIX}${sharedDate}`;
@@ -23,18 +24,28 @@ export const buildPrecomputeHealthCacheKey = (sharedDate: string) =>
 export async function writePrecomputeHealth(
   health: PrecomputeHealth
 ): Promise<void> {
-  await setCache(buildPrecomputeHealthCacheKey(health.sharedDate), health);
+  await setCache(buildPrecomputeHealthCacheKey(health.sharedDate), health, {
+    namespace: "precompute-health",
+    ttlHours: HEALTH_TTL_HOURS,
+  });
 }
 
 export async function getPrecomputeHealth(
   sharedDate: string
 ): Promise<PrecomputeHealth | null> {
-  return getCached<PrecomputeHealth>(buildPrecomputeHealthCacheKey(sharedDate));
+  return getCached<PrecomputeHealth>(buildPrecomputeHealthCacheKey(sharedDate), {
+    namespace: "precompute-health",
+    ttlHours: HEALTH_TTL_HOURS,
+  });
 }
 
 export async function listRecentPrecomputeHealth(
   limit = 7
 ): Promise<PrecomputeHealth[]> {
+  const now = new Date().toISOString();
+  const legacyCutoff = new Date(
+    Date.now() - HEALTH_TTL_HOURS * 60 * 60 * 1000
+  ).toISOString();
   const { rows } = await d1Query<{
     cache_key: string;
     response_data: string;
@@ -43,9 +54,14 @@ export async function listRecentPrecomputeHealth(
     `SELECT cache_key, response_data, created_at
      FROM query_cache
      WHERE substr(cache_key, 1, ?) = ?
+       AND cache_scope = 'shared'
+       AND (
+         (namespace = 'precompute-health' AND expires_at > ?)
+         OR (namespace = 'legacy' AND created_at > ?)
+       )
      ORDER BY created_at DESC
      LIMIT ?`,
-    [HEALTH_PREFIX.length, HEALTH_PREFIX, limit]
+    [HEALTH_PREFIX.length, HEALTH_PREFIX, now, legacyCutoff, limit]
   );
 
   const items: PrecomputeHealth[] = [];

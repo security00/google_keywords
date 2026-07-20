@@ -10,7 +10,11 @@ import {
 import type { CompareResponse, ComparisonResult } from "@/lib/types";
 import { d1InsertMany, d1Query } from "@/lib/d1";
 import { getCached, setCache } from "@/lib/cache";
-import { getJob, getJobById, updateJobStatus } from "@/lib/research-jobs";
+import {
+  claimOwnedJob,
+  finishClaimedJob,
+  getOwnedJob,
+} from "@/lib/research-jobs";
 
 import {
   METRICS_VERSION,
@@ -59,7 +63,7 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
     return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
   }
 
-  const job = (await getJob(jobId, userId)) ?? (await getJobById(jobId, "compare"));
+  const job = await getOwnedJob(jobId, userId, "compare");
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
@@ -105,8 +109,8 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
         date_to: string | null;
         summary: string | null;
       }>(
-        "SELECT id, benchmark, date_from, date_to, summary FROM comparisons WHERE id = ? LIMIT 1",
-        [job.session_id]
+        "SELECT id, benchmark, date_from, date_to, summary FROM comparisons WHERE id = ? AND user_id = ? LIMIT 1",
+        [job.session_id, userId]
       );
 
       const comparison = comparisonRows[0];
@@ -131,8 +135,8 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
         explanation: string | null;
         intent: string | null;
       }>(
-        "SELECT keyword, avg_value, benchmark_value, ratio, ratio_mean, ratio_recent, ratio_coverage, ratio_peak, slope_diff, volatility, crossings, verdict, trend_series, explanation, intent FROM comparison_results WHERE comparison_id = ?",
-        [comparison.id]
+        "SELECT keyword, avg_value, benchmark_value, ratio, ratio_mean, ratio_recent, ratio_coverage, ratio_peak, slope_diff, volatility, crossings, verdict, trend_series, explanation, intent FROM comparison_results WHERE comparison_id = ? AND user_id = ?",
+        [comparison.id, userId]
       );
 
       const parsedSummary =
@@ -175,7 +179,9 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
         ? payloadForComplete.resultCacheKey
         : undefined;
     if (resultCacheKey) {
-      const cachedResult = await getCached<CompareResponse>(resultCacheKey);
+      const cachedResult = await getCached<CompareResponse>(resultCacheKey, {
+        namespace: "compare-result",
+      });
       if (cachedResult?.results?.length) {
         return NextResponse.json({
           status: "complete",
@@ -223,11 +229,20 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
     }
   }
 
-  let stage = "mark-processing";
-  try {
-    await retryD1("job processing", () => updateJobStatus(job.id, "processing"));
+  const claim = await retryD1("claim compare job", () =>
+    claimOwnedJob(job.id, userId, "compare")
+  );
+  if (!claim) {
+    return NextResponse.json({
+      status: "pending",
+      stage: "processing",
+      ready: job.task_ids.length,
+      total: job.task_ids.length,
+    });
+  }
 
-    stage = "fetch-results";
+  let stage = "fetch-results";
+  try {
     const results = usePostback
       ? await getComparisonResultsFromTasks(
           postbackResults.flatMap((resultJson) => {
@@ -251,9 +266,16 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
         );
     if (results.length === 0) {
       const errorMessage = "fetch-results: No comparison results";
-      await retryD1("job failed", () =>
-        updateJobStatus(job.id, "failed", { error: errorMessage })
-      );
+      await retryD1("job failed", async () => {
+        const finished = await finishClaimedJob(
+          job.id,
+          userId,
+          claim.token,
+          "failed",
+          { error: errorMessage },
+        );
+        if (!finished) throw new Error("Compare job claim lost while recording failure");
+      });
       return NextResponse.json({ status: "failed", error: errorMessage }, { status: 500 });
     }
 
@@ -347,11 +369,6 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
       comparisonId = newComparisonId;
     }
 
-    stage = "job-complete";
-    await retryD1("job complete", () =>
-      updateJobStatus(job.id, "complete", { sessionId: comparisonId ?? null })
-    );
-
     const response: CompareResponse = {
       benchmark,
       dateFrom: dateFrom ?? "",
@@ -366,12 +383,28 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
       typeof payload.resultCacheKey === "string" ? payload.resultCacheKey : undefined;
     if (resultCacheKey) {
       await retryD1("set compare result cache", () =>
-        setCache(resultCacheKey, {
-          ...response,
-          fromCache: false,
-        })
+        setCache(
+          resultCacheKey,
+          {
+            ...response,
+            fromCache: false,
+          },
+          { namespace: "compare-result" },
+        )
       );
     }
+
+    stage = "job-complete";
+    await retryD1("job complete", async () => {
+      const finished = await finishClaimedJob(
+        job.id,
+        userId,
+        claim.token,
+        "complete",
+        { sessionId: comparisonId ?? null },
+      );
+      if (!finished) throw new Error("Compare job claim lost before completion");
+    });
 
     if (debug) {
       console.log("[api/compare] completed", {
@@ -386,9 +419,16 @@ export async function handleCompareStatusGet(request: Request, userId: string) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     const errorMessage = `${stage}: ${message}`;
     try {
-      await retryD1("job failed", () =>
-        updateJobStatus(job.id, "failed", { error: errorMessage })
-      );
+      await retryD1("job failed", async () => {
+        const finished = await finishClaimedJob(
+          job.id,
+          userId,
+          claim.token,
+          "failed",
+          { error: errorMessage },
+        );
+        if (!finished) throw new Error("Compare job claim lost while recording failure");
+      });
     } catch (updateError) {
       const updateMessage =
         updateError instanceof Error ? updateError.message : "Unexpected error";
