@@ -36,6 +36,10 @@ GitHub plan supports deployment protection rules.
   changed. A failed migration stops the job before Worker deployment.
 - The migration runner is executed again after `--apply`; a checksum mismatch
   or remaining migration fails the deployment.
+- Migration `0019` has one explicitly pinned legacy production checksum from
+  its pre-normalization rollout. The runner accepts it only when the repository
+  file still matches the verified canonical checksum; all other mismatches fail
+  closed.
 - A post-deploy smoke failure automatically rolls the Worker back to the prior
   deployment and verifies the recovered public paths.
 - D1 Time Travel restore is intentionally manual because it overwrites the

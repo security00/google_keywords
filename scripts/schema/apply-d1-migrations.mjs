@@ -6,10 +6,14 @@
  * Records applied migrations in schema_migrations.
  */
 
-import { createHash } from "crypto";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import process from "process";
+
+import {
+  canonicalMigrationChecksum,
+  isAcceptedMigrationChecksum,
+} from "./migration-checksum-policy.mjs";
 
 function loadDotEnv(path) {
   try {
@@ -53,14 +57,6 @@ async function d1(sql, params = []) {
   return payload.result?.[0]?.results || [];
 }
 
-function checksum(content) {
-  // Migration files are immutable, but Git may materialize them with CRLF on
-  // Windows. Hash the canonical LF representation so the same migration has
-  // one checksum across developer machines and CI runners.
-  const canonicalContent = content.replace(/\r\n/g, "\n");
-  return createHash("sha256").update(canonicalContent).digest("hex");
-}
-
 const files = readdirSync(migrationsDir)
   .filter((file) => /^\d+_.+\.sql$/.test(file))
   .sort();
@@ -82,15 +78,16 @@ for (const file of files) {
   const content = readFileSync(join(migrationsDir, file), "utf8");
   const version = file.split("_")[0];
   const name = file.replace(/^\d+_/, "").replace(/\.sql$/, "");
-  const hash = checksum(content);
+  const hash = canonicalMigrationChecksum(content);
   const existing = applied.get(version);
 
   if (existing) {
-    if (existing !== hash) {
+    if (!isAcceptedMigrationChecksum(version, existing, hash)) {
       console.error(`❌ Migration checksum mismatch for ${file}`);
       process.exit(1);
     }
-    console.log(`✓ already applied ${file}`);
+    const legacyNote = existing === hash ? "" : " (verified legacy checksum)";
+    console.log(`✓ already applied ${file}${legacyNote}`);
     continue;
   }
 
