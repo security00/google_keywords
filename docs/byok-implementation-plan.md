@@ -97,7 +97,9 @@ LLM 失败时返回 Partial Success，不重跑已经成功的付费阶段。
 
 当前切片：DataForSEO 凭证使用与 OpenRouter 相同的 owner-scoped 加密 Store 和管理
 API；验证固定调用官方免费的 `/v3/appendix/user_data`，不返回或保存账户资料，并复用
-持久化 owner/provider 限流。研究执行、预算和任何付费调用尚未开放。
+持久化 owner/provider 限流。预算门使用整数 micro-USD、owner 日预算、operator 上限、
+并发上限和短期费用报价；只有请求哈希与报价金额完全匹配的显式 `CONFIRM` 才能原子
+预留额度。任何付费研究调用仍未开放。
 
 ## 6. B4 — 灰度与验收
 

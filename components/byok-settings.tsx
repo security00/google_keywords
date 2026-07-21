@@ -27,6 +27,12 @@ export function ByokSettings() {
   const [dataForSeoLabel, setDataForSeoLabel] = useState("DataForSEO");
   const [dataForSeoLogin, setDataForSeoLogin] = useState("");
   const [dataForSeoPassword, setDataForSeoPassword] = useState("");
+  const [dailyBudgetUsd, setDailyBudgetUsd] = useState("1");
+  const [maxConcurrentJobs, setMaxConcurrentJobs] = useState("1");
+  const [spendPolicy, setSpendPolicy] = useState({
+    maxDailyBudgetUsd: 10,
+    maxConcurrentJobs: 2,
+  });
   const [keywords, setKeywords] = useState("");
   const [results, setResults] = useState<SemanticResult[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -54,6 +60,18 @@ export function ByokSettings() {
     const dataForSeo = current.find((item: Connection) => item.provider === "dataforseo");
     if (openRouter?.label) setOpenRouterLabel(openRouter.label);
     if (dataForSeo?.label) setDataForSeoLabel(dataForSeo.label);
+    const spendResponse = await fetch("/api/provider-connections/spend-controls", {
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (spendResponse.ok) {
+      const spend = await spendResponse.json().catch(() => ({}));
+      if (spend.controls) {
+        setDailyBudgetUsd(String(spend.controls.dailyBudgetUsd));
+        setMaxConcurrentJobs(String(spend.controls.maxConcurrentJobs));
+      }
+      if (spend.policy) setSpendPolicy(spend.policy);
+    }
   }, []);
 
   useEffect(() => void load(), [load]);
@@ -147,6 +165,26 @@ export function ByokSettings() {
     if (result) {
       setMessage(result.verification?.code || "Verification finished.");
       await load();
+    }
+  };
+
+  const saveSpendControls = async () => {
+    const result = await mutate(
+      "save-spend-controls",
+      "/api/provider-connections/spend-controls",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dailyBudgetUsd: Number(dailyBudgetUsd),
+          maxConcurrentJobs: Number(maxConcurrentJobs),
+        }),
+      },
+    );
+    if (result?.controls) {
+      setDailyBudgetUsd(String(result.controls.dailyBudgetUsd));
+      setMaxConcurrentJobs(String(result.controls.maxConcurrentJobs));
+      setMessage("BYOK spend controls saved.");
     }
   };
 
@@ -267,6 +305,31 @@ export function ByokSettings() {
             <span className="ml-auto capitalize">{dataForSeoConnection.verificationStatus}</span>
           </div>}
         </div>
+      </div>
+      <div className="mt-4 rounded-lg border p-4">
+        <h4 className="font-medium">Spend controls</h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Paid BYOK research will require an exact cost quote confirmation and is blocked by these owner-scoped limits.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1 text-xs text-muted-foreground">
+            Daily budget (USD, max {spendPolicy.maxDailyBudgetUsd})
+            <input type="number" min="0.000001" max={spendPolicy.maxDailyBudgetUsd} step="0.01"
+              value={dailyBudgetUsd} onChange={(e) => setDailyBudgetUsd(e.target.value)}
+              className="rounded-lg border bg-background px-3 py-2 text-sm text-foreground" />
+          </label>
+          <label className="grid gap-1 text-xs text-muted-foreground">
+            Maximum concurrent jobs (max {spendPolicy.maxConcurrentJobs})
+            <input type="number" min="1" max={spendPolicy.maxConcurrentJobs} step="1"
+              value={maxConcurrentJobs} onChange={(e) => setMaxConcurrentJobs(e.target.value)}
+              className="rounded-lg border bg-background px-3 py-2 text-sm text-foreground" />
+          </label>
+        </div>
+        <Button type="button" variant="outline" className="mt-3"
+          onClick={saveSpendControls} disabled={Boolean(busy)}>
+          {busy === "save-spend-controls" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Save spend controls
+        </Button>
       </div>
       {liveEnabled && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private keyword semantic filter</h4>

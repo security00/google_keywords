@@ -42,6 +42,11 @@ the browser.
   sanitized status. No research execution, paid provider call, production
   secret, remote migration, or deployment is part of this slice.
 
+- 2026-07-21, BYOK B3 spend-control gate: added local owner daily budgets,
+  operator ceilings, concurrency reservations, and expiring server cost quotes.
+  Only an exact request-hash and estimated-cost `CONFIRM` can reserve capacity;
+  this remains infrastructure only and does not expose a paid Provider call.
+
 - 2026-07-21, BYOK isolated development: created
   `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted
   ADR-0008 and added credential envelope crypto with no D1 or environment
