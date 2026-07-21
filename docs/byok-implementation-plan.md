@@ -2,8 +2,9 @@
 
 > 更新：2026-07-21
 >
-> 当前状态：隔离分支开发已获批准；B1、B2 已本地实现；B3 的 DataForSEO 连接管理正在实现。生产 KEK、远程
-> migration、BYOK API 启用、Live Mode 和生产部署仍未批准。
+> 当前状态：B1-B3 已在隔离分支本地实现，B3 正在完成全量回归；B4 的运维健康、隔离守卫与
+> 受控恢复已实现，实际灰度和稳定观察尚未开始。生产 KEK、远程 migration、BYOK API 启用、
+> Live Mode 和生产部署仍未批准。
 
 ## 1. 不可破坏边界
 
@@ -25,8 +26,8 @@
 | B0 | 生产稳定与准入证据 | 开发准入已批准；生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
 | B1 | Provider Connection 安全管理 | 隔离分支已实现并通过本地验证，待审查 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
 | B2 | OpenRouter 单能力 Live Mode | 隔离分支已实现并通过本地验证，待审查 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
-| B3 | DataForSEO 与完整实时研究 | 进行中：双 Provider 连接管理与免费验证已实现 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
-| B4 | 产品化灰度与稳定观察 | 未开始 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
+| B3 | DataForSEO 与完整实时研究 | 隔离分支已实现，正在完成全量回归 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
+| B4 | 产品化灰度与稳定观察 | 运维健康与受控恢复已实现；尚未部署观察 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
 
 Rising Sites 排在 BYOK B1-B4 完整验收之后；PDR 产品融合排在 Rising Sites 的公开
 MVP 和稳定榜单周期之后。
@@ -130,6 +131,12 @@ Expand 第三能力固定为单种子词 Google Trends Related Queries（US/en/w
 灰度顺序：维护者单账户 → internal allowlist 多账户/低预算 → 小比例已付费用户。
 Live Mode 始终默认关闭。观测 connection CRUD/verify、BYOK Job、Private Cache、
 Cost Event、预算阻断、跨 owner 拒绝、crypto/KEK 和恢复后删除对账。
+
+代码侧准入包含 `check:byok-isolation` 静态守卫，以及管理员只读
+`GET /api/admin/byok-health`。守卫禁止 BYOK 生产代码引用平台 Provider credential、Shared Cache
+或非 BYOK namespace；健康入口汇总 stale checkpoint、成本对账和隔离违规。受控恢复只允许使用
+精确 `updated_at` 前置条件执行 `mark_uncertain`，或在 owner-private 缓存与 user/byok Cost Event
+证据同时存在时执行 `complete_from_private_cache`；两者均不调用 Provider，并原子写入无敏感信息审计。
 
 ## 7. 立即停止条件
 

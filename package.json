@@ -15,6 +15,7 @@
     "check:cf-types": "node scripts/generate-cloudflare-types.mjs --check",
     "check:migrations": "node scripts/schema/check-d1-migrations.mjs",
     "check:student-paid-guards": "node scripts/run-python.mjs scripts/check_student_paid_guards.py",
+    "check:byok-isolation": "node scripts/run-python.mjs scripts/check_byok_isolation.py",
     "smoke:production": "node scripts/smoke-production.mjs",
     "test": "vitest run",
     "test:python": "node scripts/run-python.mjs -m unittest discover tests",

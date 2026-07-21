@@ -30,7 +30,7 @@ the browser.
 | Game Radar | Implemented; needs quality operations | Scanner, admin review, trends, SERP, promotion, and auto-review scripts exist. Expand sources only after quality review. |
 | Multi-signal discovery | Implemented; needs operational metrics | Collection, standardization, review, and signal bridge exist. New platforms remain deferred. |
 | Source/opportunity dashboards | Implemented, read-only by design | Quality, score, suggestions, enrichment, feedback, report, and semantic-dedupe surfaces are available. |
-| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1 and B2 are locally implemented. B3 now includes local dual-provider connection management and free DataForSEO credential verification; paid DataForSEO execution is not enabled. Management and Live Mode remain feature-off, with no production KEK, remote migration, or deployment. |
+| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1-B3 are locally implemented, including quoted paid execution, private-cache isolation, Partial Success, cost reconciliation, static isolation checks and controlled stale-job recovery. B4 production gray observation has not started. Management and Live Mode remain feature-off, with no production KEK, remote migration, or deployment. |
 
 ## Ordered Work
 
@@ -75,6 +75,16 @@ the browser.
   Partial Success, and a separately quoted $0.001 intent retry uses a distinct
   `compare_intent` job and cannot call DataForSEO. Both paths remain feature-off
   and undeployed.
+
+- 2026-07-21, BYOK B3 isolation and reconciliation closure: added a CI static
+  guard that rejects platform credential getters, platform Provider secrets,
+  shared cache scope, and non-BYOK cache namespaces from production BYOK code.
+  Added an admin-only, no-store health projection for stale checkpoints, cost
+  reconciliation and isolation violations. Controlled recovery can only mark a
+  job `PROVIDER_OUTCOME_UNCERTAIN`, or complete it from an unexpired owner-private
+  cache when matching user/byok cost evidence exists. It never calls a Provider,
+  uses an exact `updated_at` precondition, and atomically records a credential-free
+  audit event. This remains local, feature-off and undeployed.
 
 - 2026-07-21, BYOK isolated development: created
   `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted
