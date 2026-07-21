@@ -2,8 +2,8 @@
 
 > 更新：2026-07-21
 >
-> 当前状态：隔离分支开发已获批准；B1.1、B1.2 已完成，待独立审查。生产 KEK、远程
-> migration、BYOK API、Live Mode 和生产部署仍未批准。
+> 当前状态：隔离分支开发已获批准；B1.1-B1.3 已完成，待独立审查。生产 KEK、远程
+> migration、BYOK API 启用、Live Mode 和生产部署仍未批准。
 
 ## 1. 不可破坏边界
 
@@ -23,7 +23,7 @@
 | 阶段 | 目标 | 当前状态 | 完成定义 |
 | --- | --- | --- | --- |
 | B0 | 生产稳定与准入证据 | 开发准入已批准；生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
-| B1 | Provider Connection 安全管理 | B1.1、B1.2 本地完成；B1.3/B1.4 未开始 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
+| B1 | Provider Connection 安全管理 | B1.1-B1.3 本地完成；B1.4 未开始 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
 | B2 | OpenRouter 单能力 Live Mode | 未开始 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
 | B3 | DataForSEO 与完整实时研究 | 未开始 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
 | B4 | 产品化灰度与稳定观察 | 未开始 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
@@ -55,18 +55,20 @@ B1 只建立安全保存和 owner-scoped 管理能力，不允许执行研究任
 - 删除硬删除 live ciphertext；audit 不保留 credential、mask 或 Provider 正文。
 - Feature 通过“无路由、无 API、无调用者”保持关闭。
 
-### B1.3 Cookie-only API — 未开始
+### B1.3 Cookie-only API — 隔离分支已完成
 
 - `GET/POST /api/provider-connections`。
 - `PUT/DELETE /api/provider-connections/{id}`。
-- `POST /api/provider-connections/{id}/verify`。
 - 只允许 Cookie Principal + Effective Entitlement。
-- Same-origin、请求体限制、未知字段拒绝、跨 owner 404、错误脱敏和验证限流。
+- Same-origin、8KB 流式请求限制、未知字段拒绝、跨 owner 404 和错误脱敏。
 - API 只返回 mask/status/version/timestamp，永不返回加密字段或完整 fingerprint。
+- `wrangler.jsonc` 中管理 feature 默认 `false`；没有生产 Secret 时不可启用。
 
 ### B1.4 Internal Gray — 未开始
 
 - 维护者/internal allowlist，先 CRUD、后低频 OpenRouter verify。
+- 增加 `POST /api/provider-connections/{id}/verify`、owner/provider 限流和 sanitized
+  verification code。
 - 配置版本化 KEK/HMAC Secret；不写入仓库或 `wrangler.jsonc`。
 - 演练 credential rotation、KEK rewrap、delete 和 D1 restore reconciliation。
 - 旧平台路径和无费用 smoke 无回归；仍不允许 BYOK 执行研究。

@@ -30,7 +30,7 @@ the browser.
 | Game Radar | Implemented; needs quality operations | Scanner, admin review, trends, SERP, promotion, and auto-review scripts exist. Expand sources only after quality review. |
 | Multi-signal discovery | Implemented; needs operational metrics | Collection, standardization, review, and signal bridge exist. New platforms remain deferred. |
 | Source/opportunity dashboards | Implemented, read-only by design | Quality, score, suggestions, enrichment, feedback, report, and semantic-dedupe surfaces are available. |
-| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1.1 and B1.2 are locally complete and await review. No BYOK route, production KEK, remote migration, Live Mode, or deployment is enabled. |
+| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1.1-B1.3 are locally complete and await review. Management routes are feature-off; no production KEK, remote migration, Live Mode, or deployment is enabled. |
 
 ## Ordered Work
 

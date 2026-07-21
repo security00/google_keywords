@@ -33,6 +33,7 @@
     "NEXT_PUBLIC_FILTER_TERMS": "gambling,betting,casino,news,celebrity,movie,film,lottery,博彩,赌博,赌场,投注,新闻,名人,电影",
     "DEBUG_API_LOGS": "true",
     "RESEARCH_STATUS_GET_EXECUTION_COMPAT": "true",
+    "BYOK_PROVIDER_CONNECTIONS_ENABLED": "false",
     "SERP_LOCATION_NAME": "United States",
     "SERP_LANGUAGE_CODE": "en",
     "SERP_DEVICE": "desktop",

@@ -2,7 +2,7 @@
 
 > 更新：2026-07-21
 >
-> 状态：B1.1、B1.2 已在隔离分支完成；B1.3/B1.4 未开始。本文不批准 B2
+> 状态：B1.1-B1.3 已在隔离分支完成；B1.4 未开始。本文不批准 B2
 > Live Mode 或任何生产部署。
 
 ## 1. 目标和非目标
@@ -61,12 +61,12 @@ Schema 不含 Base URL、明文 credential、Provider 请求/响应或软删除 
 | GET | `/api/provider-connections` | 当前 owner 的掩码元数据 |
 | POST | `/api/provider-connections` | 创建连接，不回显 credential |
 | PUT | `/api/provider-connections/{id}` | 轮换 credential/label，需要 expected version |
-| POST | `/api/provider-connections/{id}/verify` | 官方端点低频验证 |
 | DELETE | `/api/provider-connections/{id}` | 硬删除 live connection |
 
-只允许 Cookie Principal + Effective Entitlement。所有 mutation 要求 same-origin、大小
-限制和严格字段 schema；跨 owner 统一 404。普通 API Key 不因此获得
-`provider:execute`。
+只允许 Cookie Principal + Effective Entitlement。所有 mutation 要求 same-origin、
+8KB 流式大小限制和严格字段 schema；跨 owner 统一 404。普通 API Key 不因此获得
+`provider:execute`。管理 feature 在 `wrangler.jsonc` 中默认关闭。低频 verify、限流
+和内部 allowlist 属于 B1.4。
 
 ## 6. 权限与威胁控制
 
@@ -88,5 +88,6 @@ B1.2 必须覆盖 migration shape/constraint/index、D1 binding/batch、metadata
 owner 条件、跨 owner miss、并发轮换、删除 audit、错误脱敏、TypeScript/Python 全量
 测试、migration check、Student paid guard、Lint 和生产构建。
 
-B1.3/B1.4 另行覆盖 API 身份、CSRF、body limit、响应快照、限流、真实 verify、KEK
-rotation 和 restore/delete runbook。现有生产 smoke 永远不加入真实 Provider 调用。
+B1.3 已覆盖 API 身份、CSRF、body limit、严格 schema 和响应脱敏。B1.4 另行覆盖
+allowlist、限流、真实 verify、KEK rotation 和 restore/delete runbook。现有生产
+smoke 永远不加入真实 Provider 调用。
