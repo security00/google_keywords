@@ -137,6 +137,8 @@ Cost Event、预算阻断、跨 owner 拒绝、crypto/KEK 和恢复后删除对�
 或非 BYOK namespace；健康入口汇总 stale checkpoint、成本对账和隔离违规。受控恢复只允许使用
 精确 `updated_at` 前置条件执行 `mark_uncertain`，或在 owner-private 缓存与 user/byok Cost Event
 证据同时存在时执行 `complete_from_private_cache`；两者均不调用 Provider，并原子写入无敏感信息审计。
+实际开门、连续 7 日完整观察周期、通过标准和回滚顺序见
+`docs/runbooks/byok-gray-rollout.md`；该 runbook 本身不构成部署授权。
 
 ## 7. 立即停止条件
 
