@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "crypto";
 import { d1Batch, d1Query } from "@/lib/d1";
 
 export type JobStatus = "pending" | "processing" | "complete" | "failed";
-export type JobType = "expand" | "compare" | "intent" | "trends" | "serp" | "semantic_filter";
+export type JobType = "expand" | "compare" | "compare_intent" | "intent" | "trends" | "serp" | "semantic_filter";
 export type JobExecutionMode = "platform" | "byok";
 export type JobCredentialSource = "platform" | "user";
 export type ProviderRequestState = "not_started" | "started" | "completed" | "failed";
@@ -145,7 +145,7 @@ export const createJob = async (
   return id;
 };
 
-type ByokJobType = "semantic_filter" | "trends" | "serp" | "expand" | "compare";
+type ByokJobType = "semantic_filter" | "trends" | "serp" | "expand" | "compare" | "compare_intent";
 
 export const createOrGetOwnedByokJob = async (input: Readonly<{
   userId: string;

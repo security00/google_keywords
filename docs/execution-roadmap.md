@@ -68,6 +68,14 @@ the browser.
   writes only owner-private `byok-expand` cache, and forbids platform credential
   fallback. The route remains feature-off and undeployed.
 
+- 2026-07-21, BYOK B3 Compare/Partial Success slice: added a bounded
+  four-keyword comparison against one benchmark with a conservative $0.012
+  dual-provider estimate. DataForSEO results are persisted to owner-private
+  cache before fixed-model OpenRouter enrichment. An LLM failure completes as
+  Partial Success, and a separately quoted $0.001 intent retry uses a distinct
+  `compare_intent` job and cannot call DataForSEO. Both paths remain feature-off
+  and undeployed.
+
 - 2026-07-21, BYOK isolated development: created
   `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted
   ADR-0008 and added credential envelope crypto with no D1 or environment

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { requireEffectiveUser } from "@/lib/authz";
 import {
   parseByokExpandBody,
+  parseByokCompareBody,
   byokLiveModeEnabled,
   parseByokSemanticFilterBody,
   parseByokSerpBody,
@@ -184,6 +185,39 @@ describe("BYOK live API boundary", () => {
       connectionId: "connection-2", expectedConnectionVersion: 1,
       clientRequestId: "request-1234", keyword: "ai resume builder", days: 90,
       itemTypes: ["google_trends_graph"],
+    }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  test("binds exact dual-provider Compare bodies and rejects model overrides", async () => {
+    await expect(parseByokCompareBody(request({
+      action: "quote", executionMode: "byok",
+      dataForSeoConnectionId: "dataforseo-1", dataForSeoConnectionVersion: 1,
+      openRouterConnectionId: "openrouter-1", openRouterConnectionVersion: 2,
+      clientRequestId: "request-1", keywords: ["ai resume builder"],
+      benchmark: "gpts", days: 90,
+    }))).resolves.toMatchObject({ action: "quote", openRouterConnectionVersion: 2 });
+
+    await expect(parseByokCompareBody(request({
+      action: "quote", executionMode: "byok",
+      dataForSeoConnectionId: "dataforseo-1", dataForSeoConnectionVersion: 1,
+      openRouterConnectionId: "openrouter-1", openRouterConnectionVersion: 2,
+      clientRequestId: "request-1", keywords: ["ai resume builder"],
+      benchmark: "gpts", days: 90, model: "expensive/model",
+    }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+
+    await expect(parseByokCompareBody(request({
+      action: "retry_intent_quote", executionMode: "byok", baseJobId: "base-job",
+      openRouterConnectionId: "openrouter-1", openRouterConnectionVersion: 2,
+      clientRequestId: "retry-1",
+    }))).resolves.toMatchObject({ action: "retry_intent_quote", baseJobId: "base-job" });
+
+    await expect(parseByokCompareBody(request({
+      action: "retry_intent_execute", executionMode: "byok",
+      openRouterConnectionId: "openrouter-1", openRouterConnectionVersion: 2,
+      request: { baseJobId: "base-job", retryToken: "retry-1" },
+      quoteId: "quote-2", requestHash: "b".repeat(64),
+      confirmedEstimatedCostUsd: 0.001, confirmation: "CONFIRM",
+      dataForSeoConnectionId: "must-not-be-accepted",
     }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
   });
 });

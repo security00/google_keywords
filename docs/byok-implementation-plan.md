@@ -113,6 +113,13 @@ SERP 第二能力沿用同一安全边界：固定 Google Organic Live、美国�
 `byok-serp` Private Cache，Cost Event 固定标记 `user/byok`，测试明确禁止平台凭证
 回退。该能力仍未部署。
 
+Compare 第四能力一次最多比较 4 个候选词和 1 个 benchmark，固定使用单个 Google
+Trends Live 任务。保守报价为 DataForSEO `$0.011` 加固定低成本 OpenRouter 模型的
+`$0.001` 上界。DataForSEO 成功结果会在 LLM 调用前写入 `byok-compare` Private Cache；
+LLM 失败时任务以 Partial Success 完成。用户可为语义阶段单独取得 `$0.001` 新报价，
+该重试使用独立 `compare_intent` Job，API 请求结构中不存在 DataForSEO connection 字段，
+测试验证不会重跑已成功的付费 Trends 阶段。该能力仍未部署。
+
 Expand 第三能力固定为单种子词 Google Trends Related Queries（US/en/web），因为官方
 要求 Top/Rising 相关查询一次最多指定一个关键词。它使用当前 `$0.011` Live 任务估算，
 只返回去重、限量、脱敏的候选词，并只写 `byok-expand` Private Cache；报价、确认、预算、

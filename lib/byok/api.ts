@@ -13,6 +13,7 @@ import {
 } from "@/lib/provider-connections/keyring";
 import { ByokSemanticFilterError } from "./semantic-filter";
 import { ByokExpandError } from "./expand";
+import { ByokCompareError } from "./compare";
 import { ByokSerpError } from "./serp";
 import { ByokSpendControlError } from "./spend-controls";
 import { ByokTrendsError } from "./trends";
@@ -314,6 +315,122 @@ export const parseByokExpandBody = async (request: Request) => {
   throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
 };
 
+export const parseByokCompareBody = async (request: Request) => {
+  const body = await readLimitedJsonObject(request);
+  if (body.action === "retry_intent_quote") {
+    exactKeys(body, [
+      "action", "executionMode", "baseJobId", "openRouterConnectionId",
+      "openRouterConnectionVersion", "clientRequestId",
+    ]);
+    if (body.executionMode !== "byok" || typeof body.baseJobId !== "string" || !body.baseJobId.trim()
+      || typeof body.openRouterConnectionId !== "string" || !body.openRouterConnectionId.trim()
+      || !Number.isInteger(body.openRouterConnectionVersion) || Number(body.openRouterConnectionVersion) < 1
+      || typeof body.clientRequestId !== "string" || !body.clientRequestId) {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "retry_intent_quote" as const,
+      baseJobId: body.baseJobId.trim(),
+      openRouterConnectionId: body.openRouterConnectionId.trim(),
+      openRouterConnectionVersion: Number(body.openRouterConnectionVersion),
+      clientRequestId: body.clientRequestId,
+    };
+  }
+  if (body.action === "retry_intent_execute") {
+    exactKeys(body, [
+      "action", "executionMode", "openRouterConnectionId", "openRouterConnectionVersion",
+      "request", "quoteId", "requestHash", "confirmedEstimatedCostUsd", "confirmation",
+    ]);
+    if (!plainObject(body.request)) throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    exactKeys(body.request, ["baseJobId", "retryToken"]);
+    if (body.executionMode !== "byok"
+      || typeof body.openRouterConnectionId !== "string" || !body.openRouterConnectionId.trim()
+      || !Number.isInteger(body.openRouterConnectionVersion) || Number(body.openRouterConnectionVersion) < 1
+      || typeof body.request.baseJobId !== "string" || !body.request.baseJobId
+      || typeof body.request.retryToken !== "string" || !body.request.retryToken
+      || typeof body.quoteId !== "string" || typeof body.requestHash !== "string"
+      || typeof body.confirmedEstimatedCostUsd !== "number" || body.confirmation !== "CONFIRM") {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "retry_intent_execute" as const,
+      openRouterConnectionId: body.openRouterConnectionId.trim(),
+      openRouterConnectionVersion: Number(body.openRouterConnectionVersion),
+      request: { baseJobId: body.request.baseJobId, retryToken: body.request.retryToken },
+      quoteId: body.quoteId,
+      requestHash: body.requestHash,
+      confirmedEstimatedCostUsd: body.confirmedEstimatedCostUsd,
+      confirmation: "CONFIRM" as const,
+    };
+  }
+  if (body.action === "quote") {
+    exactKeys(body, [
+      "action", "executionMode", "dataForSeoConnectionId", "dataForSeoConnectionVersion",
+      "openRouterConnectionId", "openRouterConnectionVersion", "clientRequestId",
+      "keywords", "benchmark", "days",
+    ]);
+    if (body.executionMode !== "byok"
+      || typeof body.dataForSeoConnectionId !== "string" || !body.dataForSeoConnectionId.trim()
+      || !Number.isInteger(body.dataForSeoConnectionVersion) || Number(body.dataForSeoConnectionVersion) < 1
+      || typeof body.openRouterConnectionId !== "string" || !body.openRouterConnectionId.trim()
+      || !Number.isInteger(body.openRouterConnectionVersion) || Number(body.openRouterConnectionVersion) < 1
+      || typeof body.clientRequestId !== "string" || !Array.isArray(body.keywords)
+      || !body.keywords.every((value) => typeof value === "string")
+      || typeof body.benchmark !== "string" || !Number.isInteger(body.days)) {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "quote" as const,
+      dataForSeoConnectionId: body.dataForSeoConnectionId.trim(),
+      dataForSeoConnectionVersion: Number(body.dataForSeoConnectionVersion),
+      openRouterConnectionId: body.openRouterConnectionId.trim(),
+      openRouterConnectionVersion: Number(body.openRouterConnectionVersion),
+      clientRequestId: body.clientRequestId,
+      keywords: body.keywords as string[],
+      benchmark: body.benchmark,
+      days: Number(body.days),
+    };
+  }
+  if (body.action === "execute") {
+    exactKeys(body, [
+      "action", "executionMode", "dataForSeoConnectionId", "dataForSeoConnectionVersion",
+      "openRouterConnectionId", "openRouterConnectionVersion", "request",
+      "quoteId", "requestHash", "confirmedEstimatedCostUsd", "confirmation",
+    ]);
+    if (!plainObject(body.request)) throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    exactKeys(body.request, ["keywords", "benchmark", "dateFrom", "dateTo"]);
+    if (body.executionMode !== "byok"
+      || typeof body.dataForSeoConnectionId !== "string" || !body.dataForSeoConnectionId.trim()
+      || !Number.isInteger(body.dataForSeoConnectionVersion) || Number(body.dataForSeoConnectionVersion) < 1
+      || typeof body.openRouterConnectionId !== "string" || !body.openRouterConnectionId.trim()
+      || !Number.isInteger(body.openRouterConnectionVersion) || Number(body.openRouterConnectionVersion) < 1
+      || !Array.isArray(body.request.keywords)
+      || !body.request.keywords.every((value) => typeof value === "string")
+      || typeof body.request.benchmark !== "string"
+      || typeof body.request.dateFrom !== "string" || typeof body.request.dateTo !== "string"
+      || typeof body.quoteId !== "string" || typeof body.requestHash !== "string"
+      || typeof body.confirmedEstimatedCostUsd !== "number" || body.confirmation !== "CONFIRM") {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "execute" as const,
+      dataForSeoConnectionId: body.dataForSeoConnectionId.trim(),
+      dataForSeoConnectionVersion: Number(body.dataForSeoConnectionVersion),
+      openRouterConnectionId: body.openRouterConnectionId.trim(),
+      openRouterConnectionVersion: Number(body.openRouterConnectionVersion),
+      request: {
+        keywords: body.request.keywords as string[], benchmark: body.request.benchmark,
+        dateFrom: body.request.dateFrom, dateTo: body.request.dateTo,
+      },
+      quoteId: body.quoteId,
+      requestHash: body.requestHash,
+      confirmedEstimatedCostUsd: body.confirmedEstimatedCostUsd,
+      confirmation: "CONFIRM" as const,
+    };
+  }
+  throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+};
+
 export const byokErrorResponse = (error: unknown) => {
   if (error instanceof ProviderConnectionApiError) {
     return noStoreJson(
@@ -337,6 +454,25 @@ export const byokErrorResponse = (error: unknown) => {
     };
     return noStoreJson(
       { error: "BYOK expansion failed", code: error.code },
+      { status: status[error.code] },
+    );
+  }
+  if (error instanceof ByokCompareError) {
+    const status: Record<ByokCompareError["code"], number> = {
+      INVALID_INPUT: 400,
+      CONNECTION_NOT_FOUND: 404,
+      CONNECTION_VERSION_CONFLICT: 409,
+      CONNECTION_NOT_VERIFIED: 409,
+      CREDENTIAL_UNAVAILABLE: 503,
+      JOB_PERSISTENCE_ERROR: 503,
+      PROVIDER_FAILED: 502,
+      PROVIDER_RESPONSE_INVALID: 502,
+      COST_LEDGER_WRITE_FAILED: 503,
+      PRIVATE_CACHE_WRITE_FAILED: 503,
+      SPEND_RESERVATION_FAILED: 409,
+    };
+    return noStoreJson(
+      { error: "BYOK comparison failed", code: error.code },
       { status: status[error.code] },
     );
   }

@@ -45,6 +45,16 @@ type ExpandQuote = {
   request: { keyword: string; dateFrom: string; dateTo: string };
   requestHash: string;
 };
+type CompareQuote = {
+  quote: { quoteId: string; estimatedCostUsd: number; expiresAt: string };
+  request: { keywords: string[]; benchmark: string; dateFrom: string; dateTo: string };
+  requestHash: string;
+};
+type IntentRetryQuote = {
+  quote: { quoteId: string; estimatedCostUsd: number; expiresAt: string };
+  request: { baseJobId: string; retryToken: string };
+  requestHash: string;
+};
 
 export function ByokSettings() {
   const [available, setAvailable] = useState(false);
@@ -74,6 +84,13 @@ export function ByokSettings() {
   const [expandDays, setExpandDays] = useState("90");
   const [expandQuote, setExpandQuote] = useState<ExpandQuote | null>(null);
   const [expandResult, setExpandResult] = useState<Record<string, unknown> | null>(null);
+  const [compareKeywords, setCompareKeywords] = useState("");
+  const [compareBenchmark, setCompareBenchmark] = useState("gpts");
+  const [compareDays, setCompareDays] = useState("90");
+  const [compareQuote, setCompareQuote] = useState<CompareQuote | null>(null);
+  const [compareResult, setCompareResult] = useState<Record<string, unknown> | null>(null);
+  const [compareJobId, setCompareJobId] = useState<string | null>(null);
+  const [intentRetryQuote, setIntentRetryQuote] = useState<IntentRetryQuote | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -406,6 +423,101 @@ export function ByokSettings() {
     }
   };
 
+  const quoteCompare = async () => {
+    if (!dataForSeoConnection || !openRouterConnection
+      || dataForSeoConnection.verificationStatus !== "valid"
+      || openRouterConnection.verificationStatus !== "valid") return;
+    const list = compareKeywords.split(/[\n,]/).map((value) => value.trim()).filter(Boolean);
+    const result = await mutate("quote-compare", "/api/research/byok/compare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "quote", executionMode: "byok",
+        dataForSeoConnectionId: dataForSeoConnection.id,
+        dataForSeoConnectionVersion: dataForSeoConnection.credentialVersion,
+        openRouterConnectionId: openRouterConnection.id,
+        openRouterConnectionVersion: openRouterConnection.credentialVersion,
+        clientRequestId: crypto.randomUUID(), keywords: list,
+        benchmark: compareBenchmark, days: Number(compareDays),
+      }),
+    });
+    if (result?.quote && result?.request && result?.requestHash) {
+      setCompareQuote(result as CompareQuote);
+      setCompareResult(null);
+      setMessage("Review the bounded dual-provider estimate, then confirm the comparison.");
+    }
+  };
+
+  const confirmCompare = async () => {
+    if (!dataForSeoConnection || !openRouterConnection || !compareQuote) return;
+    const result = await mutate("run-compare", "/api/research/byok/compare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "execute", executionMode: "byok",
+        dataForSeoConnectionId: dataForSeoConnection.id,
+        dataForSeoConnectionVersion: dataForSeoConnection.credentialVersion,
+        openRouterConnectionId: openRouterConnection.id,
+        openRouterConnectionVersion: openRouterConnection.credentialVersion,
+        request: compareQuote.request, quoteId: compareQuote.quote.quoteId,
+        requestHash: compareQuote.requestHash,
+        confirmedEstimatedCostUsd: compareQuote.quote.estimatedCostUsd,
+        confirmation: "CONFIRM",
+      }),
+    });
+    if (result?.data) {
+      setCompareResult(result.data);
+      setCompareJobId(typeof result.jobId === "string" ? result.jobId : null);
+      setCompareQuote(null);
+      setIntentRetryQuote(null);
+      setMessage(result.data.partialSuccess
+        ? "Trend comparison completed; intent enrichment failed. Paid trend data was preserved."
+        : "Comparison completed with your two Provider connections. The result is private.");
+    } else if (result?.status === "pending") {
+      setMessage("The comparison started and paid stages will not be resubmitted automatically.");
+    }
+  };
+
+  const quoteIntentRetry = async () => {
+    if (!openRouterConnection || !compareJobId || compareResult?.partialSuccess !== true) return;
+    const result = await mutate("quote-intent-retry", "/api/research/byok/compare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "retry_intent_quote", executionMode: "byok", baseJobId: compareJobId,
+        openRouterConnectionId: openRouterConnection.id,
+        openRouterConnectionVersion: openRouterConnection.credentialVersion,
+        clientRequestId: crypto.randomUUID(),
+      }),
+    });
+    if (result?.quote && result?.request && result?.requestHash) {
+      setIntentRetryQuote(result as IntentRetryQuote);
+      setMessage("Review the intent-only retry estimate. DataForSEO will not be called.");
+    }
+  };
+
+  const confirmIntentRetry = async () => {
+    if (!openRouterConnection || !intentRetryQuote) return;
+    const result = await mutate("run-intent-retry", "/api/research/byok/compare", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "retry_intent_execute", executionMode: "byok",
+        openRouterConnectionId: openRouterConnection.id,
+        openRouterConnectionVersion: openRouterConnection.credentialVersion,
+        request: intentRetryQuote.request, quoteId: intentRetryQuote.quote.quoteId,
+        requestHash: intentRetryQuote.requestHash,
+        confirmedEstimatedCostUsd: intentRetryQuote.quote.estimatedCostUsd,
+        confirmation: "CONFIRM",
+      }),
+    });
+    if (result?.data) {
+      setCompareResult(result.data);
+      setIntentRetryQuote(null);
+      setMessage("Intent retry completed without rerunning DataForSEO.");
+    }
+  };
+
   if (!available) return null;
   return (
     <section className="rounded-xl border border-cyan-500/20 bg-card/90 p-5 shadow-sm">
@@ -609,6 +721,62 @@ export function ByokSettings() {
         {expandResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
           {JSON.stringify(expandResult, null, 2)}
         </pre>}
+      </div>}
+      {liveEnabled && dataForSeoConnection?.verificationStatus === "valid"
+        && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
+        <h4 className="font-medium">Private trend comparison</h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Compare up to four keywords with one benchmark, then enrich intent with the fixed low-cost model.
+          If intent fails, paid Trends data is returned as Partial Success and is not purchased again.
+        </p>
+        <textarea value={compareKeywords} onChange={(e) => {
+          setCompareKeywords(e.target.value);
+          setCompareQuote(null);
+        }} rows={3} className="mt-3 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          placeholder={"ai resume builder\nai logo generator"} />
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <input value={compareBenchmark} onChange={(e) => {
+            setCompareBenchmark(e.target.value);
+            setCompareQuote(null);
+          }} maxLength={100} className="rounded-lg border bg-background px-3 py-2 text-sm"
+            placeholder="Benchmark" />
+          <input type="number" min="7" max="1825" value={compareDays}
+            onChange={(e) => { setCompareDays(e.target.value); setCompareQuote(null); }}
+            className="rounded-lg border bg-background px-3 py-2 text-sm" aria-label="Comparison days" />
+        </div>
+        <Button type="button" variant="outline" className="mt-2" onClick={quoteCompare}
+          disabled={Boolean(busy) || !compareKeywords.trim() || !compareBenchmark.trim()}>
+          {busy === "quote-compare" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Get exact comparison estimate
+        </Button>
+        {compareQuote && <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+          <p>Conservative maximum estimate: <strong>${compareQuote.quote.estimatedCostUsd.toFixed(3)}</strong></p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            DataForSEO $0.011 + bounded OpenRouter estimate $0.001; expires {new Date(compareQuote.quote.expiresAt).toLocaleTimeString()}.
+          </p>
+          <Button type="button" className="mt-2" onClick={confirmCompare} disabled={Boolean(busy)}>
+            {busy === "run-compare" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Confirm and run for up to ${compareQuote.quote.estimatedCostUsd.toFixed(3)}
+          </Button>
+        </div>}
+        {compareResult && <pre className="mt-3 max-h-80 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
+          {JSON.stringify(compareResult, null, 2)}
+        </pre>}
+        {compareResult?.partialSuccess === true && compareJobId && <div className="mt-3 rounded-lg border p-3">
+          <p className="text-sm font-medium">Paid trend data is safe. Retry only intent enrichment.</p>
+          <Button type="button" variant="outline" className="mt-2" onClick={quoteIntentRetry}
+            disabled={Boolean(busy)}>
+            {busy === "quote-intent-retry" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Get intent-only retry quote
+          </Button>
+          {intentRetryQuote && <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+            <p>OpenRouter retry estimate: <strong>${intentRetryQuote.quote.estimatedCostUsd.toFixed(3)}</strong></p>
+            <Button type="button" className="mt-2" onClick={confirmIntentRetry} disabled={Boolean(busy)}>
+              {busy === "run-intent-retry" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm intent-only retry
+            </Button>
+          </div>}
+        </div>}
       </div>}
       {liveEnabled && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private keyword semantic filter</h4>
