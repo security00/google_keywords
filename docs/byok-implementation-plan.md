@@ -107,6 +107,12 @@ Provider；执行只接受服务器规范化请求、固定请求哈希、未过
 固定标记 `user/byok`，测试明确断言平台 DataForSEO Client 调用数为 0。该能力仍受
 Live Mode 默认关闭和 allowlist 约束，尚未部署。
 
+SERP 第二能力沿用同一安全边界：固定 Google Organic Live、美国英文桌面端和 depth
+10，使用当前 `$0.002` 估算；请求哈希绑定 owner、connection/version、关键词和固定
+配置。只有未过期的精确报价和独立 `CONFIRM` 才会调用用户 DataForSEO 凭证；结果只写
+`byok-serp` Private Cache，Cost Event 固定标记 `user/byok`，测试明确禁止平台凭证
+回退。该能力仍未部署。
+
 ## 6. B4 — 灰度与验收
 
 灰度顺序：维护者单账户 → internal allowlist 多账户/低预算 → 小比例已付费用户。

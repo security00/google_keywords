@@ -31,6 +31,15 @@ type TrendsQuote = {
   };
   requestHash: string;
 };
+type SerpQuote = {
+  quote: {
+    quoteId: string;
+    estimatedCostUsd: number;
+    expiresAt: string;
+  };
+  request: { keyword: string };
+  requestHash: string;
+};
 
 export function ByokSettings() {
   const [available, setAvailable] = useState(false);
@@ -53,6 +62,9 @@ export function ByokSettings() {
   const [trendsDays, setTrendsDays] = useState("90");
   const [trendsQuote, setTrendsQuote] = useState<TrendsQuote | null>(null);
   const [trendsResult, setTrendsResult] = useState<Record<string, unknown> | null>(null);
+  const [serpKeyword, setSerpKeyword] = useState("");
+  const [serpQuote, setSerpQuote] = useState<SerpQuote | null>(null);
+  const [serpResult, setSerpResult] = useState<Record<string, unknown> | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -293,6 +305,55 @@ export function ByokSettings() {
     }
   };
 
+  const quoteSerp = async () => {
+    if (!dataForSeoConnection || dataForSeoConnection.verificationStatus !== "valid") return;
+    const result = await mutate("quote-serp", "/api/research/byok/serp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "quote",
+        executionMode: "byok",
+        provider: "dataforseo",
+        connectionId: dataForSeoConnection.id,
+        expectedConnectionVersion: dataForSeoConnection.credentialVersion,
+        clientRequestId: crypto.randomUUID(),
+        keyword: serpKeyword,
+      }),
+    });
+    if (result?.quote && result?.request && result?.requestHash) {
+      setSerpQuote(result as SerpQuote);
+      setSerpResult(null);
+      setMessage("Review the exact SERP estimate, then confirm the paid request.");
+    }
+  };
+
+  const confirmSerp = async () => {
+    if (!dataForSeoConnection || !serpQuote) return;
+    const result = await mutate("run-serp", "/api/research/byok/serp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "execute",
+        executionMode: "byok",
+        provider: "dataforseo",
+        connectionId: dataForSeoConnection.id,
+        expectedConnectionVersion: dataForSeoConnection.credentialVersion,
+        request: serpQuote.request,
+        quoteId: serpQuote.quote.quoteId,
+        requestHash: serpQuote.requestHash,
+        confirmedEstimatedCostUsd: serpQuote.quote.estimatedCostUsd,
+        confirmation: "CONFIRM",
+      }),
+    });
+    if (result?.data) {
+      setSerpResult(result.data);
+      setSerpQuote(null);
+      setMessage("SERP completed with your DataForSEO account. The result is private.");
+    } else if (result?.status === "pending") {
+      setMessage("The paid SERP request started and will not be submitted again automatically.");
+    }
+  };
+
   if (!available) return null;
   return (
     <section className="rounded-xl border border-cyan-500/20 bg-card/90 p-5 shadow-sm">
@@ -432,6 +493,35 @@ export function ByokSettings() {
         </div>}
         {trendsResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
           {JSON.stringify(trendsResult, null, 2)}
+        </pre>}
+      </div>}
+      {liveEnabled && dataForSeoConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
+        <h4 className="font-medium">Private Google SERP check</h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          One fixed 10-result US desktop SERP. Quote first; no Provider call occurs before confirmation.
+        </p>
+        <input value={serpKeyword} onChange={(e) => {
+          setSerpKeyword(e.target.value);
+          setSerpQuote(null);
+        }} maxLength={160} className="mt-3 w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          placeholder="Keyword to inspect" />
+        <Button type="button" variant="outline" className="mt-2" onClick={quoteSerp}
+          disabled={Boolean(busy) || !serpKeyword.trim()}>
+          {busy === "quote-serp" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Get exact SERP cost quote
+        </Button>
+        {serpQuote && <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+          <p>Estimated DataForSEO charge: <strong>${serpQuote.quote.estimatedCostUsd.toFixed(3)}</strong></p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Fixed depth: 10 results; expires {new Date(serpQuote.quote.expiresAt).toLocaleTimeString()}.
+          </p>
+          <Button type="button" className="mt-2" onClick={confirmSerp} disabled={Boolean(busy)}>
+            {busy === "run-serp" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Confirm and run for ${serpQuote.quote.estimatedCostUsd.toFixed(3)}
+          </Button>
+        </div>}
+        {serpResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
+          {JSON.stringify(serpResult, null, 2)}
         </pre>}
       </div>}
       {liveEnabled && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">

@@ -54,6 +54,14 @@ the browser.
   Platform credential fallback is test-forbidden; the route remains feature-off
   and undeployed.
 
+- 2026-07-21, BYOK B3 SERP slice: added a local quote-then-confirm Google
+  Organic Live path fixed to one US desktop request at depth 10 and the
+  current $0.002 estimate. Quote creation does not decrypt credentials or call
+  the Provider; confirmed execution uses only the selected owner connection,
+  an irreversible job checkpoint, private `byok-serp` cache, and a stable
+  user/byok Cost Event. Platform credential fallback is test-forbidden; the
+  route remains feature-off and undeployed.
+
 - 2026-07-21, BYOK isolated development: created
   `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted
   ADR-0008 and added credential envelope crypto with no D1 or environment

@@ -4,6 +4,7 @@ import { requireEffectiveUser } from "@/lib/authz";
 import {
   byokLiveModeEnabled,
   parseByokSemanticFilterBody,
+  parseByokSerpBody,
   parseByokTrendsBody,
   requireByokLiveOwner,
 } from "./api";
@@ -152,6 +153,21 @@ describe("BYOK live API boundary", () => {
       requestHash: "a".repeat(64),
       confirmedEstimatedCostUsd: 0.011,
       confirmation: "CONFIRM",
+    }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  test("requires exact two-step SERP bodies and rejects configurable Provider fields", async () => {
+    await expect(parseByokSerpBody(request({
+      action: "quote", executionMode: "byok", provider: "dataforseo",
+      connectionId: "connection-2", expectedConnectionVersion: 1,
+      clientRequestId: "request-1234", keyword: "ai resume builder",
+    }))).resolves.toMatchObject({ action: "quote", keyword: "ai resume builder" });
+
+    await expect(parseByokSerpBody(request({
+      action: "quote", executionMode: "byok", provider: "dataforseo",
+      connectionId: "connection-2", expectedConnectionVersion: 1,
+      clientRequestId: "request-1234", keyword: "ai resume builder",
+      depth: 100,
     }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
   });
 });
