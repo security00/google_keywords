@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { requireEffectiveUser } from "@/lib/authz";
 import {
+  parseByokExpandBody,
   byokLiveModeEnabled,
   parseByokSemanticFilterBody,
   parseByokSerpBody,
@@ -168,6 +169,21 @@ describe("BYOK live API boundary", () => {
       connectionId: "connection-2", expectedConnectionVersion: 1,
       clientRequestId: "request-1234", keyword: "ai resume builder",
       depth: 100,
+    }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  test("requires exact two-step Expand bodies and rejects Provider overrides", async () => {
+    await expect(parseByokExpandBody(request({
+      action: "quote", executionMode: "byok", provider: "dataforseo",
+      connectionId: "connection-2", expectedConnectionVersion: 1,
+      clientRequestId: "request-1234", keyword: "ai resume builder", days: 90,
+    }))).resolves.toMatchObject({ action: "quote", days: 90 });
+
+    await expect(parseByokExpandBody(request({
+      action: "quote", executionMode: "byok", provider: "dataforseo",
+      connectionId: "connection-2", expectedConnectionVersion: 1,
+      clientRequestId: "request-1234", keyword: "ai resume builder", days: 90,
+      itemTypes: ["google_trends_graph"],
     }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
   });
 });

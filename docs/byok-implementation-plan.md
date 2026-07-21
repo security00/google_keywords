@@ -113,6 +113,11 @@ SERP 第二能力沿用同一安全边界：固定 Google Organic Live、美国�
 `byok-serp` Private Cache，Cost Event 固定标记 `user/byok`，测试明确禁止平台凭证
 回退。该能力仍未部署。
 
+Expand 第三能力固定为单种子词 Google Trends Related Queries（US/en/web），因为官方
+要求 Top/Rising 相关查询一次最多指定一个关键词。它使用当前 `$0.011` Live 任务估算，
+只返回去重、限量、脱敏的候选词，并只写 `byok-expand` Private Cache；报价、确认、预算、
+幂等、Cost Event 和零平台凭证回退边界与 Trends/SERP 相同。该能力仍未部署。
+
 ## 6. B4 — 灰度与验收
 
 灰度顺序：维护者单账户 → internal allowlist 多账户/低预算 → 小比例已付费用户。

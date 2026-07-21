@@ -62,6 +62,12 @@ the browser.
   user/byok Cost Event. Platform credential fallback is test-forbidden; the
   route remains feature-off and undeployed.
 
+- 2026-07-21, BYOK B3 Expand slice: added local single-seed Google Trends
+  Related Queries expansion with fixed US/en/web parameters and the current
+  $0.011 Live-task estimate. It returns only sanitized Top/Rising candidates,
+  writes only owner-private `byok-expand` cache, and forbids platform credential
+  fallback. The route remains feature-off and undeployed.
+
 - 2026-07-21, BYOK isolated development: created
   `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted
   ADR-0008 and added credential envelope crypto with no D1 or environment

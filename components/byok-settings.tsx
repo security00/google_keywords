@@ -40,6 +40,11 @@ type SerpQuote = {
   request: { keyword: string };
   requestHash: string;
 };
+type ExpandQuote = {
+  quote: { quoteId: string; estimatedCostUsd: number; expiresAt: string };
+  request: { keyword: string; dateFrom: string; dateTo: string };
+  requestHash: string;
+};
 
 export function ByokSettings() {
   const [available, setAvailable] = useState(false);
@@ -65,6 +70,10 @@ export function ByokSettings() {
   const [serpKeyword, setSerpKeyword] = useState("");
   const [serpQuote, setSerpQuote] = useState<SerpQuote | null>(null);
   const [serpResult, setSerpResult] = useState<Record<string, unknown> | null>(null);
+  const [expandKeyword, setExpandKeyword] = useState("");
+  const [expandDays, setExpandDays] = useState("90");
+  const [expandQuote, setExpandQuote] = useState<ExpandQuote | null>(null);
+  const [expandResult, setExpandResult] = useState<Record<string, unknown> | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -354,6 +363,49 @@ export function ByokSettings() {
     }
   };
 
+  const quoteExpand = async () => {
+    if (!dataForSeoConnection || dataForSeoConnection.verificationStatus !== "valid") return;
+    const result = await mutate("quote-expand", "/api/research/byok/expand", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "quote", executionMode: "byok", provider: "dataforseo",
+        connectionId: dataForSeoConnection.id,
+        expectedConnectionVersion: dataForSeoConnection.credentialVersion,
+        clientRequestId: crypto.randomUUID(), keyword: expandKeyword, days: Number(expandDays),
+      }),
+    });
+    if (result?.quote && result?.request && result?.requestHash) {
+      setExpandQuote(result as ExpandQuote);
+      setExpandResult(null);
+      setMessage("Review the exact Related Queries estimate, then confirm the paid request.");
+    }
+  };
+
+  const confirmExpand = async () => {
+    if (!dataForSeoConnection || !expandQuote) return;
+    const result = await mutate("run-expand", "/api/research/byok/expand", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "execute", executionMode: "byok", provider: "dataforseo",
+        connectionId: dataForSeoConnection.id,
+        expectedConnectionVersion: dataForSeoConnection.credentialVersion,
+        request: expandQuote.request, quoteId: expandQuote.quote.quoteId,
+        requestHash: expandQuote.requestHash,
+        confirmedEstimatedCostUsd: expandQuote.quote.estimatedCostUsd,
+        confirmation: "CONFIRM",
+      }),
+    });
+    if (result?.data) {
+      setExpandResult(result.data);
+      setExpandQuote(null);
+      setMessage("Related Queries completed with your DataForSEO account. The result is private.");
+    } else if (result?.status === "pending") {
+      setMessage("The paid expansion started and will not be submitted again automatically.");
+    }
+  };
+
   if (!available) return null;
   return (
     <section className="rounded-xl border border-cyan-500/20 bg-card/90 p-5 shadow-sm">
@@ -522,6 +574,40 @@ export function ByokSettings() {
         </div>}
         {serpResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
           {JSON.stringify(serpResult, null, 2)}
+        </pre>}
+      </div>}
+      {liveEnabled && dataForSeoConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
+        <h4 className="font-medium">Private Related Queries expansion</h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Expand one seed into Google Trends Top and Rising related queries. Quote first; results never enter Shared Cache.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_8rem]">
+          <input value={expandKeyword} onChange={(e) => {
+            setExpandKeyword(e.target.value);
+            setExpandQuote(null);
+          }} maxLength={100} className="rounded-lg border bg-background px-3 py-2 text-sm"
+            placeholder="Seed keyword" />
+          <input type="number" min="7" max="1825" value={expandDays}
+            onChange={(e) => { setExpandDays(e.target.value); setExpandQuote(null); }}
+            className="rounded-lg border bg-background px-3 py-2 text-sm" aria-label="Expansion days" />
+        </div>
+        <Button type="button" variant="outline" className="mt-2" onClick={quoteExpand}
+          disabled={Boolean(busy) || !expandKeyword.trim()}>
+          {busy === "quote-expand" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Get exact expansion cost quote
+        </Button>
+        {expandQuote && <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+          <p>Estimated DataForSEO charge: <strong>${expandQuote.quote.estimatedCostUsd.toFixed(3)}</strong></p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {expandQuote.request.dateFrom} to {expandQuote.request.dateTo}; expires {new Date(expandQuote.quote.expiresAt).toLocaleTimeString()}.
+          </p>
+          <Button type="button" className="mt-2" onClick={confirmExpand} disabled={Boolean(busy)}>
+            {busy === "run-expand" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Confirm and run for ${expandQuote.quote.estimatedCostUsd.toFixed(3)}
+          </Button>
+        </div>}
+        {expandResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
+          {JSON.stringify(expandResult, null, 2)}
         </pre>}
       </div>}
       {liveEnabled && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">

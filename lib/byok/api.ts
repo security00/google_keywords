@@ -12,6 +12,7 @@ import {
   providerConnectionOwnerAllowed,
 } from "@/lib/provider-connections/keyring";
 import { ByokSemanticFilterError } from "./semantic-filter";
+import { ByokExpandError } from "./expand";
 import { ByokSerpError } from "./serp";
 import { ByokSpendControlError } from "./spend-controls";
 import { ByokTrendsError } from "./trends";
@@ -249,11 +250,94 @@ export const parseByokSerpBody = async (request: Request) => {
   throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
 };
 
+export const parseByokExpandBody = async (request: Request) => {
+  const body = await readLimitedJsonObject(request);
+  if (body.action === "quote") {
+    exactKeys(body, [
+      "action", "executionMode", "provider", "connectionId",
+      "expectedConnectionVersion", "clientRequestId", "keyword", "days",
+    ]);
+    if (body.executionMode !== "byok" || body.provider !== "dataforseo"
+      || typeof body.connectionId !== "string" || !body.connectionId.trim()
+      || !Number.isInteger(body.expectedConnectionVersion)
+      || Number(body.expectedConnectionVersion) < 1
+      || typeof body.clientRequestId !== "string"
+      || typeof body.keyword !== "string"
+      || !Number.isInteger(body.days)) {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "quote" as const,
+      connectionId: body.connectionId.trim(),
+      expectedConnectionVersion: Number(body.expectedConnectionVersion),
+      clientRequestId: body.clientRequestId,
+      keyword: body.keyword,
+      days: Number(body.days),
+    };
+  }
+  if (body.action === "execute") {
+    exactKeys(body, [
+      "action", "executionMode", "provider", "connectionId",
+      "expectedConnectionVersion", "request", "quoteId", "requestHash",
+      "confirmedEstimatedCostUsd", "confirmation",
+    ]);
+    if (!plainObject(body.request)) throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    exactKeys(body.request, ["keyword", "dateFrom", "dateTo"]);
+    if (body.executionMode !== "byok" || body.provider !== "dataforseo"
+      || typeof body.connectionId !== "string" || !body.connectionId.trim()
+      || !Number.isInteger(body.expectedConnectionVersion)
+      || Number(body.expectedConnectionVersion) < 1
+      || typeof body.request.keyword !== "string"
+      || typeof body.request.dateFrom !== "string"
+      || typeof body.request.dateTo !== "string"
+      || typeof body.quoteId !== "string"
+      || typeof body.requestHash !== "string"
+      || typeof body.confirmedEstimatedCostUsd !== "number"
+      || body.confirmation !== "CONFIRM") {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "execute" as const,
+      connectionId: body.connectionId.trim(),
+      expectedConnectionVersion: Number(body.expectedConnectionVersion),
+      request: {
+        keyword: body.request.keyword,
+        dateFrom: body.request.dateFrom,
+        dateTo: body.request.dateTo,
+      },
+      quoteId: body.quoteId,
+      requestHash: body.requestHash,
+      confirmedEstimatedCostUsd: body.confirmedEstimatedCostUsd,
+      confirmation: "CONFIRM" as const,
+    };
+  }
+  throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+};
+
 export const byokErrorResponse = (error: unknown) => {
   if (error instanceof ProviderConnectionApiError) {
     return noStoreJson(
       { error: "BYOK request rejected", code: error.code },
       { status: error.status },
+    );
+  }
+  if (error instanceof ByokExpandError) {
+    const status: Record<ByokExpandError["code"], number> = {
+      INVALID_INPUT: 400,
+      CONNECTION_NOT_FOUND: 404,
+      CONNECTION_VERSION_CONFLICT: 409,
+      CONNECTION_NOT_VERIFIED: 409,
+      CREDENTIAL_UNAVAILABLE: 503,
+      JOB_PERSISTENCE_ERROR: 503,
+      PROVIDER_FAILED: 502,
+      PROVIDER_RESPONSE_INVALID: 502,
+      COST_LEDGER_WRITE_FAILED: 503,
+      PRIVATE_CACHE_WRITE_FAILED: 503,
+      SPEND_RESERVATION_FAILED: 409,
+    };
+    return noStoreJson(
+      { error: "BYOK expansion failed", code: error.code },
+      { status: status[error.code] },
     );
   }
   if (error instanceof ProviderConnectionKeyringError) {
