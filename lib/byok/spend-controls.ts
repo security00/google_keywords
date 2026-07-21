@@ -335,17 +335,26 @@ export const reserveConfirmedByokCostQuote = async (input: Readonly<{
          AND (
            SELECT COALESCE(SUM(estimated_cost_micro_usd), 0)
            FROM byok_cost_quotes
-           WHERE owner_id = ? AND created_at >= ?
+            WHERE owner_id = ? AND updated_at >= ?
              AND (
                status = 'committed'
                OR (status = 'reserved' AND reservation_expires_at > ?)
              )
          ) + estimated_cost_micro_usd <= ?
-         AND (
-           SELECT COUNT(*) FROM byok_cost_quotes
-           WHERE owner_id = ? AND status = 'reserved'
-             AND reservation_expires_at > ?
-         ) < ?
+          AND (
+            SELECT COUNT(*) FROM byok_cost_quotes active_quote
+            LEFT JOIN research_jobs active_job
+              ON active_job.id = active_quote.research_job_id
+             AND active_job.user_id = active_quote.owner_id
+             AND active_job.execution_mode = 'byok'
+             AND active_job.credential_source = 'user'
+            WHERE active_quote.owner_id = ? AND (
+              (active_quote.status = 'reserved'
+                AND active_quote.reservation_expires_at > ?)
+              OR (active_quote.status = 'committed'
+                AND active_job.status IN ('pending', 'processing'))
+            )
+          ) < ?
        RETURNING *`,
       [
         reservationExpiresAt,
@@ -377,9 +386,12 @@ export const reserveConfirmedByokCostQuote = async (input: Readonly<{
       || Number(quote.estimated_cost_micro_usd) !== confirmedMicroUsd) {
       return fail("COST_CONFIRMATION_MISMATCH");
     }
-    if (quote.status === "reserved" || quote.status === "committed") {
+    if (quote.status === "reserved" && quote.reservation_expires_at
+      && quote.reservation_expires_at > nowIso) {
       return toQuote(quote);
     }
+    if (quote.status === "reserved") return fail("QUOTE_EXPIRED");
+    if (quote.status === "committed") return toQuote(quote);
     if (quote.status !== "quoted") return fail("QUOTE_ALREADY_USED");
     if (quote.expires_at <= nowIso) return fail("QUOTE_EXPIRED");
 
@@ -388,13 +400,23 @@ export const reserveConfirmedByokCostQuote = async (input: Readonly<{
       concurrent_jobs: number;
     }>(
       `SELECT
-         COALESCE(SUM(CASE WHEN created_at >= ? AND (
-           status = 'committed' OR (status = 'reserved' AND reservation_expires_at > ?)
-         ) THEN estimated_cost_micro_usd ELSE 0 END), 0) AS spent_micro_usd,
-         COALESCE(SUM(CASE WHEN status = 'reserved' AND reservation_expires_at > ?
-           THEN 1 ELSE 0 END), 0) AS concurrent_jobs
-       FROM byok_cost_quotes WHERE owner_id = ?`,
-      [dayStart, nowIso, nowIso, input.ownerId],
+         (SELECT COALESCE(SUM(estimated_cost_micro_usd), 0)
+          FROM byok_cost_quotes
+          WHERE owner_id = ? AND updated_at >= ? AND (
+            status = 'committed' OR (status = 'reserved' AND reservation_expires_at > ?)
+          )) AS spent_micro_usd,
+         (SELECT COUNT(*) FROM byok_cost_quotes active_quote
+          LEFT JOIN research_jobs active_job
+            ON active_job.id = active_quote.research_job_id
+           AND active_job.user_id = active_quote.owner_id
+           AND active_job.execution_mode = 'byok'
+           AND active_job.credential_source = 'user'
+          WHERE active_quote.owner_id = ? AND (
+            (active_quote.status = 'reserved' AND active_quote.reservation_expires_at > ?)
+            OR (active_quote.status = 'committed'
+              AND active_job.status IN ('pending', 'processing'))
+          )) AS concurrent_jobs`,
+      [input.ownerId, dayStart, nowIso, input.ownerId, nowIso],
     );
     const current = usage.rows[0] ?? { spent_micro_usd: 0, concurrent_jobs: 0 };
     if (Number(current.concurrent_jobs) >= controls.maxConcurrentJobs) {
@@ -420,16 +442,21 @@ export const commitByokCostReservation = async (input: Readonly<{
     return fail("INVALID_INPUT");
   }
   try {
+    const nowIso = new Date().toISOString();
     const { meta } = await d1Query(
       `UPDATE byok_cost_quotes
        SET status = 'committed', research_job_id = ?, updated_at = ?
        WHERE quote_id = ? AND owner_id = ?
-         AND (status = 'reserved' OR (status = 'committed' AND research_job_id = ?))`,
+          AND (
+            (status = 'reserved' AND reservation_expires_at > ?)
+            OR (status = 'committed' AND research_job_id = ?)
+          )`,
       [
         input.researchJobId,
-        new Date().toISOString(),
+        nowIso,
         input.quoteId,
         input.ownerId,
+        nowIso,
         input.researchJobId,
       ],
     );

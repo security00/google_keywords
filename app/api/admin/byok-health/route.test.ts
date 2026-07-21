@@ -63,4 +63,33 @@ describe("admin BYOK health route", () => {
     expect(response.status).toBe(403);
     expect(mockReconcile).not.toHaveBeenCalled();
   });
+
+  test("rejects an admin API key for state-changing reconciliation", async () => {
+    mockAdmin.mockResolvedValue({ userId: "admin-1", role: "admin", authMethod: "api_key", scopes: [] });
+    const response = await POST(new Request("https://app.test/api/admin/byok-health", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://app.test" },
+      body: JSON.stringify({
+        action: "mark_uncertain",
+        expectedUpdatedAt: "2026-07-21T00:00:00.000Z",
+        jobId: "job-1",
+        ownerId: "owner-1",
+      }),
+    }));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "COOKIE_AUTH_REQUIRED" });
+    expect(mockReconcile).not.toHaveBeenCalled();
+  });
+
+  test("enforces the bounded JSON body parser", async () => {
+    mockAdmin.mockResolvedValue({ userId: "admin-1", role: "admin", authMethod: "cookie", scopes: [] });
+    const response = await POST(new Request("https://app.test/api/admin/byok-health", {
+      method: "POST",
+      headers: { "content-type": "text/plain", origin: "https://app.test" },
+      body: "{}",
+    }));
+    expect(response.status).toBe(415);
+    expect(await response.json()).toMatchObject({ code: "UNSUPPORTED_MEDIA_TYPE" });
+    expect(mockReconcile).not.toHaveBeenCalled();
+  });
 });

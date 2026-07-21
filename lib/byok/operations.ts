@@ -51,6 +51,7 @@ export type ByokReconciliationErrorCode =
   | "JOB_NOT_STALE"
   | "JOB_STATE_CONFLICT"
   | "PRIVATE_CACHE_NOT_FOUND"
+  | "PRIVATE_CACHE_INVALID"
   | "COST_EVIDENCE_NOT_FOUND"
   | "UNSUPPORTED_JOB_TYPE"
   | "PERSISTENCE_ERROR";
@@ -108,7 +109,7 @@ export const loadByokOperationsHealth = async (now = new Date()) => {
          (SELECT COUNT(*) FROM research_jobs WHERE execution_mode = 'byok' AND status = 'processing'
             AND provider_request_state = 'started' AND updated_at < ?) AS stale_started_jobs,
          (SELECT SUM(estimated_cost_micro_usd) / 1000000.0 FROM byok_cost_quotes
-            WHERE status = 'committed' AND created_at >= ?) AS committed_estimate_usd_24h,
+            WHERE status = 'committed' AND updated_at >= ?) AS committed_estimate_usd_24h,
          (SELECT SUM(COALESCE(actual_cost_usd, estimated_cost_usd)) FROM pipeline_cost_events
             WHERE credential_source = 'user' AND execution_mode = 'byok' AND created_at >= ?) AS accounted_cost_usd_24h`,
       [dayAgo, dayAgo, dayAgo, dayAgo, staleBefore, dayAgo, dayAgo],
@@ -196,13 +197,35 @@ type ReconcileJobRow = {
   payload: string | null;
 };
 
-const cacheIdentityForJob = async (job: ReconcileJobRow) => {
-  const direct = new Map<string, { namespace: string; cacheKey: string }>([
-    ["semantic_filter", { namespace: "byok-semantic-filter", cacheKey: `byok-semantic-filter:v1:${job.id}` }],
-    ["trends", { namespace: "byok-trends", cacheKey: `byok-trends:v1:${job.id}` }],
-    ["serp", { namespace: "byok-serp", cacheKey: `byok-serp:v1:${job.id}` }],
-    ["expand", { namespace: "byok-expand", cacheKey: `byok-expand:v1:${job.id}` }],
-    ["compare", { namespace: "byok-compare", cacheKey: `byok-compare:v1:${job.id}` }],
+type CacheIdentity = Readonly<{
+  namespace: string;
+  cacheKey: string;
+  payloadType: "semantic_filter" | "trends" | "serp" | "expand" | "compare";
+  eventKey: string;
+}>;
+
+const cacheIdentityForJob = async (job: ReconcileJobRow): Promise<CacheIdentity> => {
+  const direct = new Map<string, CacheIdentity>([
+    ["semantic_filter", {
+      namespace: "byok-semantic-filter", cacheKey: `byok-semantic-filter:v1:${job.id}`,
+      payloadType: "semantic_filter", eventKey: `byok:${job.id}:openrouter:semantic-filter:v1`,
+    }],
+    ["trends", {
+      namespace: "byok-trends", cacheKey: `byok-trends:v1:${job.id}`,
+      payloadType: "trends", eventKey: `byok:${job.id}:dataforseo:trends:v1`,
+    }],
+    ["serp", {
+      namespace: "byok-serp", cacheKey: `byok-serp:v1:${job.id}`,
+      payloadType: "serp", eventKey: `byok:${job.id}:dataforseo:serp:v1`,
+    }],
+    ["expand", {
+      namespace: "byok-expand", cacheKey: `byok-expand:v1:${job.id}`,
+      payloadType: "expand", eventKey: `byok:${job.id}:dataforseo:expand:v1`,
+    }],
+    ["compare", {
+      namespace: "byok-compare", cacheKey: `byok-compare:v1:${job.id}`,
+      payloadType: "compare", eventKey: `byok:${job.id}:dataforseo:compare:v1`,
+    }],
   ]);
   const identity = direct.get(job.job_type);
   if (identity) return identity;
@@ -223,7 +246,39 @@ const cacheIdentityForJob = async (job: ReconcileJobRow) => {
   );
   const cacheKey = base.rows[0]?.result_cache_key;
   if (!cacheKey) return reconciliationFail("PRIVATE_CACHE_NOT_FOUND");
-  return { namespace: "byok-compare", cacheKey };
+  return {
+    namespace: "byok-compare",
+    cacheKey,
+    payloadType: "compare",
+    eventKey: `byok:${job.id}:openrouter:compare-intent-retry:v1`,
+  };
+};
+
+const plainRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const validCachePayload = (type: CacheIdentity["payloadType"], value: unknown) => {
+  if (type === "semantic_filter") {
+    return Array.isArray(value) && value.length > 0 && value.length <= 20
+      && value.every((item) => plainRecord(item)
+        && typeof item.keyword === "string"
+        && (item.decision === "keep" || item.decision === "block")
+        && typeof item.reason === "string");
+  }
+  if (!plainRecord(value) || !plainRecord(value.cost)) return false;
+  if (type === "trends") {
+    return typeof value.keyword === "string" && Array.isArray(value.series) && value.series.length > 0
+      && Array.isArray(value.benchmarkSeries);
+  }
+  if (type === "serp") {
+    return typeof value.keyword === "string" && plainRecord(value.summary);
+  }
+  if (type === "expand") {
+    return typeof value.keyword === "string" && Array.isArray(value.candidates) && value.candidates.length > 0;
+  }
+  return typeof value.partialSuccess === "boolean"
+    && (value.phase === "complete" || value.phase === "partial")
+    && plainRecord(value.comparison) && plainRecord(value.stages);
 };
 
 export const reconcileStaleByokJob = async (input: Readonly<{
@@ -279,20 +334,29 @@ export const reconcileStaleByokJob = async (input: Readonly<{
   }
 
   const identity = await cacheIdentityForJob(job);
-  const cache = await d1Query<{ id: string }>(
-    `SELECT id FROM query_cache
+  const cache = await d1Query<{ id: string; response_data: string }>(
+    `SELECT id, response_data FROM query_cache
      WHERE cache_key = ? AND namespace = ? AND cache_scope = 'private'
        AND owner_id = ? AND (expires_at IS NULL OR expires_at > ?)
      LIMIT 1`,
     [identity.cacheKey, identity.namespace, job.user_id, nowIso],
   ).catch(() => reconciliationFail("PERSISTENCE_ERROR"));
-  if (!cache.rows[0]) return reconciliationFail("PRIVATE_CACHE_NOT_FOUND");
+  const cacheRow = cache.rows[0];
+  if (!cacheRow) return reconciliationFail("PRIVATE_CACHE_NOT_FOUND");
+  try {
+    if (!validCachePayload(identity.payloadType, JSON.parse(cacheRow.response_data))) {
+      return reconciliationFail("PRIVATE_CACHE_INVALID");
+    }
+  } catch (error) {
+    if (error instanceof ByokReconciliationError) throw error;
+    return reconciliationFail("PRIVATE_CACHE_INVALID");
+  }
   const evidence = await d1Query<{ event_count: number }>(
     `SELECT COUNT(*) AS event_count FROM pipeline_cost_events
      WHERE research_job_id = ? AND owner_id = ?
        AND credential_source = 'user' AND execution_mode = 'byok'
-       AND event_key IS NOT NULL`,
-    [job.id, job.user_id],
+       AND event_key = ?`,
+    [job.id, job.user_id, identity.eventKey],
   ).catch(() => reconciliationFail("PERSISTENCE_ERROR"));
   if (Number(evidence.rows[0]?.event_count ?? 0) < 1) {
     return reconciliationFail("COST_EVIDENCE_NOT_FOUND");

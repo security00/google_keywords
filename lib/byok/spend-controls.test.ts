@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { d1Query } from "@/lib/d1";
 import {
   ByokSpendControlError,
+  commitByokCostReservation,
   createByokCostQuote,
   getByokSpendControls,
   reserveConfirmedByokCostQuote,
@@ -139,6 +140,10 @@ describe("BYOK spend controls", () => {
     expect(reserved.status).toBe("reserved");
     expect(mockQuery.mock.calls[1][0]).toContain("status = 'quoted'");
     expect(mockQuery.mock.calls[1][0]).toContain("status = 'committed'");
+    expect(mockQuery.mock.calls[1][0]).toContain("updated_at >= ?");
+    expect(mockQuery.mock.calls[1][0]).not.toContain("created_at >= ?");
+    expect(mockQuery.mock.calls[1][0]).toContain("LEFT JOIN research_jobs active_job");
+    expect(mockQuery.mock.calls[1][0]).toContain("active_job.status IN ('pending', 'processing')");
   });
 
   test("returns an existing exact reservation instead of reserving or charging twice", async () => {
@@ -167,6 +172,40 @@ describe("BYOK spend controls", () => {
     expect(mockQuery).toHaveBeenCalledTimes(3);
   });
 
+  test("rejects an expired reservation instead of reviving it", async () => {
+    mockQuery
+      .mockResolvedValueOnce(result([{
+        daily_budget_micro_usd: 1_000_000,
+        max_concurrent_jobs: 1,
+      }]))
+      .mockResolvedValueOnce(result())
+      .mockResolvedValueOnce(result([{
+        ...quoteRow,
+        status: "reserved" as const,
+        reservation_expires_at: "2026-07-21T07:59:59.000Z",
+      }]));
+
+    await expect(reserveConfirmedByokCostQuote({
+      ownerId: "owner-1",
+      quoteId: "quote-1",
+      requestHash,
+      confirmedEstimatedCostUsd: 0.001,
+      confirmation: "CONFIRM",
+      now,
+    })).rejects.toSatisfy(expectCode("QUOTE_EXPIRED"));
+  });
+
+  test("commits only a live reservation or an idempotent matching commit", async () => {
+    mockQuery.mockResolvedValueOnce(result([], 1));
+    await expect(commitByokCostReservation({
+      ownerId: "owner-1", quoteId: "quote-1", researchJobId: "job-1",
+    })).resolves.toBe(true);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("reservation_expires_at > ?");
+    expect(sql).toContain("status = 'committed' AND research_job_id = ?");
+    expect(params?.[4]).toEqual(expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/));
+  });
+
   test("distinguishes concurrency and daily-budget denials after an atomic miss", async () => {
     mockQuery
       .mockResolvedValueOnce(result([{
@@ -188,6 +227,8 @@ describe("BYOK spend controls", () => {
       confirmation: "CONFIRM",
       now,
     })).rejects.toSatisfy(expectCode("CONCURRENCY_LIMIT_REACHED"));
+    expect(mockQuery.mock.calls[3][0]).toContain("updated_at >= ?");
+    expect(mockQuery.mock.calls[3][0]).toContain("LEFT JOIN research_jobs active_job");
 
     vi.clearAllMocks();
     mockQuery

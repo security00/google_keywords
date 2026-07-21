@@ -11,6 +11,8 @@
 | [`pipeline-task-boundary.md`](pipeline-task-boundary.md) | Pipeline Run/Task/Cost 边界 |
 | [`byok-implementation-plan.md`](byok-implementation-plan.md) | BYOK B0-B4 分阶段实施、验收与上线边界 |
 | [`byok-b1-design-plan.md`](byok-b1-design-plan.md) | Provider Connection 加密、schema、Store、API 与灰度设计 |
+| [`byok-completion-evidence.md`](byok-completion-evidence.md) | BYOK B1-B4 本地实现的逐项证据与生产边界 |
+| [`runbooks/byok-gray-rollout.md`](runbooks/byok-gray-rollout.md) | BYOK 分阶段灰度、完整观察周期、停止与回滚 |
 | [`legacy-runtime-inventory.md`](legacy-runtime-inventory.md) | 遗留表/路由的运行时访问审计与安全退役条件 |
 | [`../API.md`](../API.md) | 对外 API 契约 |
 

@@ -43,6 +43,7 @@ describe("provider transports", () => {
       `Basic ${Buffer.from("account@example.com:secret").toString("base64")}`,
     );
     expect(headers.get("Content-Type")).toBe("application/json");
+    expect(options.redirect).toBe("error");
   });
 
   test("OpenRouter BYOK adapter fixes the official URL and model in transport", async () => {
@@ -66,6 +67,7 @@ describe("provider transports", () => {
       model: "test/model",
       temperature: 0,
     });
+    expect(options.redirect).toBe("error");
   });
 
   test("JSON transport preserves bounded retry and timeout behavior", async () => {

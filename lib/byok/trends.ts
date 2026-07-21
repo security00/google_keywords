@@ -310,7 +310,7 @@ export const executeByokTrends = async (input: Readonly<{
     jobType: "trends",
     idempotencyKey: expectedHash,
   }).catch(() => fail("JOB_PERSISTENCE_ERROR"));
-  if (existing) return publicResult(input.ownerId, existing);
+  if (existing && existing.status !== "pending") return publicResult(input.ownerId, existing);
 
   try {
     await reserveConfirmedByokCostQuote({

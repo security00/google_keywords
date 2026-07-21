@@ -162,8 +162,9 @@ operations gate, not additional BYOK implementation:
    completeness, stale runs, and paid-provider errors for one stable window.
 4. Disable side-effecting GET compatibility and legacy shared-cache reads only
    after the observation evidence is clean.
-5. Approve the BYOK implementation gate; until then, no user credential storage
-   or user-triggered paid-provider route is introduced.
+5. Approve the BYOK production gate; until then, the isolated implementation is
+   not merged or deployed and no production user credential storage or
+   user-triggered paid-provider route is enabled.
 
 ### P1 — Quality operations
 

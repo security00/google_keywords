@@ -6,13 +6,20 @@ import {
   loadByokOperationsHealth,
   reconcileStaleByokJob,
 } from "@/lib/byok/operations";
+import {
+  ProviderConnectionApiError,
+  readLimitedJsonObject,
+} from "@/lib/provider-connections/api";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const principal = await requireAdminRequest(request);
-  if (isAuthzError(principal)) return principal;
+  if (isAuthzError(principal)) {
+    principal.headers.set("Cache-Control", "no-store");
+    return principal;
+  }
   try {
     return NextResponse.json(await loadByokOperationsHealth(), {
       headers: { "Cache-Control": "no-store" },
@@ -28,17 +35,30 @@ export async function GET(request: Request) {
 const sameOrigin = (request: Request) => {
   const origin = request.headers.get("origin");
   if (!origin) return false;
-  try { return origin === new URL(request.url).origin; }
+  try {
+    if (origin !== new URL(request.url).origin) return false;
+    const fetchSite = request.headers.get("sec-fetch-site");
+    return !fetchSite || fetchSite === "same-origin";
+  }
   catch { return false; }
 };
 
 export async function POST(request: Request) {
   const principal = await requireAdminRequest(request);
-  if (isAuthzError(principal)) return principal;
+  if (isAuthzError(principal)) {
+    principal.headers.set("Cache-Control", "no-store");
+    return principal;
+  }
   if (!principal.userId) {
     return NextResponse.json(
       { error: "Unauthorized", code: "UNAUTHORIZED" },
       { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  if (principal.authMethod !== "cookie") {
+    return NextResponse.json(
+      { error: "Cookie authentication required", code: "COOKIE_AUTH_REQUIRED" },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
     );
   }
   if (!sameOrigin(request)) {
@@ -48,9 +68,7 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const body = await request.json();
-    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("invalid");
-    const record = body as Record<string, unknown>;
+    const record = await readLimitedJsonObject(request);
     const keys = Object.keys(record).sort();
     if (keys.join(",") !== "action,expectedUpdatedAt,jobId,ownerId"
       || (record.action !== "complete_from_private_cache" && record.action !== "mark_uncertain")
@@ -68,6 +86,12 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof ProviderConnectionApiError) {
+      return NextResponse.json(
+        { error: "BYOK reconciliation rejected", code: error.code },
+        { status: error.status, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const code = error instanceof ByokReconciliationError ? error.code : "INVALID_REQUEST";
     const status = code === "JOB_NOT_FOUND" ? 404
       : code === "JOB_STATE_CONFLICT" || code === "JOB_NOT_STALE" ? 409

@@ -2,8 +2,8 @@
 
 > 更新：2026-07-21
 >
-> 状态：B1.1-B1.4 已在隔离分支实现，待完整验证与独立审查。本文不批准 B2
-> Live Mode 或任何生产部署。
+> 状态：B1.1-B1.4 已在隔离分支实现并通过本地完整验证；实际内部灰度仍待生产准入。
+> 本文不构成任何生产部署授权。
 
 ## 1. 目标和非目标
 
@@ -90,5 +90,5 @@ owner 条件、跨 owner miss、并发轮换、删除 audit、错误脱敏、Typ
 
 B1.3 已覆盖 API 身份、CSRF、body limit、严格 schema 和响应脱敏。B1.4 已覆盖
 allowlist、持久化限流、固定 OpenRouter 官方端点 verify、KEK rewrap 和
-restore/delete runbook；仍需全量验证与独立审查。现有生产 smoke 永远不加入真实
-Provider 调用。
+restore/delete runbook；隔离分支已完成全量验证与完成审计。现有生产 smoke 永远不加入
+真实 Provider 调用；生产准入仍须按灰度 runbook 单独执行。

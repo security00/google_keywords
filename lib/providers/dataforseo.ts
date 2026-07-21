@@ -66,7 +66,7 @@ export const createDataForSeoClient = (
       return transport.request(
         method,
         url,
-        { ...requestOptions, headers },
+        { ...requestOptions, headers, redirect: "error" },
         maxRetries,
         timeoutMs,
       );

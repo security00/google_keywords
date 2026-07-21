@@ -402,7 +402,7 @@ export const executeByokCompare = async (input: Readonly<{
   const existing = await getOwnedByokJobByIdempotency({
     userId: input.ownerId, jobType: "compare", idempotencyKey: expectedHash,
   }).catch(() => fail("JOB_PERSISTENCE_ERROR"));
-  if (existing) return publicResult(input.ownerId, existing);
+  if (existing && existing.status !== "pending") return publicResult(input.ownerId, existing);
   try {
     await reserveConfirmedByokCostQuote({
       ownerId: input.ownerId, quoteId: input.quoteId, requestHash: expectedHash,
@@ -701,7 +701,7 @@ export const executeByokCompareIntentRetry = async (input: Readonly<{
   const existing = await getOwnedByokJobByIdempotency({
     userId: input.ownerId, jobType: "compare_intent", idempotencyKey: expectedHash,
   }).catch(() => fail("JOB_PERSISTENCE_ERROR"));
-  if (existing) return publicResult(input.ownerId, existing);
+  if (existing && existing.status !== "pending") return publicResult(input.ownerId, existing);
   try {
     await reserveConfirmedByokCostQuote({
       ownerId: input.ownerId, quoteId: input.quoteId, requestHash: expectedHash,

@@ -68,7 +68,13 @@ describe("BYOK operations reconciliation", () => {
   test("completes only when the expected private cache and cost evidence both exist", async () => {
     mockD1Query
       .mockResolvedValueOnce({ rows: [staleJob()] })
-      .mockResolvedValueOnce({ rows: [{ id: "cache-1" }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: "cache-1",
+        response_data: JSON.stringify({
+          keyword: "ai tools", series: [{ date: "2026-07-20", value: 50 }],
+          benchmarkSeries: [], cost: { estimatedCostUsd: 0.011, actualCostUsd: 0.011 },
+        }),
+      }] })
       .mockResolvedValueOnce({ rows: [{ event_count: 1 }] });
     mockD1Batch.mockResolvedValueOnce([
       { rows: [], meta: { changes: 1 } }, { rows: [], meta: { changes: 1 } },
@@ -85,13 +91,21 @@ describe("BYOK operations reconciliation", () => {
     expect(mockD1Query.mock.calls[1]?.[1]).toEqual([
       "byok-trends:v1:job-1", "byok-trends", "owner-1", "2026-07-21T00:10:00.000Z",
     ]);
-    expect(mockD1Query.mock.calls[2]?.[1]).toEqual(["job-1", "owner-1"]);
+    expect(mockD1Query.mock.calls[2]?.[1]).toEqual([
+      "job-1", "owner-1", "byok:job-1:dataforseo:trends:v1",
+    ]);
   });
 
   test("refuses recovery when cost evidence is missing", async () => {
     mockD1Query
       .mockResolvedValueOnce({ rows: [staleJob()] })
-      .mockResolvedValueOnce({ rows: [{ id: "cache-1" }] })
+      .mockResolvedValueOnce({ rows: [{
+        id: "cache-1",
+        response_data: JSON.stringify({
+          keyword: "ai tools", series: [{ date: "2026-07-20", value: 50 }],
+          benchmarkSeries: [], cost: { estimatedCostUsd: 0.011, actualCostUsd: null },
+        }),
+      }] })
       .mockResolvedValueOnce({ rows: [{ event_count: 0 }] });
 
     await expect(reconcileStaleByokJob({
@@ -103,5 +117,22 @@ describe("BYOK operations reconciliation", () => {
       now: new Date("2026-07-21T00:10:00.000Z"),
     })).rejects.toMatchObject({ code: "COST_EVIDENCE_NOT_FOUND" } satisfies Partial<ByokReconciliationError>);
     expect(mockD1Query).toHaveBeenCalledTimes(3);
+  });
+
+  test("refuses a malformed private cache before checking cost evidence", async () => {
+    mockD1Query
+      .mockResolvedValueOnce({ rows: [staleJob()] })
+      .mockResolvedValueOnce({ rows: [{ id: "cache-1", response_data: "{}" }] });
+
+    await expect(reconcileStaleByokJob({
+      actorId: "admin-1",
+      ownerId: "owner-1",
+      jobId: "job-1",
+      expectedUpdatedAt: "2026-07-21T00:00:00.000Z",
+      action: "complete_from_private_cache",
+      now: new Date("2026-07-21T00:10:00.000Z"),
+    })).rejects.toMatchObject({ code: "PRIVATE_CACHE_INVALID" });
+    expect(mockD1Query).toHaveBeenCalledTimes(2);
+    expect(mockD1Batch).not.toHaveBeenCalled();
   });
 });

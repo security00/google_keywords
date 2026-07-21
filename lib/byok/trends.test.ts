@@ -304,4 +304,39 @@ describe("BYOK Trends", () => {
     expect(mockReserve).not.toHaveBeenCalled();
     expect(clientFactory).not.toHaveBeenCalled();
   });
+
+  test("safely resumes an existing pending job before the irreversible checkpoint", async () => {
+    const { keys, connection } = await storedConnection();
+    mockLoad.mockResolvedValue(connection);
+    const requestHash = buildByokTrendsRequestHash({
+      ownerId: "owner-1", connectionId: "connection-1", connectionVersion: 1, request,
+    });
+    const pending = job(requestHash);
+    mockExisting.mockResolvedValue(pending);
+    mockCreateJob.mockResolvedValue({ job: pending, created: false });
+    const providerRequest = vi.fn().mockResolvedValue({
+      cost: 0.011,
+      tasks: [{ result: [{ items: [{
+        type: "google_trends_graph",
+        keywords: ["ai resume builder", "gpts"],
+        data: [{ date_from: "2026-07-20", values: [80, 40] }],
+      }] }] }],
+    });
+
+    const result = await executeByokTrends({
+      ownerId: "owner-1", connectionId: "connection-1",
+      expectedConnectionVersion: 1, request, quoteId: "quote-1", requestHash,
+      confirmedEstimatedCostUsd: 0.011, confirmation: "CONFIRM",
+      decryptionKeys: keys.decryption,
+      clientFactory: () => ({ provider: "dataforseo", request: providerRequest }),
+    });
+
+    expect(result.status).toBe("complete");
+    expect(mockReserve).toHaveBeenCalledTimes(1);
+    expect(mockCommitReservation).toHaveBeenCalledWith(expect.objectContaining({
+      researchJobId: "job-1",
+    }));
+    expect(mockClaim).toHaveBeenCalledTimes(1);
+    expect(providerRequest).toHaveBeenCalledTimes(1);
+  });
 });

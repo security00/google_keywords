@@ -12,6 +12,10 @@ BYOK Job 在外部请求发出前会从 `not_started` 原子切换为 `started`�
 - `updated_at` 已超过正常 15 秒请求窗口；
 - 没有 `completed`/`failed` 状态。
 
+`pending/not_started` 不代表 Provider outcome 不确定，执行重试可以继续原子 claim 同一 Job；这用于
+恢复 Worker 在创建 Job 或提交报价后、写入 `started` checkpoint 前中断的安全窗口。只有
+`processing/started` 才禁止自动重领并进入本 runbook 的人工对账。
+
 查询和导出只允许包含 job id、owner id、connection id/version、时间、状态和 Cost Event
 聚合，不得包含 credential、prompt、Provider 正文或缓存结果。
 
@@ -45,8 +49,8 @@ BYOK Job 在外部请求发出前会从 `not_started` 原子切换为 `started`�
 `complete_from_private_cache` 或 `mark_uncertain` 的 `action`。
 
 `complete_from_private_cache` 只有在任务仍处于超过 5 分钟的 `processing/started` 状态、
-owner-private BYOK namespace 中存在未过期结果、相同 job/owner 存在带稳定 event key 的
-user/byok Cost Event 时才允许执行。`mark_uncertain` 只把任务终止为
+owner-private BYOK namespace 中存在未过期且结构符合对应能力的数据、相同 job/owner 存在该
+能力精确稳定 event key 的 user/byok Cost Event 时才允许执行。`mark_uncertain` 只把任务终止为
 `PROVIDER_OUTCOME_UNCERTAIN`。两种动作都不会调用 Provider，也不会清除 checkpoint；状态更新和
 不含敏感信息的管理员审计事件使用 D1 batch 原子提交。
 
