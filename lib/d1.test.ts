@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { d1Query } from "./d1";
+import { d1Batch, d1Query } from "./d1";
 
 vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: vi.fn(),
@@ -42,5 +42,33 @@ describe("D1 runtime boundary", () => {
     );
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  test("executes atomic statement batches through the generated DB binding", async () => {
+    const batch = vi.fn().mockResolvedValue([
+      { success: true, results: [], meta: { changes: 1 } },
+      { success: true, results: [], meta: { changes: 1 } },
+    ]);
+    const firstBind = vi.fn(() => ({ statement: "first" }));
+    const secondBind = vi.fn(() => ({ statement: "second" }));
+    const prepare = vi.fn()
+      .mockImplementationOnce(() => ({ bind: firstBind }))
+      .mockImplementationOnce(() => ({ bind: secondBind }));
+    mockGetCloudflareContext.mockResolvedValue({
+      env: { DB: { prepare, batch } },
+    } as never);
+
+    const result = await d1Batch([
+      { sql: "INSERT INTO first_table(value) VALUES (?)", params: [undefined] },
+      { sql: "DELETE FROM second_table WHERE id = ?", params: ["item-1"] },
+    ]);
+
+    expect(firstBind).toHaveBeenCalledWith(null);
+    expect(secondBind).toHaveBeenCalledWith("item-1");
+    expect(batch).toHaveBeenCalledWith([
+      { statement: "first" },
+      { statement: "second" },
+    ]);
+    expect(result.map((entry) => entry.meta?.changes)).toEqual([1, 1]);
   });
 });

@@ -30,11 +30,18 @@ the browser.
 | Game Radar | Implemented; needs quality operations | Scanner, admin review, trends, SERP, promotion, and auto-review scripts exist. Expand sources only after quality review. |
 | Multi-signal discovery | Implemented; needs operational metrics | Collection, standardization, review, and signal bridge exist. New platforms remain deferred. |
 | Source/opportunity dashboards | Implemented, read-only by design | Quality, score, suggestions, enrichment, feedback, report, and semantic-dedupe surfaces are available. |
-| SaaS operations | Production rollout complete; observation pending | Health visibility and precompute attribution are deployed; observation and authenticated end-to-end access verification remain. |
+| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1.1 and B1.2 are locally complete and await review. No BYOK route, production KEK, remote migration, Live Mode, or deployment is enabled. |
 
 ## Ordered Work
 
 ## Execution Log
+
+- 2026-07-21, BYOK isolated development: created
+  `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted
+  ADR-0008 and added credential envelope crypto with no D1 or environment
+  access. B1.2 adds only an additive Provider Connection schema and
+  owner-scoped Store while feature exposure and production deployment remain
+  closed.
 
 - 2026-07-20, production rollout: reconciled the remote migration ledger,
   captured a D1 Time Travel rollback bookmark, and applied migrations 0016-0019
