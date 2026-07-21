@@ -12,6 +12,8 @@ import {
   providerConnectionOwnerAllowed,
 } from "@/lib/provider-connections/keyring";
 import { ByokSemanticFilterError } from "./semantic-filter";
+import { ByokSpendControlError } from "./spend-controls";
+import { ByokTrendsError } from "./trends";
 
 type Environment = Readonly<Record<string, string | undefined>>;
 
@@ -102,6 +104,88 @@ export const parseByokSemanticFilterBody = async (request: Request) => {
   };
 };
 
+const plainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value)
+  && Object.getPrototypeOf(value) === Object.prototype;
+
+export const parseByokTrendsBody = async (request: Request) => {
+  const body = await readLimitedJsonObject(request);
+  if (body.action === "quote") {
+    exactKeys(body, [
+      "action", "executionMode", "provider", "connectionId",
+      "expectedConnectionVersion", "clientRequestId", "keyword", "benchmark", "days",
+    ]);
+    if (
+      body.executionMode !== "byok"
+      || body.provider !== "dataforseo"
+      || typeof body.connectionId !== "string"
+      || !body.connectionId.trim()
+      || !Number.isInteger(body.expectedConnectionVersion)
+      || Number(body.expectedConnectionVersion) < 1
+      || typeof body.clientRequestId !== "string"
+      || typeof body.keyword !== "string"
+      || (body.benchmark !== undefined && typeof body.benchmark !== "string")
+      || (body.days !== undefined && !Number.isInteger(body.days))
+    ) {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "quote" as const,
+      connectionId: body.connectionId.trim(),
+      expectedConnectionVersion: Number(body.expectedConnectionVersion),
+      clientRequestId: body.clientRequestId,
+      keyword: body.keyword,
+      benchmark: body.benchmark as string | undefined,
+      days: body.days as number | undefined,
+    };
+  }
+  if (body.action === "execute") {
+    exactKeys(body, [
+      "action", "executionMode", "provider", "connectionId",
+      "expectedConnectionVersion", "request", "quoteId", "requestHash",
+      "confirmedEstimatedCostUsd", "confirmation",
+    ]);
+    if (!plainObject(body.request)) {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    exactKeys(body.request, ["keyword", "benchmark", "dateFrom", "dateTo"]);
+    if (
+      body.executionMode !== "byok"
+      || body.provider !== "dataforseo"
+      || typeof body.connectionId !== "string"
+      || !body.connectionId.trim()
+      || !Number.isInteger(body.expectedConnectionVersion)
+      || Number(body.expectedConnectionVersion) < 1
+      || typeof body.request.keyword !== "string"
+      || typeof body.request.benchmark !== "string"
+      || typeof body.request.dateFrom !== "string"
+      || typeof body.request.dateTo !== "string"
+      || typeof body.quoteId !== "string"
+      || typeof body.requestHash !== "string"
+      || typeof body.confirmedEstimatedCostUsd !== "number"
+      || body.confirmation !== "CONFIRM"
+    ) {
+      throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+    }
+    return {
+      action: "execute" as const,
+      connectionId: body.connectionId.trim(),
+      expectedConnectionVersion: Number(body.expectedConnectionVersion),
+      request: {
+        keyword: body.request.keyword,
+        benchmark: body.request.benchmark,
+        dateFrom: body.request.dateFrom,
+        dateTo: body.request.dateTo,
+      },
+      quoteId: body.quoteId,
+      requestHash: body.requestHash,
+      confirmedEstimatedCostUsd: body.confirmedEstimatedCostUsd,
+      confirmation: "CONFIRM" as const,
+    };
+  }
+  throw new ProviderConnectionApiError("INVALID_REQUEST", 400);
+};
+
 export const byokErrorResponse = (error: unknown) => {
   if (error instanceof ProviderConnectionApiError) {
     return noStoreJson(
@@ -130,6 +214,42 @@ export const byokErrorResponse = (error: unknown) => {
     };
     return noStoreJson(
       { error: "BYOK execution failed", code: error.code },
+      { status: status[error.code] },
+    );
+  }
+  if (error instanceof ByokSpendControlError) {
+    const status: Record<ByokSpendControlError["code"], number> = {
+      INVALID_INPUT: 400,
+      QUOTE_CONFLICT: 409,
+      QUOTE_NOT_FOUND: 404,
+      QUOTE_EXPIRED: 409,
+      QUOTE_ALREADY_USED: 409,
+      COST_CONFIRMATION_MISMATCH: 409,
+      DAILY_BUDGET_EXCEEDED: 409,
+      CONCURRENCY_LIMIT_REACHED: 409,
+      PERSISTENCE_ERROR: 503,
+    };
+    return noStoreJson(
+      { error: "BYOK spend guard rejected the request", code: error.code },
+      { status: status[error.code] },
+    );
+  }
+  if (error instanceof ByokTrendsError) {
+    const status: Record<ByokTrendsError["code"], number> = {
+      INVALID_INPUT: 400,
+      CONNECTION_NOT_FOUND: 404,
+      CONNECTION_VERSION_CONFLICT: 409,
+      CONNECTION_NOT_VERIFIED: 409,
+      CREDENTIAL_UNAVAILABLE: 503,
+      JOB_PERSISTENCE_ERROR: 503,
+      PROVIDER_FAILED: 502,
+      PROVIDER_RESPONSE_INVALID: 502,
+      COST_LEDGER_WRITE_FAILED: 503,
+      PRIVATE_CACHE_WRITE_FAILED: 503,
+      SPEND_RESERVATION_FAILED: 409,
+    };
+    return noStoreJson(
+      { error: "BYOK Trends execution failed", code: error.code },
       { status: status[error.code] },
     );
   }

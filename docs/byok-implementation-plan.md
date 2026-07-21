@@ -99,7 +99,13 @@ LLM 失败时返回 Partial Success，不重跑已经成功的付费阶段。
 API；验证固定调用官方免费的 `/v3/appendix/user_data`，不返回或保存账户资料，并复用
 持久化 owner/provider 限流。预算门使用整数 micro-USD、owner 日预算、operator 上限、
 并发上限和短期费用报价；只有请求哈希与报价金额完全匹配的显式 `CONFIRM` 才能原子
-预留额度。任何付费研究调用仍未开放。
+预留额度。预算门本身不直接调用任何付费 Provider。
+
+Trends 第一能力已在隔离分支接入两步式报价/确认：报价不解密 credential、不调用
+Provider；执行只接受服务器规范化请求、固定请求哈希、未过期 quote id、精确的
+`$0.011` 估算和单独 `CONFIRM`。结果只写 `byok-trends` Private Cache，Cost Event
+固定标记 `user/byok`，测试明确断言平台 DataForSEO Client 调用数为 0。该能力仍受
+Live Mode 默认关闭和 allowlist 约束，尚未部署。
 
 ## 6. B4 — 灰度与验收
 

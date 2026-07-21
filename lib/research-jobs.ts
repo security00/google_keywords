@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "crypto";
 import { d1Batch, d1Query } from "@/lib/d1";
 
 export type JobStatus = "pending" | "processing" | "complete" | "failed";
-export type JobType = "expand" | "compare" | "intent" | "trends" | "semantic_filter";
+export type JobType = "expand" | "compare" | "intent" | "trends" | "serp" | "semantic_filter";
 export type JobExecutionMode = "platform" | "byok";
 export type JobCredentialSource = "platform" | "user";
 export type ProviderRequestState = "not_started" | "started" | "completed" | "failed";
@@ -145,9 +145,11 @@ export const createJob = async (
   return id;
 };
 
+type ByokJobType = "semantic_filter" | "trends" | "serp" | "expand" | "compare";
+
 export const createOrGetOwnedByokJob = async (input: Readonly<{
   userId: string;
-  jobType: "semantic_filter";
+  jobType: ByokJobType;
   payload: Record<string, unknown>;
   idempotencyKey: string;
   providerConnectionId: string;
@@ -204,7 +206,7 @@ export const createOrGetOwnedByokJob = async (input: Readonly<{
 export const claimOwnedByokJob = async (input: Readonly<{
   id: string;
   userId: string;
-  jobType: "semantic_filter";
+  jobType: ByokJobType;
   providerConnectionId: string;
   providerConnectionVersion: number;
 }>): Promise<ResearchJobClaim | null> => {
@@ -287,6 +289,22 @@ export const getOwnedJob = async (
   );
   const row = rows[0];
   return row ? toJob(row) : null;
+};
+
+export const getOwnedByokJobByIdempotency = async (input: Readonly<{
+  userId: string;
+  jobType: ByokJobType;
+  idempotencyKey: string;
+}>) => {
+  if (!input.userId || !input.idempotencyKey) return null;
+  const { rows } = await d1Query<JobRow>(
+    `SELECT * FROM research_jobs
+     WHERE user_id = ? AND job_type = ? AND idempotency_key = ?
+       AND execution_mode = 'byok' AND credential_source = 'user'
+     LIMIT 1`,
+    [input.userId, input.jobType, input.idempotencyKey],
+  );
+  return rows[0] ? toJob(rows[0]) : null;
 };
 
 export const getInternalJobById = async (id: string, jobType: JobType) => {

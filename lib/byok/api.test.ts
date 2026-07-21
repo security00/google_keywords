@@ -4,6 +4,7 @@ import { requireEffectiveUser } from "@/lib/authz";
 import {
   byokLiveModeEnabled,
   parseByokSemanticFilterBody,
+  parseByokTrendsBody,
   requireByokLiveOwner,
 } from "./api";
 
@@ -90,6 +91,67 @@ describe("BYOK live API boundary", () => {
       expectedConnectionVersion: 2,
       keywords: ["ai tool"],
       baseUrl: "https://attacker.test",
+    }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  test("parses the two-step DataForSEO Trends quote and exact confirmation", async () => {
+    const quote = await parseByokTrendsBody(request({
+      action: "quote",
+      executionMode: "byok",
+      provider: "dataforseo",
+      connectionId: "connection-2",
+      expectedConnectionVersion: 1,
+      clientRequestId: "request-1234",
+      keyword: "ai resume builder",
+      benchmark: "gpts",
+      days: 90,
+    }));
+    expect(quote).toMatchObject({
+      action: "quote",
+      connectionId: "connection-2",
+      expectedConnectionVersion: 1,
+    });
+
+    const execute = await parseByokTrendsBody(request({
+      action: "execute",
+      executionMode: "byok",
+      provider: "dataforseo",
+      connectionId: "connection-2",
+      expectedConnectionVersion: 1,
+      request: {
+        keyword: "ai resume builder",
+        benchmark: "gpts",
+        dateFrom: "2026-04-22",
+        dateTo: "2026-07-21",
+      },
+      quoteId: "quote-1",
+      requestHash: "a".repeat(64),
+      confirmedEstimatedCostUsd: 0.011,
+      confirmation: "CONFIRM",
+    }));
+    expect(execute).toMatchObject({
+      action: "execute",
+      confirmation: "CONFIRM",
+      confirmedEstimatedCostUsd: 0.011,
+    });
+
+    await expect(parseByokTrendsBody(request({
+      action: "execute",
+      executionMode: "byok",
+      provider: "dataforseo",
+      connectionId: "connection-2",
+      expectedConnectionVersion: 1,
+      request: {
+        keyword: "ai resume builder",
+        benchmark: "gpts",
+        dateFrom: "2026-04-22",
+        dateTo: "2026-07-21",
+        endpoint: "https://attacker.test",
+      },
+      quoteId: "quote-1",
+      requestHash: "a".repeat(64),
+      confirmedEstimatedCostUsd: 0.011,
+      confirmation: "CONFIRM",
     }))).rejects.toMatchObject({ code: "INVALID_REQUEST" });
   });
 });

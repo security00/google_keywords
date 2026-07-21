@@ -14,7 +14,8 @@ export type CacheNamespace =
   | "serp-result"
   | "precompute-health"
   | "provider-direct"
-  | "byok-semantic-filter";
+  | "byok-semantic-filter"
+  | "byok-trends";
 
 export type CacheScope =
   | { type: "shared" }

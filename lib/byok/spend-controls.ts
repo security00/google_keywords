@@ -423,8 +423,15 @@ export const commitByokCostReservation = async (input: Readonly<{
     const { meta } = await d1Query(
       `UPDATE byok_cost_quotes
        SET status = 'committed', research_job_id = ?, updated_at = ?
-       WHERE quote_id = ? AND owner_id = ? AND status = 'reserved'`,
-      [input.researchJobId, new Date().toISOString(), input.quoteId, input.ownerId],
+       WHERE quote_id = ? AND owner_id = ?
+         AND (status = 'reserved' OR (status = 'committed' AND research_job_id = ?))`,
+      [
+        input.researchJobId,
+        new Date().toISOString(),
+        input.quoteId,
+        input.ownerId,
+        input.researchJobId,
+      ],
     );
     return (meta?.changes ?? 0) === 1;
   } catch {

@@ -17,6 +17,20 @@ type SemanticResult = {
   decision: "keep" | "block";
   reason: string;
 };
+type TrendsQuote = {
+  quote: {
+    quoteId: string;
+    estimatedCostUsd: number;
+    expiresAt: string;
+  };
+  request: {
+    keyword: string;
+    benchmark: string;
+    dateFrom: string;
+    dateTo: string;
+  };
+  requestHash: string;
+};
 
 export function ByokSettings() {
   const [available, setAvailable] = useState(false);
@@ -35,6 +49,10 @@ export function ByokSettings() {
   });
   const [keywords, setKeywords] = useState("");
   const [results, setResults] = useState<SemanticResult[]>([]);
+  const [trendsKeyword, setTrendsKeyword] = useState("");
+  const [trendsDays, setTrendsDays] = useState("90");
+  const [trendsQuote, setTrendsQuote] = useState<TrendsQuote | null>(null);
+  const [trendsResult, setTrendsResult] = useState<Record<string, unknown> | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -224,6 +242,57 @@ export function ByokSettings() {
     }
   };
 
+  const quoteTrends = async () => {
+    if (!dataForSeoConnection || dataForSeoConnection.verificationStatus !== "valid") return;
+    const result = await mutate("quote-trends", "/api/research/byok/trends", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "quote",
+        executionMode: "byok",
+        provider: "dataforseo",
+        connectionId: dataForSeoConnection.id,
+        expectedConnectionVersion: dataForSeoConnection.credentialVersion,
+        clientRequestId: crypto.randomUUID(),
+        keyword: trendsKeyword,
+        benchmark: "gpts",
+        days: Number(trendsDays),
+      }),
+    });
+    if (result?.quote && result?.request && result?.requestHash) {
+      setTrendsQuote(result as TrendsQuote);
+      setTrendsResult(null);
+      setMessage("Review the exact estimate, then confirm the paid request.");
+    }
+  };
+
+  const confirmTrends = async () => {
+    if (!dataForSeoConnection || !trendsQuote) return;
+    const result = await mutate("run-trends", "/api/research/byok/trends", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "execute",
+        executionMode: "byok",
+        provider: "dataforseo",
+        connectionId: dataForSeoConnection.id,
+        expectedConnectionVersion: dataForSeoConnection.credentialVersion,
+        request: trendsQuote.request,
+        quoteId: trendsQuote.quote.quoteId,
+        requestHash: trendsQuote.requestHash,
+        confirmedEstimatedCostUsd: trendsQuote.quote.estimatedCostUsd,
+        confirmation: "CONFIRM",
+      }),
+    });
+    if (result?.data) {
+      setTrendsResult(result.data);
+      setTrendsQuote(null);
+      setMessage("Trends completed with your DataForSEO account. The result is private.");
+    } else if (result?.status === "pending") {
+      setMessage("The paid request started and will not be submitted again automatically.");
+    }
+  };
+
   if (!available) return null;
   return (
     <section className="rounded-xl border border-cyan-500/20 bg-card/90 p-5 shadow-sm">
@@ -331,6 +400,40 @@ export function ByokSettings() {
           Save spend controls
         </Button>
       </div>
+      {liveEnabled && dataForSeoConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
+        <h4 className="font-medium">Private Google Trends check</h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Quote first. The Provider is called only after a separate exact-cost confirmation.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_8rem]">
+          <input value={trendsKeyword} onChange={(e) => {
+            setTrendsKeyword(e.target.value);
+            setTrendsQuote(null);
+          }} className="rounded-lg border bg-background px-3 py-2 text-sm"
+            placeholder="Keyword to compare with gpts" />
+          <input type="number" min="7" max="1825" value={trendsDays}
+            onChange={(e) => { setTrendsDays(e.target.value); setTrendsQuote(null); }}
+            className="rounded-lg border bg-background px-3 py-2 text-sm" aria-label="Trend days" />
+        </div>
+        <Button type="button" variant="outline" className="mt-2" onClick={quoteTrends}
+          disabled={Boolean(busy) || !trendsKeyword.trim()}>
+          {busy === "quote-trends" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Get exact cost quote
+        </Button>
+        {trendsQuote && <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+          <p>Estimated DataForSEO charge: <strong>${trendsQuote.quote.estimatedCostUsd.toFixed(3)}</strong></p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {trendsQuote.request.dateFrom} to {trendsQuote.request.dateTo}; expires {new Date(trendsQuote.quote.expiresAt).toLocaleTimeString()}.
+          </p>
+          <Button type="button" className="mt-2" onClick={confirmTrends} disabled={Boolean(busy)}>
+            {busy === "run-trends" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Confirm and run for ${trendsQuote.quote.estimatedCostUsd.toFixed(3)}
+          </Button>
+        </div>}
+        {trendsResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
+          {JSON.stringify(trendsResult, null, 2)}
+        </pre>}
+      </div>}
       {liveEnabled && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private keyword semantic filter</h4>
         <p className="mt-1 text-xs text-muted-foreground">
