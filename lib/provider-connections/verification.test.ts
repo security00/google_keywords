@@ -11,6 +11,8 @@ import {
 } from "./store";
 import { claimProviderVerificationAttempt } from "./verification-rate-limit";
 import {
+  verifyDataForSeoConnection,
+  verifyDataForSeoCredential,
   verifyOpenRouterConnection,
   verifyOpenRouterCredential,
 } from "./verification";
@@ -37,6 +39,36 @@ const context = {
   connectionId: "connection-1",
   ownerId: "owner-1",
   provider: "openrouter" as const,
+};
+
+const storedDataForSeoConnection = async () => {
+  const keys = await keyBundle();
+  const dataContext = {
+    connectionId: "connection-2",
+    ownerId: "owner-1",
+    provider: "dataforseo" as const,
+  };
+  const envelope = await encryptProviderCredential(
+    dataContext,
+    { login: "owner@example.com", password: "dataforseo-sensitive-password" },
+    keys.encryption,
+  );
+  return {
+    keys,
+    context: dataContext,
+    connection: {
+      ...dataContext,
+      label: "DataForSEO",
+      credentialVersion: 1,
+      maskedHint: "DataForSEO credential saved",
+      verificationStatus: "unverified" as const,
+      verifiedAt: null,
+      lastVerificationCode: null,
+      createdAt: "2026-07-21T00:00:00.000Z",
+      updatedAt: "2026-07-21T00:00:00.000Z",
+      envelope,
+    },
+  };
 };
 
 const keyBundle = async (): Promise<{
@@ -218,6 +250,72 @@ describe("OpenRouter Provider Connection verification", () => {
         headers: { Authorization: "Bearer sk-or-sensitive-1234" },
       }),
     );
+    fetchSpy.mockRestore();
+  });
+});
+
+describe("DataForSEO Provider Connection verification", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockClaim.mockResolvedValue({
+      allowed: true,
+      attemptCount: 1,
+      blockedUntil: null,
+    });
+  });
+
+  test("decrypts both credential fields and records a valid result", async () => {
+    const { keys, context: dataContext, connection } =
+      await storedDataForSeoConnection();
+    mockLoad.mockResolvedValue(connection);
+    mockUpdate.mockImplementation(async (input) => ({
+      ...connection,
+      verificationStatus: input.status,
+      lastVerificationCode: input.verificationCode,
+    }));
+    const verifier = vi.fn().mockResolvedValue("VERIFIED");
+
+    const result = await verifyDataForSeoConnection({
+      ownerId: dataContext.ownerId,
+      connectionId: dataContext.connectionId,
+      decryptionKeys: keys.decryption,
+      verifier,
+    });
+
+    expect(mockClaim).toHaveBeenCalledWith(dataContext.ownerId, "dataforseo");
+    expect(verifier).toHaveBeenCalledWith(
+      "owner@example.com",
+      "dataforseo-sensitive-password",
+    );
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      context: dataContext,
+      status: "valid",
+      verificationCode: "VERIFIED",
+    }));
+    expect(result.connection).not.toHaveProperty("envelope");
+  });
+
+  test("uses only the fixed free DataForSEO account endpoint", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("sensitive-provider-body", { status: 200 }),
+    );
+
+    await expect(verifyDataForSeoCredential(
+      "owner@example.com",
+      "dataforseo-sensitive-password",
+    )).resolves.toBe("VERIFIED");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.dataforseo.com/v3/appendix/user_data",
+      expect.objectContaining({
+        method: "GET",
+        redirect: "error",
+        cache: "no-store",
+      }),
+    );
+    const request = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect((request.headers as Record<string, string>).Authorization)
+      .toMatch(/^Basic /);
+    expect(JSON.stringify(request)).not.toContain("dataforseo-sensitive-password");
     fetchSpy.mockRestore();
   });
 });

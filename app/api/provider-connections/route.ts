@@ -9,8 +9,9 @@ import {
 } from "@/lib/provider-connections/api";
 import { loadActiveProviderCredentialEncryptionKeys } from "@/lib/provider-connections/keyring";
 import {
+  createDataForSeoConnection,
   createOpenRouterConnection,
-  listOpenRouterConnections,
+  listManagedProviderConnections,
 } from "@/lib/provider-connections/service";
 
 export const runtime = "nodejs";
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
   if (owner instanceof NextResponse) return owner;
 
   try {
-    const connections = await listOpenRouterConnections(owner.ownerId);
+    const connections = await listManagedProviderConnections(owner.ownerId);
     return providerConnectionJson({
       connections,
       liveModeEnabled: String(process.env.BYOK_LIVE_MODE_ENABLED) === "true",
@@ -40,12 +41,20 @@ export async function POST(request: Request) {
       await readLimitedJsonObject(request),
     );
     const keys = await loadActiveProviderCredentialEncryptionKeys();
-    const connection = await createOpenRouterConnection({
-      ownerId: owner.ownerId,
-      label: body.label,
-      apiKey: body.apiKey,
-      keys,
-    });
+    const connection = body.provider === "openrouter"
+      ? await createOpenRouterConnection({
+        ownerId: owner.ownerId,
+        label: body.label,
+        apiKey: body.apiKey,
+        keys,
+      })
+      : await createDataForSeoConnection({
+        ownerId: owner.ownerId,
+        label: body.label,
+        login: body.login,
+        password: body.password,
+        keys,
+      });
     return providerConnectionJson({ connection });
   } catch (error) {
     return providerConnectionErrorResponse(error);

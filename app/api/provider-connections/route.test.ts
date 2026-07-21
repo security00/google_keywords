@@ -7,12 +7,14 @@ import {
 } from "@/lib/provider-connections/keyring";
 import {
   ProviderConnectionServiceError,
+  createDataForSeoConnection,
   createOpenRouterConnection,
-  listOpenRouterConnections,
+  listManagedProviderConnections,
   removeProviderConnection,
+  rotateDataForSeoConnection,
   rotateOpenRouterConnection,
 } from "@/lib/provider-connections/service";
-import { verifyOpenRouterConnection } from "@/lib/provider-connections/verification";
+import { verifyManagedProviderConnection } from "@/lib/provider-connections/verification";
 import { GET, POST } from "./route";
 import { DELETE, PUT } from "./[id]/route";
 import { POST as VERIFY } from "./[id]/verify/route";
@@ -38,7 +40,7 @@ vi.mock("@/lib/provider-connections/verification", async (importOriginal) => {
   >();
   return {
     ...actual,
-    verifyOpenRouterConnection: vi.fn(),
+    verifyManagedProviderConnection: vi.fn(),
   };
 });
 
@@ -48,9 +50,11 @@ vi.mock("@/lib/provider-connections/service", async (importOriginal) => {
   >();
   return {
     ...actual,
+    createDataForSeoConnection: vi.fn(),
     createOpenRouterConnection: vi.fn(),
-    listOpenRouterConnections: vi.fn(),
+    listManagedProviderConnections: vi.fn(),
     removeProviderConnection: vi.fn(),
+    rotateDataForSeoConnection: vi.fn(),
     rotateOpenRouterConnection: vi.fn(),
   };
 });
@@ -59,10 +63,12 @@ const mockRequireEffectiveUser = vi.mocked(requireEffectiveUser);
 const mockLoadKeys = vi.mocked(loadActiveProviderCredentialEncryptionKeys);
 const mockLoadDecryptionKeys = vi.mocked(loadProviderCredentialDecryptionKeys);
 const mockCreate = vi.mocked(createOpenRouterConnection);
-const mockList = vi.mocked(listOpenRouterConnections);
+const mockCreateDataForSeo = vi.mocked(createDataForSeoConnection);
+const mockList = vi.mocked(listManagedProviderConnections);
 const mockRemove = vi.mocked(removeProviderConnection);
 const mockRotate = vi.mocked(rotateOpenRouterConnection);
-const mockVerify = vi.mocked(verifyOpenRouterConnection);
+const mockRotateDataForSeo = vi.mocked(rotateDataForSeoConnection);
+const mockVerify = vi.mocked(verifyManagedProviderConnection);
 
 const publicConnection = {
   id: "connection-1",
@@ -105,7 +111,18 @@ describe("Provider Connection management routes", () => {
     mockLoadDecryptionKeys.mockResolvedValue({} as never);
     mockList.mockResolvedValue([publicConnection]);
     mockCreate.mockResolvedValue(publicConnection);
+    mockCreateDataForSeo.mockResolvedValue({
+      ...publicConnection,
+      provider: "dataforseo",
+      label: "DataForSEO",
+      maskedHint: "DataForSEO credential saved",
+    });
     mockRotate.mockResolvedValue({ ...publicConnection, credentialVersion: 2 });
+    mockRotateDataForSeo.mockResolvedValue({
+      ...publicConnection,
+      provider: "dataforseo",
+      credentialVersion: 2,
+    });
     mockRemove.mockResolvedValue();
     mockVerify.mockResolvedValue({
       connection: { ...publicConnection, verificationStatus: "valid" },
@@ -169,6 +186,31 @@ describe("Provider Connection management routes", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  test("creates a DataForSEO connection without echoing either credential", async () => {
+    const response = await POST(mutationRequest(
+      "https://www.discoverkeywords.co/api/provider-connections",
+      "POST",
+      {
+        provider: "dataforseo",
+        label: "Research data",
+        credential: {
+          login: "owner@example.com",
+          password: "dataforseo-sensitive-password",
+        },
+      },
+    ));
+    const serialized = JSON.stringify(await response.json());
+
+    expect(response.status).toBe(200);
+    expect(mockCreateDataForSeo).toHaveBeenCalledWith(expect.objectContaining({
+      ownerId: "owner-1",
+      login: "owner@example.com",
+      password: "dataforseo-sensitive-password",
+    }));
+    expect(serialized).not.toContain("owner@example.com");
+    expect(serialized).not.toContain("dataforseo-sensitive-password");
+  });
+
   test("rotates with the route id and expected credential version", async () => {
     const response = await PUT(
       mutationRequest(
@@ -188,6 +230,31 @@ describe("Provider Connection management routes", () => {
       connectionId: "connection-1",
       expectedCredentialVersion: 1,
       apiKey: "sk-or-rotated-5678",
+    }));
+  });
+
+  test("rotates DataForSEO credentials using the provider-shaped payload", async () => {
+    const response = await PUT(
+      mutationRequest(
+        "https://www.discoverkeywords.co/api/provider-connections/connection-2",
+        "PUT",
+        {
+          credential: {
+            login: "owner@example.com",
+            password: "rotated-sensitive-password",
+          },
+          expectedCredentialVersion: 1,
+        },
+      ),
+      { params: Promise.resolve({ id: "connection-2" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockRotateDataForSeo).toHaveBeenCalledWith(expect.objectContaining({
+      ownerId: "owner-1",
+      connectionId: "connection-2",
+      login: "owner@example.com",
+      password: "rotated-sensitive-password",
     }));
   });
 

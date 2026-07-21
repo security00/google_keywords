@@ -14,17 +14,33 @@ export const PROVIDER_CONNECTION_BODY_LIMIT_BYTES = 8 * 1024;
 
 export type ProviderConnectionOwner = Readonly<{ ownerId: string }>;
 
-export type CreateProviderConnectionBody = Readonly<{
-  provider: "openrouter";
-  label?: string;
-  apiKey: string;
-}>;
+export type CreateProviderConnectionBody =
+  | Readonly<{
+    provider: "openrouter";
+    label?: string;
+    apiKey: string;
+  }>
+  | Readonly<{
+    provider: "dataforseo";
+    label?: string;
+    login: string;
+    password: string;
+  }>;
 
-export type RotateProviderConnectionBody = Readonly<{
-  label?: string;
-  apiKey: string;
-  expectedCredentialVersion: number;
-}>;
+export type RotateProviderConnectionBody =
+  | Readonly<{
+    provider: "openrouter";
+    label?: string;
+    apiKey: string;
+    expectedCredentialVersion: number;
+  }>
+  | Readonly<{
+    provider: "dataforseo";
+    label?: string;
+    login: string;
+    password: string;
+    expectedCredentialVersion: number;
+  }>;
 
 export type ProviderConnectionApiErrorCode =
   | "FEATURE_DISABLED"
@@ -177,26 +193,44 @@ export const readLimitedJsonObject = async (
   }
 };
 
-const parseCredential = (value: unknown) => {
+const parseOpenRouterCredential = (value: unknown) => {
   if (!isPlainObject(value)) return fail("INVALID_REQUEST", 400);
   assertExactKeys(value, ["apiKey"]);
   if (typeof value.apiKey !== "string") return fail("INVALID_REQUEST", 400);
   return value.apiKey;
 };
 
+const parseDataForSeoCredential = (value: unknown) => {
+  if (!isPlainObject(value)) return fail("INVALID_REQUEST", 400);
+  assertExactKeys(value, ["login", "password"]);
+  if (typeof value.login !== "string" || typeof value.password !== "string") {
+    return fail("INVALID_REQUEST", 400);
+  }
+  return { login: value.login, password: value.password };
+};
+
 export const parseCreateProviderConnectionBody = (
   body: Record<string, unknown>,
 ): CreateProviderConnectionBody => {
   assertExactKeys(body, ["provider", "label", "credential"]);
-  if (body.provider !== "openrouter") return fail("UNSUPPORTED_PROVIDER", 400);
   if (body.label !== undefined && typeof body.label !== "string") {
     return fail("INVALID_REQUEST", 400);
   }
-  return {
-    provider: "openrouter",
-    label: body.label,
-    apiKey: parseCredential(body.credential),
-  };
+  if (body.provider === "openrouter") {
+    return {
+      provider: "openrouter",
+      label: body.label,
+      apiKey: parseOpenRouterCredential(body.credential),
+    };
+  }
+  if (body.provider === "dataforseo") {
+    return {
+      provider: "dataforseo",
+      label: body.label,
+      ...parseDataForSeoCredential(body.credential),
+    };
+  }
+  return fail("UNSUPPORTED_PROVIDER", 400);
 };
 
 export const parseRotateProviderConnectionBody = (
@@ -212,9 +246,19 @@ export const parseRotateProviderConnectionBody = (
   ) {
     return fail("INVALID_REQUEST", 400);
   }
+  if (!isPlainObject(body.credential)) return fail("INVALID_REQUEST", 400);
+  if (Object.hasOwn(body.credential, "apiKey")) {
+    return {
+      provider: "openrouter",
+      label: body.label,
+      apiKey: parseOpenRouterCredential(body.credential),
+      expectedCredentialVersion: Number(body.expectedCredentialVersion),
+    };
+  }
   return {
+    provider: "dataforseo",
     label: body.label,
-    apiKey: parseCredential(body.credential),
+    ...parseDataForSeoCredential(body.credential),
     expectedCredentialVersion: Number(body.expectedCredentialVersion),
   };
 };

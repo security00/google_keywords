@@ -14,9 +14,11 @@ import {
 } from "./store";
 import {
   ProviderConnectionServiceError,
+  createDataForSeoConnection,
   createOpenRouterConnection,
   listOpenRouterConnections,
   removeProviderConnection,
+  rotateDataForSeoConnection,
   rotateOpenRouterConnection,
 } from "./service";
 
@@ -58,6 +60,19 @@ const metadata = {
   lastVerificationCode: null,
   createdAt: "2026-07-21T00:00:00.000Z",
   updatedAt: "2026-07-21T00:00:00.000Z",
+};
+
+const dataForSeoContext = {
+  connectionId: "connection-2",
+  ownerId: context.ownerId,
+  provider: "dataforseo" as const,
+};
+
+const dataForSeoMetadata = {
+  ...metadata,
+  ...dataForSeoContext,
+  label: "DataForSEO",
+  maskedHint: "DataForSEO credential saved",
 };
 
 const createKeys = async (): Promise<ProviderCredentialEncryptionKeys> => ({
@@ -154,6 +169,32 @@ describe("Provider Connection service", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  test("encrypts DataForSEO credentials without exposing the login or password", async () => {
+    const keys = await createKeys();
+    mockLoadByProvider.mockResolvedValue(null);
+    mockCreate.mockImplementation(async (input) => ({
+      ...dataForSeoMetadata,
+      connectionId: input.context.connectionId,
+      label: input.label,
+      maskedHint: input.maskedHint,
+      envelope: input.envelope,
+    }));
+
+    const result = await createDataForSeoConnection({
+      ownerId: context.ownerId,
+      login: " owner@example.com ",
+      password: "dataforseo-sensitive-password",
+      keys,
+    });
+
+    const input = mockCreate.mock.calls[0][0];
+    expect(input.context.provider).toBe("dataforseo");
+    expect(input.maskedHint).toBe("DataForSEO credential saved");
+    expect(input.envelope.ciphertext).not.toContain("owner@example.com");
+    expect(input.envelope.ciphertext).not.toContain("dataforseo-sensitive-password");
+    expect(JSON.stringify(result)).not.toContain("owner@example.com");
+  });
+
   test("requires explicit rotation when the owner already has another credential", async () => {
     const keys = await createKeys();
     const existingEnvelope = await encryptProviderCredential(
@@ -197,6 +238,37 @@ describe("Provider Connection service", () => {
     expect(input.context).toEqual(context);
     expect(input.expectedCredentialVersion).toBe(1);
     expect(input.maskedHint).toBe("••••5678");
+    expect(result.credentialVersion).toBe(2);
+  });
+
+  test("rotates DataForSEO credentials with the stored provider context", async () => {
+    const keys = await createKeys();
+    const existingEnvelope = await encryptProviderCredential(
+      dataForSeoContext,
+      { login: "owner@example.com", password: "old-sensitive-password" },
+      keys,
+    );
+    mockLoad.mockResolvedValue({
+      ...dataForSeoMetadata,
+      envelope: existingEnvelope,
+    });
+    mockRotate.mockImplementation(async (input) => ({
+      ...dataForSeoMetadata,
+      credentialVersion: 2,
+      envelope: input.envelope,
+    }));
+
+    const result = await rotateDataForSeoConnection({
+      ownerId: context.ownerId,
+      connectionId: dataForSeoContext.connectionId,
+      expectedCredentialVersion: 1,
+      login: "owner@example.com",
+      password: "new-sensitive-password",
+      keys,
+    });
+
+    expect(mockRotate.mock.calls[0][0].context).toEqual(dataForSeoContext);
+    expect(result.provider).toBe("dataforseo");
     expect(result.credentialVersion).toBe(2);
   });
 

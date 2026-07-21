@@ -6,7 +6,7 @@ import {
   requireProviderConnectionOwner,
 } from "@/lib/provider-connections/api";
 import { loadProviderCredentialDecryptionKeys } from "@/lib/provider-connections/keyring";
-import { verifyOpenRouterConnection } from "@/lib/provider-connections/verification";
+import { verifyManagedProviderConnection } from "@/lib/provider-connections/verification";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const decryptionKeys = await loadProviderCredentialDecryptionKeys();
-    const result = await verifyOpenRouterConnection({
+    const result = await verifyManagedProviderConnection({
       ownerId: owner.ownerId,
       connectionId: id,
       decryptionKeys,

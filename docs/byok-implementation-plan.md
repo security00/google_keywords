@@ -2,7 +2,7 @@
 
 > 更新：2026-07-21
 >
-> 当前状态：隔离分支开发已获批准；B1.1-B1.4 已实现，待完整验证与独立审查。生产 KEK、远程
+> 当前状态：隔离分支开发已获批准；B1、B2 已本地实现；B3 的 DataForSEO 连接管理正在实现。生产 KEK、远程
 > migration、BYOK API 启用、Live Mode 和生产部署仍未批准。
 
 ## 1. 不可破坏边界
@@ -23,9 +23,9 @@
 | 阶段 | 目标 | 当前状态 | 完成定义 |
 | --- | --- | --- | --- |
 | B0 | 生产稳定与准入证据 | 开发准入已批准；生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
-| B1 | Provider Connection 安全管理 | B1.1-B1.4 隔离分支已实现，待审查 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
-| B2 | OpenRouter 单能力 Live Mode | 隔离分支已实现，待全量验证与审查 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
-| B3 | DataForSEO 与完整实时研究 | 未开始 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
+| B1 | Provider Connection 安全管理 | 隔离分支已实现并通过本地验证，待审查 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
+| B2 | OpenRouter 单能力 Live Mode | 隔离分支已实现并通过本地验证，待审查 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
+| B3 | DataForSEO 与完整实时研究 | 进行中：双 Provider 连接管理与免费验证已实现 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
 | B4 | 产品化灰度与稳定观察 | 未开始 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
 
 Rising Sites 排在 BYOK B1-B4 完整验收之后；PDR 产品融合排在 Rising Sites 的公开
@@ -94,6 +94,10 @@ Mode 使用两个独立、默认关闭的 feature flag。
 Expand、Compare。执行前显示成本估算并要求确认，配置 per-owner 预算和并发上限。
 Provider task、轮询、回调、重试和 Cost Event 使用统一幂等边界；付费数据成功但
 LLM 失败时返回 Partial Success，不重跑已经成功的付费阶段。
+
+当前切片：DataForSEO 凭证使用与 OpenRouter 相同的 owner-scoped 加密 Store 和管理
+API；验证固定调用官方免费的 `/v3/appendix/user_data`，不返回或保存账户资料，并复用
+持久化 owner/provider 限流。研究执行、预算和任何付费调用尚未开放。
 
 ## 6. B4 — 灰度与验收
 

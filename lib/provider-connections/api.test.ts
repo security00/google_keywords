@@ -6,6 +6,7 @@ import {
   PROVIDER_CONNECTION_BODY_LIMIT_BYTES,
   ProviderConnectionApiError,
   parseCreateProviderConnectionBody,
+  parseRotateProviderConnectionBody,
   providerConnectionErrorResponse,
   readLimitedJsonObject,
   requireProviderConnectionOwner,
@@ -174,6 +175,45 @@ describe("Provider Connection API boundary", () => {
       provider: "custom",
       credential: { apiKey: "sk-or-secret" },
     })).toThrowError(expect.objectContaining({ code: "UNSUPPORTED_PROVIDER" }));
+  });
+
+  test("parses exact DataForSEO create and rotation credential shapes", () => {
+    expect(parseCreateProviderConnectionBody({
+      provider: "dataforseo",
+      label: "Research data",
+      credential: {
+        login: "owner@example.com",
+        password: "sensitive-password",
+      },
+    })).toEqual({
+      provider: "dataforseo",
+      label: "Research data",
+      login: "owner@example.com",
+      password: "sensitive-password",
+    });
+
+    expect(parseRotateProviderConnectionBody({
+      credential: {
+        login: "owner@example.com",
+        password: "rotated-password",
+      },
+      expectedCredentialVersion: 2,
+    })).toEqual({
+      provider: "dataforseo",
+      label: undefined,
+      login: "owner@example.com",
+      password: "rotated-password",
+      expectedCredentialVersion: 2,
+    });
+
+    expect(() => parseCreateProviderConnectionBody({
+      provider: "dataforseo",
+      credential: {
+        login: "owner@example.com",
+        password: "sensitive-password",
+        baseUrl: "https://attacker.example",
+      },
+    })).toThrowError(expect.objectContaining({ code: "INVALID_REQUEST" }));
   });
 
   test("never includes an unknown exception message in the response", async () => {

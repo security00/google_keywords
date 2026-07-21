@@ -30,11 +30,17 @@ the browser.
 | Game Radar | Implemented; needs quality operations | Scanner, admin review, trends, SERP, promotion, and auto-review scripts exist. Expand sources only after quality review. |
 | Multi-signal discovery | Implemented; needs operational metrics | Collection, standardization, review, and signal bridge exist. New platforms remain deferred. |
 | Source/opportunity dashboards | Implemented, read-only by design | Quality, score, suggestions, enrichment, feedback, report, and semantic-dedupe surfaces are available. |
-| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1 and the B2 OpenRouter semantic-filter slice are locally implemented and await review. Both management and Live Mode remain feature-off; no production KEK, remote migration, or deployment is enabled. |
+| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1 and B2 are locally implemented. B3 now includes local dual-provider connection management and free DataForSEO credential verification; paid DataForSEO execution is not enabled. Management and Live Mode remain feature-off, with no production KEK, remote migration, or deployment. |
 
 ## Ordered Work
 
 ## Execution Log
+
+- 2026-07-21, BYOK B3 connection slice: added owner-scoped encrypted
+  DataForSEO `{login,password}` management beside OpenRouter. Verification is
+  fixed to the official free `/v3/appendix/user_data` endpoint and returns only
+  sanitized status. No research execution, paid provider call, production
+  secret, remote migration, or deployment is part of this slice.
 
 - 2026-07-21, BYOK isolated development: created
   `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted

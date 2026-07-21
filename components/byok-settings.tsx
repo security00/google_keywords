@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 type Connection = {
   id: string;
-  provider: "openrouter";
+  provider: "openrouter" | "dataforseo";
   label: string;
   maskedHint: string;
   credentialVersion: number;
@@ -21,9 +21,12 @@ type SemanticResult = {
 export function ByokSettings() {
   const [available, setAvailable] = useState(false);
   const [liveEnabled, setLiveEnabled] = useState(false);
-  const [connection, setConnection] = useState<Connection | null>(null);
-  const [label, setLabel] = useState("Primary OpenRouter");
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [openRouterLabel, setOpenRouterLabel] = useState("Primary OpenRouter");
   const [apiKey, setApiKey] = useState("");
+  const [dataForSeoLabel, setDataForSeoLabel] = useState("DataForSEO");
+  const [dataForSeoLogin, setDataForSeoLogin] = useState("");
+  const [dataForSeoPassword, setDataForSeoPassword] = useState("");
   const [keywords, setKeywords] = useState("");
   const [results, setResults] = useState<SemanticResult[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -45,9 +48,12 @@ export function ByokSettings() {
     }
     setAvailable(true);
     setLiveEnabled(body.liveModeEnabled === true);
-    const current = Array.isArray(body.connections) ? body.connections[0] ?? null : null;
-    setConnection(current);
-    if (current?.label) setLabel(current.label);
+    const current = Array.isArray(body.connections) ? body.connections : [];
+    setConnections(current);
+    const openRouter = current.find((item: Connection) => item.provider === "openrouter");
+    const dataForSeo = current.find((item: Connection) => item.provider === "dataforseo");
+    if (openRouter?.label) setOpenRouterLabel(openRouter.label);
+    if (dataForSeo?.label) setDataForSeoLabel(dataForSeo.label);
   }, []);
 
   useEffect(() => void load(), [load]);
@@ -72,35 +78,69 @@ export function ByokSettings() {
     }
   };
 
-  const save = async () => {
+  const openRouterConnection = connections.find((item) => item.provider === "openrouter") ?? null;
+  const dataForSeoConnection = connections.find((item) => item.provider === "dataforseo") ?? null;
+
+  const saveOpenRouter = async () => {
     if (!apiKey.trim()) return setMessage("Enter an OpenRouter API key.");
-    const body = connection
+    const body = openRouterConnection
       ? {
-          label,
+          label: openRouterLabel,
           credential: { apiKey: apiKey.trim() },
-          expectedCredentialVersion: connection.credentialVersion,
+          expectedCredentialVersion: openRouterConnection.credentialVersion,
         }
-      : { provider: "openrouter", label, credential: { apiKey: apiKey.trim() } };
+      : { provider: "openrouter", label: openRouterLabel, credential: { apiKey: apiKey.trim() } };
     const result = await mutate(
-      "save",
-      connection ? `/api/provider-connections/${encodeURIComponent(connection.id)}` : "/api/provider-connections",
+      "save-openrouter",
+      openRouterConnection ? `/api/provider-connections/${encodeURIComponent(openRouterConnection.id)}` : "/api/provider-connections",
       {
-        method: connection ? "PUT" : "POST",
+        method: openRouterConnection ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       },
     );
     if (result) {
       setApiKey("");
-      setMessage(connection ? "Credential rotated. Verify it before use." : "Connection saved. Verify it before use.");
+      setMessage(openRouterConnection ? "OpenRouter credential rotated. Verify it before use." : "OpenRouter connection saved. Verify it before use.");
       await load();
     }
   };
 
-  const verify = async () => {
-    if (!connection) return;
+  const saveDataForSeo = async () => {
+    if (!dataForSeoLogin.trim() || !dataForSeoPassword) {
+      return setMessage("Enter the DataForSEO login and password.");
+    }
+    const body = dataForSeoConnection
+      ? {
+          label: dataForSeoLabel,
+          credential: { login: dataForSeoLogin.trim(), password: dataForSeoPassword },
+          expectedCredentialVersion: dataForSeoConnection.credentialVersion,
+        }
+      : {
+          provider: "dataforseo",
+          label: dataForSeoLabel,
+          credential: { login: dataForSeoLogin.trim(), password: dataForSeoPassword },
+        };
     const result = await mutate(
-      "verify",
+      "save-dataforseo",
+      dataForSeoConnection ? `/api/provider-connections/${encodeURIComponent(dataForSeoConnection.id)}` : "/api/provider-connections",
+      {
+        method: dataForSeoConnection ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+    if (result) {
+      setDataForSeoLogin("");
+      setDataForSeoPassword("");
+      setMessage(dataForSeoConnection ? "DataForSEO credential rotated. Verify it before use." : "DataForSEO connection saved. Verify it before use.");
+      await load();
+    }
+  };
+
+  const verify = async (connection: Connection) => {
+    const result = await mutate(
+      `verify-${connection.provider}`,
       `/api/provider-connections/${encodeURIComponent(connection.id)}/verify`,
       { method: "POST" },
     );
@@ -110,22 +150,22 @@ export function ByokSettings() {
     }
   };
 
-  const remove = async () => {
+  const remove = async (connection: Connection) => {
     if (!connection || !window.confirm("Delete this encrypted Provider Connection?")) return;
     const result = await mutate(
-      "delete",
+      `delete-${connection.provider}`,
       `/api/provider-connections/${encodeURIComponent(connection.id)}`,
       { method: "DELETE" },
     );
     if (result) {
-      setResults([]);
+      if (connection.provider === "openrouter") setResults([]);
       setMessage("Connection deleted from the live application.");
       await load();
     }
   };
 
   const run = async () => {
-    if (!connection || connection.verificationStatus !== "valid") return;
+    if (!openRouterConnection || openRouterConnection.verificationStatus !== "valid") return;
     const list = keywords.split(/[\n,]/).map((value) => value.trim()).filter(Boolean);
     const result = await mutate("run", "/api/research/byok/semantic-filter", {
       method: "POST",
@@ -133,8 +173,8 @@ export function ByokSettings() {
       body: JSON.stringify({
         executionMode: "byok",
         provider: "openrouter",
-        connectionId: connection.id,
-        expectedConnectionVersion: connection.credentialVersion,
+        connectionId: openRouterConnection.id,
+        expectedConnectionVersion: openRouterConnection.credentialVersion,
         keywords: list,
       }),
     });
@@ -162,33 +202,73 @@ export function ByokSettings() {
           {liveEnabled ? "Internal preview" : "Connection management only"}
         </span>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <input value={label} onChange={(e) => setLabel(e.target.value)} maxLength={120}
-          className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Connection label" />
-        <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-          className="rounded-lg border bg-background px-3 py-2 text-sm" autoComplete="new-password"
-          placeholder={connection ? "New key to rotate credential" : "OpenRouter API key"} />
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border p-4">
+          <h4 className="font-medium">OpenRouter</h4>
+          <p className="mt-1 text-xs text-muted-foreground">Used only for explicitly selected AI operations.</p>
+          <div className="mt-3 grid gap-3">
+            <input value={openRouterLabel} onChange={(e) => setOpenRouterLabel(e.target.value)} maxLength={120}
+              className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Connection label" />
+            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+              className="rounded-lg border bg-background px-3 py-2 text-sm" autoComplete="new-password"
+              placeholder={openRouterConnection ? "New key to rotate credential" : "OpenRouter API key"} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" onClick={saveOpenRouter} disabled={Boolean(busy)}>
+              {busy === "save-openrouter" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {openRouterConnection ? "Rotate credential" : "Save connection"}
+            </Button>
+            {openRouterConnection && <>
+              <Button type="button" variant="outline" onClick={() => verify(openRouterConnection)} disabled={Boolean(busy)}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Verify
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => remove(openRouterConnection)} disabled={Boolean(busy)}>
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </Button>
+            </>}
+          </div>
+          {openRouterConnection && <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            <ShieldCheck className="h-4 w-4" /><span>{openRouterConnection.maskedHint}</span>
+            <span className="text-muted-foreground">v{openRouterConnection.credentialVersion}</span>
+            <span className="ml-auto capitalize">{openRouterConnection.verificationStatus}</span>
+          </div>}
+        </div>
+
+        <div className="rounded-lg border p-4">
+          <h4 className="font-medium">DataForSEO</h4>
+          <p className="mt-1 text-xs text-muted-foreground">Used only for explicitly selected research operations.</p>
+          <div className="mt-3 grid gap-3">
+            <input value={dataForSeoLabel} onChange={(e) => setDataForSeoLabel(e.target.value)} maxLength={120}
+              className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Connection label" />
+            <input value={dataForSeoLogin} onChange={(e) => setDataForSeoLogin(e.target.value)}
+              className="rounded-lg border bg-background px-3 py-2 text-sm" autoComplete="off"
+              placeholder={dataForSeoConnection ? "Login required to rotate" : "DataForSEO login"} />
+            <input type="password" value={dataForSeoPassword} onChange={(e) => setDataForSeoPassword(e.target.value)}
+              className="rounded-lg border bg-background px-3 py-2 text-sm" autoComplete="new-password"
+              placeholder={dataForSeoConnection ? "New password to rotate" : "DataForSEO password"} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" onClick={saveDataForSeo} disabled={Boolean(busy)}>
+              {busy === "save-dataforseo" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {dataForSeoConnection ? "Rotate credential" : "Save connection"}
+            </Button>
+            {dataForSeoConnection && <>
+              <Button type="button" variant="outline" onClick={() => verify(dataForSeoConnection)} disabled={Boolean(busy)}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Verify free
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => remove(dataForSeoConnection)} disabled={Boolean(busy)}>
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
+              </Button>
+            </>}
+          </div>
+          {dataForSeoConnection && <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            <ShieldCheck className="h-4 w-4" /><span>{dataForSeoConnection.maskedHint}</span>
+            <span className="text-muted-foreground">v{dataForSeoConnection.credentialVersion}</span>
+            <span className="ml-auto capitalize">{dataForSeoConnection.verificationStatus}</span>
+          </div>}
+        </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button type="button" onClick={save} disabled={Boolean(busy)}>
-          {busy === "save" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {connection ? "Rotate credential" : "Save connection"}
-        </Button>
-        {connection && <>
-          <Button type="button" variant="outline" onClick={verify} disabled={Boolean(busy)}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Verify
-          </Button>
-          <Button type="button" variant="ghost" onClick={remove} disabled={Boolean(busy)}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
-          </Button>
-        </>}
-      </div>
-      {connection && <div className="mt-3 flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-        <ShieldCheck className="h-4 w-4" /><span>{connection.maskedHint}</span>
-        <span className="text-muted-foreground">v{connection.credentialVersion}</span>
-        <span className="ml-auto capitalize">{connection.verificationStatus}</span>
-      </div>}
-      {liveEnabled && connection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
+      {liveEnabled && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private keyword semantic filter</h4>
         <p className="mt-1 text-xs text-muted-foreground">
           Up to 20 comma- or line-separated keywords. This explicitly spends your OpenRouter quota.

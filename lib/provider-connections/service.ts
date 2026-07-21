@@ -17,7 +17,7 @@ import {
 
 export type PublicProviderConnection = Readonly<{
   id: string;
-  provider: "openrouter";
+  provider: "openrouter" | "dataforseo";
   label: string;
   maskedHint: string;
   credentialVersion: number;
@@ -70,8 +70,8 @@ const assertOwnerId = (ownerId: string) => {
   }
 };
 
-const normalizeLabel = (value: string | undefined) => {
-  const label = value?.trim() || "OpenRouter";
+const normalizeLabel = (value: string | undefined, fallback = "OpenRouter") => {
+  const label = value?.trim() || fallback;
   if (label.length > MAX_LABEL_LENGTH || CONTROL_CHARACTERS.test(label)) {
     return fail("INVALID_INPUT");
   }
@@ -89,6 +89,25 @@ const normalizeApiKey = (value: string) => {
     return fail("INVALID_INPUT");
   }
   return apiKey;
+};
+
+const normalizeDataForSeoCredentials = (loginValue: string, passwordValue: string) => {
+  if (typeof loginValue !== "string" || typeof passwordValue !== "string") {
+    return fail("INVALID_INPUT");
+  }
+  const login = loginValue.trim();
+  const password = passwordValue;
+  if (
+    login.length < 3
+    || login.length > 320
+    || password.length < 8
+    || password.length > MAX_API_KEY_LENGTH
+    || CONTROL_CHARACTERS.test(login)
+    || CONTROL_CHARACTERS.test(password)
+  ) {
+    return fail("INVALID_INPUT");
+  }
+  return { login, password };
 };
 
 const maskedHint = (apiKey: string) => `••••${apiKey.slice(-4)}`;
@@ -140,10 +159,28 @@ const encryptOpenRouterCredential = async (
   }
 };
 
+const encryptDataForSeoCredential = async (
+  context: Readonly<{
+    connectionId: string;
+    ownerId: string;
+    provider: "dataforseo";
+  }>,
+  credential: Readonly<{ login: string; password: string }>,
+  keys: ProviderCredentialEncryptionKeys,
+) => {
+  try {
+    return await encryptProviderCredential(context, credential, keys);
+  } catch {
+    return fail("ENCRYPTION_FAILED");
+  }
+};
+
 export const toPublicProviderConnection = (
   connection: ProviderConnectionMetadata,
 ): PublicProviderConnection => {
-  if (connection.provider !== "openrouter") return fail("UNSUPPORTED_PROVIDER");
+  if (connection.provider !== "openrouter" && connection.provider !== "dataforseo") {
+    return fail("UNSUPPORTED_PROVIDER");
+  }
   return {
     id: connection.connectionId,
     provider: connection.provider,
@@ -166,6 +203,8 @@ export const listOpenRouterConnections = async (
   return connections.map(toPublicProviderConnection);
 };
 
+export const listManagedProviderConnections = listOpenRouterConnections;
+
 export const createOpenRouterConnection = async (input: Readonly<{
   ownerId: string;
   label?: string;
@@ -173,7 +212,7 @@ export const createOpenRouterConnection = async (input: Readonly<{
   keys: ProviderCredentialEncryptionKeys;
 }>): Promise<PublicProviderConnection> => {
   assertOwnerId(input.ownerId);
-  const label = normalizeLabel(input.label);
+  const label = normalizeLabel(input.label, "OpenRouter");
   const apiKey = normalizeApiKey(input.apiKey);
   const existing = await runStoreOperation(() =>
     loadProviderConnectionByProvider(input.ownerId, "openrouter")
@@ -220,7 +259,7 @@ export const rotateOpenRouterConnection = async (input: Readonly<{
   ) {
     fail("INVALID_INPUT");
   }
-  const label = normalizeLabel(input.label);
+  const label = normalizeLabel(input.label, "OpenRouter");
   const apiKey = normalizeApiKey(input.apiKey);
   const existing = await runStoreOperation(() =>
     loadProviderConnection(input.ownerId, input.connectionId)
@@ -240,6 +279,78 @@ export const rotateOpenRouterConnection = async (input: Readonly<{
     envelope,
     label,
     maskedHint: maskedHint(apiKey),
+  }));
+  return toPublicProviderConnection(rotated);
+};
+
+export const createDataForSeoConnection = async (input: Readonly<{
+  ownerId: string;
+  label?: string;
+  login: string;
+  password: string;
+  keys: ProviderCredentialEncryptionKeys;
+}>): Promise<PublicProviderConnection> => {
+  assertOwnerId(input.ownerId);
+  const label = normalizeLabel(input.label, "DataForSEO");
+  const credential = normalizeDataForSeoCredentials(input.login, input.password);
+  const existing = await runStoreOperation(() =>
+    loadProviderConnectionByProvider(input.ownerId, "dataforseo")
+  );
+  const connectionId = existing?.connectionId ?? crypto.randomUUID();
+  const context = {
+    connectionId,
+    ownerId: input.ownerId,
+    provider: "dataforseo" as const,
+  };
+  const envelope = await encryptDataForSeoCredential(context, credential, input.keys);
+  if (existing) {
+    if (constantTimeEqual(existing.envelope.fingerprintHmac, envelope.fingerprintHmac)) {
+      return toPublicProviderConnection(existing);
+    }
+    return fail("CONNECTION_CONFLICT");
+  }
+  const created = await runStoreOperation(() => createProviderConnection({
+    context,
+    envelope,
+    label,
+    maskedHint: "DataForSEO credential saved",
+  }));
+  return toPublicProviderConnection(created);
+};
+
+export const rotateDataForSeoConnection = async (input: Readonly<{
+  ownerId: string;
+  connectionId: string;
+  expectedCredentialVersion: number;
+  label?: string;
+  login: string;
+  password: string;
+  keys: ProviderCredentialEncryptionKeys;
+}>): Promise<PublicProviderConnection> => {
+  assertOwnerId(input.ownerId);
+  if (!input.connectionId || !Number.isInteger(input.expectedCredentialVersion)
+    || input.expectedCredentialVersion < 1) {
+    return fail("INVALID_INPUT");
+  }
+  const label = normalizeLabel(input.label, "DataForSEO");
+  const credential = normalizeDataForSeoCredentials(input.login, input.password);
+  const existing = await runStoreOperation(() =>
+    loadProviderConnection(input.ownerId, input.connectionId)
+  );
+  if (!existing) return fail("CONNECTION_NOT_FOUND");
+  if (existing.provider !== "dataforseo") return fail("UNSUPPORTED_PROVIDER");
+  const context = {
+    connectionId: existing.connectionId,
+    ownerId: input.ownerId,
+    provider: "dataforseo" as const,
+  };
+  const envelope = await encryptDataForSeoCredential(context, credential, input.keys);
+  const rotated = await runStoreOperation(() => rotateProviderConnectionCredential({
+    context,
+    expectedCredentialVersion: input.expectedCredentialVersion,
+    envelope,
+    label,
+    maskedHint: "DataForSEO credential saved",
   }));
   return toPublicProviderConnection(rotated);
 };

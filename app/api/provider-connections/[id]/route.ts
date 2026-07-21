@@ -10,6 +10,7 @@ import {
 import { loadActiveProviderCredentialEncryptionKeys } from "@/lib/provider-connections/keyring";
 import {
   removeProviderConnection,
+  rotateDataForSeoConnection,
   rotateOpenRouterConnection,
 } from "@/lib/provider-connections/service";
 
@@ -28,14 +29,24 @@ export async function PUT(request: Request, context: RouteContext) {
       await readLimitedJsonObject(request),
     );
     const keys = await loadActiveProviderCredentialEncryptionKeys();
-    const connection = await rotateOpenRouterConnection({
-      ownerId: owner.ownerId,
-      connectionId: id,
-      expectedCredentialVersion: body.expectedCredentialVersion,
-      label: body.label,
-      apiKey: body.apiKey,
-      keys,
-    });
+    const connection = body.provider === "openrouter"
+      ? await rotateOpenRouterConnection({
+        ownerId: owner.ownerId,
+        connectionId: id,
+        expectedCredentialVersion: body.expectedCredentialVersion,
+        label: body.label,
+        apiKey: body.apiKey,
+        keys,
+      })
+      : await rotateDataForSeoConnection({
+        ownerId: owner.ownerId,
+        connectionId: id,
+        expectedCredentialVersion: body.expectedCredentialVersion,
+        label: body.label,
+        login: body.login,
+        password: body.password,
+        keys,
+      });
     return providerConnectionJson({ connection });
   } catch (error) {
     return providerConnectionErrorResponse(error);
