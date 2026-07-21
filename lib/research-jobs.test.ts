@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { d1Query } from "@/lib/d1";
+import { d1Batch, d1Query } from "@/lib/d1";
 import {
+  claimOwnedByokJob,
   claimOwnedJob,
+  completeOwnedByokJob,
   completeOwnedJobWithPayload,
+  createOrGetOwnedByokJob,
+  failOwnedByokJob,
   finishClaimedJob,
   getJobForRequest,
   getInternalJobById,
@@ -12,9 +16,11 @@ import {
 } from "./research-jobs";
 
 vi.mock("@/lib/d1", () => ({
+  d1Batch: vi.fn(),
   d1Query: vi.fn(),
 }));
 
+const mockD1Batch = vi.mocked(d1Batch);
 const mockD1Query = vi.mocked(d1Query);
 
 const jobRow = {
@@ -32,6 +38,7 @@ const jobRow = {
 
 describe("research job ownership", () => {
   beforeEach(() => {
+    mockD1Batch.mockReset();
     mockD1Query.mockReset();
   });
 
@@ -155,6 +162,82 @@ describe("research job ownership", () => {
     );
     expect(mockD1Query.mock.calls[0][1]?.[0]).toBe(
       '{"results":["alpha"]}',
+    );
+  });
+
+  test("creates or reuses an owner-scoped user/byok job atomically", async () => {
+    mockD1Batch.mockResolvedValueOnce([
+      { rows: [], meta: { changes: 1 } },
+      {
+        rows: [{
+          ...jobRow,
+          job_type: "semantic_filter",
+          execution_mode: "byok",
+          credential_source: "user",
+          idempotency_key: "request-hash",
+          provider_connection_id: "connection-1",
+          provider_connection_version: 2,
+          provider_request_state: "not_started",
+        }],
+      },
+    ] as never);
+
+    const result = await createOrGetOwnedByokJob({
+      userId: "user-1",
+      jobType: "semantic_filter",
+      payload: { keywords: ["ai tool"] },
+      idempotencyKey: "request-hash",
+      providerConnectionId: "connection-1",
+      providerConnectionVersion: 2,
+    });
+
+    expect(result.created).toBe(true);
+    expect(result.job.execution_mode).toBe("byok");
+    const statements = mockD1Batch.mock.calls[0][0];
+    expect(statements[0].sql).toContain("INSERT OR IGNORE INTO research_jobs");
+    expect(statements[1].sql).toContain("credential_source = 'user'");
+  });
+
+  test("moves a BYOK job to an irreversible provider-started checkpoint", async () => {
+    mockD1Query.mockResolvedValueOnce({ rows: [], meta: { changes: 1 } });
+
+    const claim = await claimOwnedByokJob({
+      id: "job-1",
+      userId: "user-1",
+      jobType: "semantic_filter",
+      providerConnectionId: "connection-1",
+      providerConnectionVersion: 2,
+    });
+
+    expect(claim).not.toBeNull();
+    const [sql, params] = mockD1Query.mock.calls[0];
+    expect(String(sql)).toContain("provider_request_state = 'started'");
+    expect(String(sql)).toContain("status = 'pending'");
+    expect(String(sql)).not.toContain("lease_expires_at <=");
+    expect(params?.slice(-2)).toEqual(["connection-1", 2]);
+  });
+
+  test("completes or fails BYOK jobs only from the current started claim", async () => {
+    mockD1Query.mockResolvedValue({ rows: [], meta: { changes: 1 } });
+
+    await expect(completeOwnedByokJob({
+      id: "job-1",
+      userId: "user-1",
+      claimToken: "claim-1",
+      resultCacheKey: "private-result-key",
+    })).resolves.toBe(true);
+    await expect(failOwnedByokJob({
+      id: "job-2",
+      userId: "user-1",
+      claimToken: "claim-2",
+      errorCode: "PROVIDER_UNAVAILABLE",
+    })).resolves.toBe(true);
+
+    expect(String(mockD1Query.mock.calls[0][0])).toContain(
+      "provider_request_state = 'completed'",
+    );
+    expect(String(mockD1Query.mock.calls[1][0])).toContain(
+      "provider_request_state = 'failed'",
     );
   });
 });

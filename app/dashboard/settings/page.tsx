@@ -16,6 +16,7 @@ import {
   Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ByokSettings } from "@/components/byok-settings";
 
 interface AccessInfo {
   userId: string;
@@ -255,6 +256,8 @@ function SettingsPageContent() {
       </div>
 
       {/* 账号状态 */}
+      <ByokSettings />
+
       {access.blocked ? (
         <div className="rounded-xl border border-red-500/25 bg-red-500/8 p-5 shadow-sm shadow-red-950/10">
           <div className="flex items-center gap-2 text-red-700 dark:text-red-200">

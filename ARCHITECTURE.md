@@ -184,7 +184,13 @@ DataForSEO Webhook 当前使用来源 IP 校验并保存原始回调。后续还
 
 Steam、CrazyGames、Poki、itch.io、HN Algolia 和 GitHub 等由 Python 管线采集。CrazyGames 当前需要 curl subprocess，这是已隔离、需健康监控的外部约束。
 
-Provider Transport 与纯业务核心的 D5 收口已经完成本地实现和特征测试。它只建立复用边界，没有新增用户凭证表、保存接口或 Live Mode 路由；现有平台调用仍是唯一可执行路径。下一步先完成 Pipeline 契约与可观测性，再单独增加 BYOK Credential Source 和 Private Cache 旁路。
+Provider Transport 与纯业务核心的 D5 收口已经完成。隔离 BYOK 分支在此边界上增加了
+Provider Connection envelope、Cookie-only 管理 API，以及首个 OpenRouter 关键词语义过滤
+Live Mode。该链路只调用 `createOpenRouterClient()`，模型固定为
+`google/gemini-2.5-flash-lite`，不 import/call 平台 getter。每次执行使用 owner-scoped
+`semantic_filter` Job，在外部请求前写入不可自动重领的 `started` checkpoint；结果只写
+`byok-semantic-filter` Private Cache，Cost Event 明确标记 `credential_source=user` 和
+`execution_mode=byok`。管理与执行 feature 均默认关闭，当前未批准生产部署。
 
 ## 10. 缓存
 

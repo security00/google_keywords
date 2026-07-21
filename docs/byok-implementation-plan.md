@@ -24,7 +24,7 @@
 | --- | --- | --- | --- |
 | B0 | 生产稳定与准入证据 | 开发准入已批准；生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
 | B1 | Provider Connection 安全管理 | B1.1-B1.4 隔离分支已实现，待审查 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
-| B2 | OpenRouter 单能力 Live Mode | 未开始 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
+| B2 | OpenRouter 单能力 Live Mode | 隔离分支已实现，待全量验证与审查 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
 | B3 | DataForSEO 与完整实时研究 | 未开始 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
 | B4 | 产品化灰度与稳定观察 | 未开始 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
 
@@ -79,6 +79,14 @@ B1 只建立安全保存和 owner-scoped 管理能力，不允许执行研究任
 构造 `createOpenRouterClient()`，显式写入 `execution_mode=byok`、
 `credential_source=user`、owner、connection version 和稳定幂等键。结果只写
 Private Cache。测试必须证明 platform client 调用数和 shared cache 写入增量均为 0。
+
+首个能力固定为最多 20 个关键词的低成本语义过滤。请求必须显式携带
+`executionMode=byok`、OpenRouter connection id 与 expected credential version。
+模型固定为 `google/gemini-2.5-flash-lite`，不读取或继承平台 OpenRouter 模型配置。
+Job 在 Provider 调用前写入不可自动重领的 `started` checkpoint；超时或 Worker 中断
+进入人工对账，而不是自动重复付费。结果 namespace 为 `byok-semantic-filter`，仅允许
+Private owner scope；Cost Event 使用稳定 event key 并标记 `user/byok`。管理与 Live
+Mode 使用两个独立、默认关闭的 feature flag。
 
 ## 5. B3 — DataForSEO 与完整研究链路
 

@@ -46,7 +46,7 @@ Discover Keywords 是一个关键词机会发现与运营平台。当前由三�
 
 ### BYOK Live Mode（自带密钥实时模式）
 
-未来能力。用户明确选择后，使用用户自己的 Provider Connection 执行实时付费请求。结果只属于该用户，且不得回退到平台凭证。
+隔离分支已实现首个 OpenRouter 关键词语义过滤切片，生产仍关闭。用户明确选择后，使用用户自己的 Provider Connection 执行实时付费请求。结果只属于该用户，且不得回退到平台凭证。付费请求在发送前写入不可自动重领的 checkpoint，结果只进入 Private Cache。
 
 ### Credential Source（凭证来源）
 

@@ -22,7 +22,10 @@ export async function GET(request: Request) {
 
   try {
     const connections = await listOpenRouterConnections(owner.ownerId);
-    return providerConnectionJson({ connections });
+    return providerConnectionJson({
+      connections,
+      liveModeEnabled: String(process.env.BYOK_LIVE_MODE_ENABLED) === "true",
+    });
   } catch (error) {
     return providerConnectionErrorResponse(error);
   }
