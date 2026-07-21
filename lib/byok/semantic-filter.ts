@@ -25,6 +25,9 @@ import {
 
 const CAPABILITY_VERSION = 1;
 export const BYOK_SEMANTIC_FILTER_MODEL = "google/gemini-2.5-flash-lite";
+// Conservative fallback for one bounded request of at most 20 keywords. When
+// OpenRouter returns usage.cost, the ledger records that actual value instead.
+export const BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD = 0.001;
 const MAX_KEYWORDS = 20;
 const MAX_KEYWORD_LENGTH = 120;
 
@@ -160,6 +163,16 @@ const promptFor = (keywords: readonly string[]) => ({
     },
   ],
 });
+
+const openRouterCost = (response: unknown) => {
+  if (!response || typeof response !== "object") return null;
+  const usage = (response as { usage?: unknown }).usage;
+  if (!usage || typeof usage !== "object") return null;
+  const cost = (usage as { cost?: unknown }).cost;
+  return typeof cost === "number" && Number.isFinite(cost) && cost >= 0
+    ? cost
+    : null;
+};
 
 const publicJobResult = async (
   ownerId: string,
@@ -319,6 +332,7 @@ export const executeByokSemanticFilter = async (input: Readonly<{
         endpoint: "chat/completions",
         unitType: "request_attempt",
         unitCount: 1,
+        unitPriceUsd: BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD,
         researchJobId: jobRecord.job.id,
         eventKey: `byok:${jobRecord.job.id}:openrouter:semantic-filter:v1`,
         idempotencyKey: jobRecord.job.idempotency_key,
@@ -351,6 +365,8 @@ export const executeByokSemanticFilter = async (input: Readonly<{
         endpoint: "chat/completions",
         unitType: "request",
         unitCount: 1,
+        unitPriceUsd: BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD,
+        actualCostUsd: openRouterCost(response),
         researchJobId: jobRecord.job.id,
         eventKey: `byok:${jobRecord.job.id}:openrouter:semantic-filter:v1`,
         idempotencyKey: jobRecord.job.idempotency_key,
@@ -375,6 +391,8 @@ export const executeByokSemanticFilter = async (input: Readonly<{
       endpoint: "chat/completions",
       unitType: "request",
       unitCount: 1,
+      unitPriceUsd: BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD,
+      actualCostUsd: openRouterCost(response),
       researchJobId: jobRecord.job.id,
       eventKey: `byok:${jobRecord.job.id}:openrouter:semantic-filter:v1`,
       idempotencyKey: jobRecord.job.idempotency_key,

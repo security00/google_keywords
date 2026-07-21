@@ -16,6 +16,7 @@ import {
   getOwnedJob,
 } from "@/lib/research-jobs";
 import {
+  BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD,
   ByokSemanticFilterError,
   executeByokSemanticFilter,
 } from "./semantic-filter";
@@ -120,6 +121,7 @@ describe("BYOK semantic filter", () => {
 
   test("uses one user client call, private cache and explicit user/byok cost attribution", async () => {
     const complete = vi.fn().mockResolvedValue({
+      usage: { cost: 0.000123 },
       choices: [{ message: { content: JSON.stringify({
         items: [
           { keyword: "AI Tool", decision: "keep", reason: "durable utility" },
@@ -153,6 +155,8 @@ describe("BYOK semantic filter", () => {
       executionMode: "byok",
       ownerId: "owner-1",
       eventKey: "byok:job-1:openrouter:semantic-filter:v1",
+      unitPriceUsd: BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD,
+      actualCostUsd: 0.000123,
     }));
     expect(mockPlatformClient).not.toHaveBeenCalled();
   });
@@ -248,6 +252,10 @@ describe("BYOK semantic filter", () => {
 
     expect(complete).toHaveBeenCalledTimes(1);
     expect(mockCost).toHaveBeenCalledTimes(1);
+    expect(mockCost).toHaveBeenCalledWith(expect.objectContaining({
+      unitType: "request_attempt",
+      unitPriceUsd: BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD,
+    }));
     expect(mockFail).toHaveBeenCalledWith(expect.objectContaining({
       errorCode: "PROVIDER_FAILED",
     }));

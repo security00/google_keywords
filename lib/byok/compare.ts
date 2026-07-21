@@ -598,8 +598,12 @@ export const executeByokCompare = async (input: Readonly<{
 
 export const getOwnedByokCompareResult = async (ownerId: string, jobId: string) => {
   if (!ownerId || !jobId) return fail("INVALID_INPUT");
-  const job = await getOwnedJob(jobId, ownerId, "compare").catch(() => fail("JOB_PERSISTENCE_ERROR"));
-  if (!job) return fail("JOB_PERSISTENCE_ERROR");
+  const job = await getOwnedJob(jobId, ownerId, "compare")
+    .then(async (compareJob) => compareJob ?? getOwnedJob(jobId, ownerId, "compare_intent"))
+    .catch(() => fail("JOB_PERSISTENCE_ERROR"));
+  if (!job || job.execution_mode !== "byok" || job.credential_source !== "user") {
+    return fail("JOB_PERSISTENCE_ERROR");
+  }
   return publicResult(ownerId, job);
 };
 

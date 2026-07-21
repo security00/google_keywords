@@ -20,7 +20,7 @@ import {
 } from "@/lib/research-jobs";
 import {
   buildByokCompareRequestHash, executeByokCompare, executeByokCompareIntentRetry,
-  quoteByokCompare, quoteByokCompareIntentRetry,
+  getOwnedByokCompareResult, quoteByokCompare, quoteByokCompareIntentRetry,
 } from "./compare";
 
 vi.mock("@/lib/cache", () => ({ getCached: vi.fn(), setCache: vi.fn() }));
@@ -305,5 +305,26 @@ describe("BYOK Compare", () => {
     }));
     expect(mockPlatformDataForSeo).not.toHaveBeenCalled();
     expect(mockPlatformOpenRouter).not.toHaveBeenCalled();
+  });
+
+  test("polls an in-flight intent retry through the compare result endpoint", async () => {
+    const retryJob = {
+      id: "retry-job", user_id: "owner-1", job_type: "compare_intent" as const,
+      status: "processing" as const, task_ids: [], payload: {}, session_id: null, error: null,
+      execution_mode: "byok" as const, credential_source: "user" as const,
+      idempotency_key: "retry-hash", claim_token: "claim-1", lease_expires_at: "later",
+      attempt_count: 1, provider_connection_id: "openrouter-1", provider_connection_version: 1,
+      provider_request_state: "started" as const, result_cache_key: null,
+      created_at: "now", updated_at: "now",
+    };
+    mockGetJob.mockResolvedValueOnce(null).mockResolvedValueOnce(retryJob);
+
+    const result = await getOwnedByokCompareResult("owner-1", "retry-job");
+
+    expect(result).toMatchObject({
+      jobId: "retry-job", status: "pending", providerRequestState: "started",
+    });
+    expect(mockGetJob).toHaveBeenNthCalledWith(1, "retry-job", "owner-1", "compare");
+    expect(mockGetJob).toHaveBeenNthCalledWith(2, "retry-job", "owner-1", "compare_intent");
   });
 });
