@@ -45,6 +45,9 @@ jobs:
       - name: Check student paid-provider guards
         run: npm run check:student-paid-guards
 
+      - name: Check BYOK isolation guards
+        run: npm run check:byok-isolation
+
       - name: Lint
         run: npm run lint
 

@@ -1,0 +1,150 @@
+# BYOK B0-B4 实施计划
+
+> 更新：2026-07-21
+>
+> 当前状态：B1-B3 与 B4 代码侧运维工具已在隔离分支完成实现、完成审计与全量回归；
+> 实际灰度和稳定观察尚未开始。生产 KEK、远程 migration、BYOK API 启用、Live Mode
+> 和生产部署仍须按灰度 Runbook 分阶段批准。
+
+## 1. 不可破坏边界
+
+1. Student 默认继续使用 Shared Cache Mode，不因页面点击调用平台或用户 Provider。
+2. BYOK 必须由用户显式选择，并始终使用 `credential_source=user`。
+3. BYOK 结果只属于当前 owner，只写 Private Cache，不读取或污染 Shared Cache。
+4. 用户 credential 缺失、失效、超时或额度不足时不得回退平台 credential。
+5. Provider Connection、Research Job、Private Cache、Task 和 Cost Event 全部按 owner
+   隔离。
+6. 重试、轮询、回调和重复提交不得造成重复计费。
+7. 凭证明文不得进入 D1、日志、异常、审计、遥测、页面或 API 响应。
+8. Provider 地址固定为仓库允许的官方地址，不保存或接受任意 Base URL。
+9. 当前 Python Cron 继续作为正式 Driver；BYOK 不顺带引入 Queue/Workflow。
+
+## 2. 阶段安排
+
+| 阶段 | 目标 | 当前状态 | 完成定义 |
+| --- | --- | --- | --- |
+| B0 | 生产稳定与准入证据 | 开发准入已批准；生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
+| B1 | Provider Connection 安全管理 | 隔离分支已完成实现、审计与全量回归，待生产 G0/G1 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
+| B2 | OpenRouter 单能力 Live Mode | 隔离分支已完成实现、审计与全量回归，待生产 G2 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
+| B3 | DataForSEO 与完整实时研究 | 隔离分支已完成实现、审计与全量回归，待生产 G2/G3 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
+| B4 | 产品化灰度与稳定观察 | 运维健康与受控恢复已实现；尚未部署观察 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
+
+Rising Sites 排在 BYOK B1-B4 完整验收之后；PDR 产品融合排在 Rising Sites 的公开
+MVP 和稳定榜单周期之后。
+
+## 3. B1 — Provider Connection
+
+B1 只建立安全保存和 owner-scoped 管理能力，不允许执行研究任务。
+
+### B1.1 ADR + Crypto — 已完成
+
+- ADR-0008 Accepted。
+- AES-256-GCM 加密、随机 per-connection DEK、AES-KW 包装。
+- AAD 绑定 connection、owner、provider 和 encryption version。
+- 独立、版本化、owner/provider-scoped HMAC fingerprint。
+- 错误密钥、错误版本、篡改和跨上下文替换全部 fail closed。
+- 不连接 D1，不读取环境，不调用 Provider。
+
+### B1.2 Schema + Store — 隔离分支已完成
+
+- additive `0020_provider_connections.sql`。
+- 完整保存 encryption/fingerprint/key/credential version。
+- 元数据列表不选择 ciphertext、IV、wrapped DEK 或 fingerprint。
+- 所有单条读取、轮换和删除同时匹配 owner 与 connection id。
+- 轮换使用 `credential_version` 乐观并发控制并重置验证状态。
+- 创建、轮换和删除与无敏感信息 audit event 使用 D1 batch 原子提交。
+- 删除硬删除 live ciphertext；audit 不保留 credential、mask 或 Provider 正文。
+- Feature 通过“无路由、无 API、无调用者”保持关闭。
+
+### B1.3 Cookie-only API — 隔离分支已完成
+
+- `GET/POST /api/provider-connections`。
+- `PUT/DELETE /api/provider-connections/{id}`。
+- 只允许 Cookie Principal + Effective Entitlement。
+- Same-origin、8KB 流式请求限制、未知字段拒绝、跨 owner 404 和错误脱敏。
+- API 只返回 mask/status/version/timestamp，永不返回加密字段或完整 fingerprint。
+- `wrangler.jsonc` 中管理 feature 默认 `false`；没有生产 Secret 时不可启用。
+
+### B1.4 Internal Gray — 隔离分支已实现，待审查
+
+- 维护者/internal allowlist，先 CRUD、后低频 OpenRouter verify。
+- 增加 `POST /api/provider-connections/{id}/verify`、owner/provider 限流和 sanitized
+  verification code。
+- 配置版本化 KEK/HMAC Secret；不写入仓库或 `wrangler.jsonc`。
+- 演练 credential rotation、KEK rewrap、delete 和 D1 restore reconciliation。
+- 旧平台路径和无费用 smoke 无回归；仍不允许 BYOK 执行研究。
+
+## 4. B2 — OpenRouter 单能力 Live Mode
+
+只选择一个低成本语义能力。用户明确选择 Live Mode 后，从当前 owner 的 connection
+构造 `createOpenRouterClient()`，显式写入 `execution_mode=byok`、
+`credential_source=user`、owner、connection version 和稳定幂等键。结果只写
+Private Cache。测试必须证明 platform client 调用数和 shared cache 写入增量均为 0。
+
+首个能力固定为最多 20 个关键词的低成本语义过滤。请求必须显式携带
+`executionMode=byok`、OpenRouter connection id 与 expected credential version。
+模型固定为 `google/gemini-2.5-flash-lite`，不读取或继承平台 OpenRouter 模型配置。
+Job 在 Provider 调用前写入不可自动重领的 `started` checkpoint；超时或 Worker 中断
+进入人工对账，而不是自动重复付费。结果 namespace 为 `byok-semantic-filter`，仅允许
+Private owner scope；Cost Event 使用稳定 event key 并标记 `user/byok`。管理与 Live
+Mode 使用两个独立、默认关闭的 feature flag。
+
+## 5. B3 — DataForSEO 与完整研究链路
+
+在 B2 独立稳定后增加 DataForSEO `{login,password}`，再逐个开放 Trends、SERP、
+Expand、Compare。执行前显示成本估算并要求确认，配置 per-owner 预算和并发上限。
+Provider task、轮询、回调、重试和 Cost Event 使用统一幂等边界；付费数据成功但
+LLM 失败时返回 Partial Success，不重跑已经成功的付费阶段。
+
+当前切片：DataForSEO 凭证使用与 OpenRouter 相同的 owner-scoped 加密 Store 和管理
+API；验证固定调用官方免费的 `/v3/appendix/user_data`，不返回或保存账户资料，并复用
+持久化 owner/provider 限流。预算门使用整数 micro-USD、owner 日预算、operator 上限、
+并发上限和短期费用报价；只有请求哈希与报价金额完全匹配的显式 `CONFIRM` 才能原子
+预留额度。预算门本身不直接调用任何付费 Provider。
+
+Trends 第一能力已在隔离分支接入两步式报价/确认：报价不解密 credential、不调用
+Provider；执行只接受服务器规范化请求、固定请求哈希、未过期 quote id、精确的
+`$0.011` 估算和单独 `CONFIRM`。结果只写 `byok-trends` Private Cache，Cost Event
+固定标记 `user/byok`，测试明确断言平台 DataForSEO Client 调用数为 0。该能力仍受
+Live Mode 默认关闭和 allowlist 约束，尚未部署。
+
+SERP 第二能力沿用同一安全边界：固定 Google Organic Live、美国英文桌面端和 depth
+10，使用当前 `$0.002` 估算；请求哈希绑定 owner、connection/version、关键词和固定
+配置。只有未过期的精确报价和独立 `CONFIRM` 才会调用用户 DataForSEO 凭证；结果只写
+`byok-serp` Private Cache，Cost Event 固定标记 `user/byok`，测试明确禁止平台凭证
+回退。该能力仍未部署。
+
+Compare 第四能力一次最多比较 4 个候选词和 1 个 benchmark，固定使用单个 Google
+Trends Live 任务。保守报价为 DataForSEO `$0.011` 加固定低成本 OpenRouter 模型的
+`$0.001` 上界。DataForSEO 成功结果会在 LLM 调用前写入 `byok-compare` Private Cache；
+LLM 失败时任务以 Partial Success 完成。用户可为语义阶段单独取得 `$0.001` 新报价，
+该重试使用独立 `compare_intent` Job，API 请求结构中不存在 DataForSEO connection 字段，
+测试验证不会重跑已成功的付费 Trends 阶段。该能力仍未部署。
+
+Expand 第三能力固定为单种子词 Google Trends Related Queries（US/en/web），因为官方
+要求 Top/Rising 相关查询一次最多指定一个关键词。它使用当前 `$0.011` Live 任务估算，
+只返回去重、限量、脱敏的候选词，并只写 `byok-expand` Private Cache；报价、确认、预算、
+幂等、Cost Event 和零平台凭证回退边界与 Trends/SERP 相同。该能力仍未部署。
+
+## 6. B4 — 灰度与验收
+
+灰度顺序：维护者单账户 → internal allowlist 多账户/低预算 → 小比例已付费用户。
+Live Mode 始终默认关闭。观测 connection CRUD/verify、BYOK Job、Private Cache、
+Cost Event、预算阻断、跨 owner 拒绝、crypto/KEK 和恢复后删除对账。
+
+代码侧准入包含 `check:byok-isolation` 静态守卫，以及管理员只读
+`GET /api/admin/byok-health`。守卫禁止 BYOK 生产代码引用平台 Provider credential、Shared Cache
+或非 BYOK namespace；健康入口汇总 stale checkpoint、成本对账和隔离违规。受控恢复只允许使用
+精确 `updated_at` 前置条件执行 `mark_uncertain`，或在 owner-private 缓存与 user/byok Cost Event
+证据同时存在时执行 `complete_from_private_cache`；两者均不调用 Provider，并原子写入无敏感信息审计。
+实际开门、连续 7 日完整观察周期、通过标准和回滚顺序见
+`docs/runbooks/byok-gray-rollout.md`；该 runbook 本身不构成部署授权。
+
+## 7. 立即停止条件
+
+- 凭证明文出现在 D1、日志、错误、审计、遥测或响应。
+- 跨 owner 读取/修改/执行，或 BYOK 结果进入 Shared Cache。
+- 用户凭证失败后读取平台凭证。
+- 付费调用缺少 Job/Task/Cost 归因，或重复请求造成重复成本。
+- KEK、轮换、删除或恢复行为无法解释。
+- Cron/runtime 再次与仓库版本漂移。

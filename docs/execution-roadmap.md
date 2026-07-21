@@ -30,11 +30,68 @@ the browser.
 | Game Radar | Implemented; needs quality operations | Scanner, admin review, trends, SERP, promotion, and auto-review scripts exist. Expand sources only after quality review. |
 | Multi-signal discovery | Implemented; needs operational metrics | Collection, standardization, review, and signal bridge exist. New platforms remain deferred. |
 | Source/opportunity dashboards | Implemented, read-only by design | Quality, score, suggestions, enrichment, feedback, report, and semantic-dedupe surfaces are available. |
-| SaaS operations | Production rollout complete; observation pending | Health visibility and precompute attribution are deployed; observation and authenticated end-to-end access verification remain. |
+| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1-B3 are locally implemented, including quoted paid execution, private-cache isolation, Partial Success, cost reconciliation, static isolation checks and controlled stale-job recovery. B4 production gray observation has not started. Management and Live Mode remain feature-off, with no production KEK, remote migration, or deployment. |
 
 ## Ordered Work
 
 ## Execution Log
+
+- 2026-07-21, BYOK B3 connection slice: added owner-scoped encrypted
+  DataForSEO `{login,password}` management beside OpenRouter. Verification is
+  fixed to the official free `/v3/appendix/user_data` endpoint and returns only
+  sanitized status. No research execution, paid provider call, production
+  secret, remote migration, or deployment is part of this slice.
+
+- 2026-07-21, BYOK B3 spend-control gate: added local owner daily budgets,
+  operator ceilings, concurrency reservations, and expiring server cost quotes.
+  Only an exact request-hash and estimated-cost `CONFIRM` can reserve capacity;
+  this remains infrastructure only and does not expose a paid Provider call.
+
+- 2026-07-21, BYOK B3 Trends slice: added a local quote-then-confirm Trends
+  path using only the selected owner DataForSEO connection. It binds the
+  normalized request, connection version, current $0.011 Live-task estimate,
+  private cache, irreversible Provider checkpoint, and user/byok Cost Event.
+  Platform credential fallback is test-forbidden; the route remains feature-off
+  and undeployed.
+
+- 2026-07-21, BYOK B3 SERP slice: added a local quote-then-confirm Google
+  Organic Live path fixed to one US desktop request at depth 10 and the
+  current $0.002 estimate. Quote creation does not decrypt credentials or call
+  the Provider; confirmed execution uses only the selected owner connection,
+  an irreversible job checkpoint, private `byok-serp` cache, and a stable
+  user/byok Cost Event. Platform credential fallback is test-forbidden; the
+  route remains feature-off and undeployed.
+
+- 2026-07-21, BYOK B3 Expand slice: added local single-seed Google Trends
+  Related Queries expansion with fixed US/en/web parameters and the current
+  $0.011 Live-task estimate. It returns only sanitized Top/Rising candidates,
+  writes only owner-private `byok-expand` cache, and forbids platform credential
+  fallback. The route remains feature-off and undeployed.
+
+- 2026-07-21, BYOK B3 Compare/Partial Success slice: added a bounded
+  four-keyword comparison against one benchmark with a conservative $0.012
+  dual-provider estimate. DataForSEO results are persisted to owner-private
+  cache before fixed-model OpenRouter enrichment. An LLM failure completes as
+  Partial Success, and a separately quoted $0.001 intent retry uses a distinct
+  `compare_intent` job and cannot call DataForSEO. Both paths remain feature-off
+  and undeployed.
+
+- 2026-07-21, BYOK B3 isolation and reconciliation closure: added a CI static
+  guard that rejects platform credential getters, platform Provider secrets,
+  shared cache scope, and non-BYOK cache namespaces from production BYOK code.
+  Added an admin-only, no-store health projection for stale checkpoints, cost
+  reconciliation and isolation violations. Controlled recovery can only mark a
+  job `PROVIDER_OUTCOME_UNCERTAIN`, or complete it from an unexpired owner-private
+  cache when matching user/byok cost evidence exists. It never calls a Provider,
+  uses an exact `updated_at` precondition, and atomically records a credential-free
+  audit event. This remains local, feature-off and undeployed.
+
+- 2026-07-21, BYOK isolated development: created
+  `codex/byok-b1-provider-connections` from `origin/main`. B1.1 accepted
+  ADR-0008 and added credential envelope crypto with no D1 or environment
+  access. B1.2 adds only an additive Provider Connection schema and
+  owner-scoped Store while feature exposure and production deployment remain
+  closed.
 
 - 2026-07-20, production rollout: reconciled the remote migration ledger,
   captured a D1 Time Travel rollback bookmark, and applied migrations 0016-0019
@@ -105,8 +162,9 @@ operations gate, not additional BYOK implementation:
    completeness, stale runs, and paid-provider errors for one stable window.
 4. Disable side-effecting GET compatibility and legacy shared-cache reads only
    after the observation evidence is clean.
-5. Approve the BYOK implementation gate; until then, no user credential storage
-   or user-triggered paid-provider route is introduced.
+5. Approve the BYOK production gate; until then, the isolated implementation is
+   not merged or deployed and no production user credential storage or
+   user-triggered paid-provider route is enabled.
 
 ### P1 — Quality operations
 

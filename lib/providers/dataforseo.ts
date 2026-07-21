@@ -7,6 +7,7 @@ import {
 export const DATAFORSEO_API_BASE_URL = "https://api.dataforseo.com/v3";
 
 export const DATAFORSEO_ENDPOINTS = {
+  userData: "/appendix/user_data",
   trendsTaskPost: "/keywords_data/google_trends/explore/task_post",
   trendsTasksReady: "/keywords_data/google_trends/explore/tasks_ready",
   trendsTaskGet: "/keywords_data/google_trends/explore/task_get",
@@ -65,7 +66,7 @@ export const createDataForSeoClient = (
       return transport.request(
         method,
         url,
-        { ...requestOptions, headers },
+        { ...requestOptions, headers, redirect: "error" },
         maxRetries,
         timeoutMs,
       );

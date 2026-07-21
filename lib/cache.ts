@@ -13,7 +13,12 @@ export type CacheNamespace =
   | "trends-result"
   | "serp-result"
   | "precompute-health"
-  | "provider-direct";
+  | "provider-direct"
+  | "byok-semantic-filter"
+  | "byok-trends"
+  | "byok-serp"
+  | "byok-expand"
+  | "byok-compare";
 
 export type CacheScope =
   | { type: "shared" }

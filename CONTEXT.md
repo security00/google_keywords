@@ -46,7 +46,11 @@ Discover Keywords 是一个关键词机会发现与运营平台。当前由三�
 
 ### BYOK Live Mode（自带密钥实时模式）
 
-未来能力。用户明确选择后，使用用户自己的 Provider Connection 执行实时付费请求。结果只属于该用户，且不得回退到平台凭证。
+隔离分支已实现 OpenRouter 关键词语义过滤，以及 DataForSEO Trends、SERP、Expand 和
+DataForSEO + OpenRouter Compare；生产仍关闭。用户明确选择并确认费用后，使用用户自己的
+Provider Connection 执行实时付费请求。结果只属于该用户，且不得回退到平台凭证。付费请求在
+发送前写入不可自动重领的 checkpoint，结果只进入 Private Cache。Compare 的 DataForSEO 阶段
+成功而 LLM 阶段失败时保留 Partial Success，只允许通过独立报价重试语义阶段。
 
 ### Credential Source（凭证来源）
 
@@ -61,7 +65,8 @@ Provider 请求使用的凭证所有者，枚举为：
 
 ### Provider Connection（Provider 连接）
 
-未来 BYOK 使用的用户级凭证记录。它只保存加密密文、密钥版本、掩码、指纹和验证状态，不代表一次具体执行。
+BYOK 使用的用户级凭证记录。当前隔离实现支持 OpenRouter API Key 与 DataForSEO
+`{login,password}`。它只保存加密密文、密钥版本、掩码、指纹和验证状态，不代表一次具体执行。
 
 ## 数据与异步工作
 

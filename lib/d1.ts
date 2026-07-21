@@ -12,6 +12,16 @@ type D1ApiMeta = {
   num_tables?: number;
 };
 
+export type D1BatchStatement = Readonly<{
+  sql: string;
+  params?: readonly unknown[];
+}>;
+
+export type D1QueryResult<T> = {
+  rows: T[];
+  meta?: D1ApiMeta;
+};
+
 const normalizeParams = (params: unknown[]) =>
   params.map((value) => (value === undefined ? null : value));
 
@@ -34,7 +44,7 @@ const d1QueryViaBinding = async <T = Record<string, unknown>>(
   db: CloudflareEnv["DB"],
   sql: string,
   params: unknown[]
-): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
+): Promise<D1QueryResult<T>> => {
   const statement = db.prepare(sql).bind(...normalizeParams(params));
   const result = await statement.all<T>();
   return { rows: result.results ?? [], meta: result.meta as D1ApiMeta };
@@ -43,9 +53,26 @@ const d1QueryViaBinding = async <T = Record<string, unknown>>(
 export const d1Query = async <T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = []
-): Promise<{ rows: T[]; meta?: D1ApiMeta }> => {
+): Promise<D1QueryResult<T>> => {
   const boundD1 = await getBoundD1();
   return d1QueryViaBinding<T>(boundD1, sql, params);
+};
+
+export const d1Batch = async <T = Record<string, unknown>>(
+  statements: readonly D1BatchStatement[],
+): Promise<D1QueryResult<T>[]> => {
+  if (statements.length === 0) return [];
+
+  const boundD1 = await getBoundD1();
+  const prepared = statements.map(({ sql, params = [] }) =>
+    boundD1.prepare(sql).bind(...normalizeParams([...params]))
+  );
+  const results: Array<{ results?: T[]; meta?: unknown }> =
+    await boundD1.batch<T>(prepared);
+  return results.map((result) => ({
+    rows: result.results ?? [],
+    meta: result.meta as D1ApiMeta,
+  }));
 };
 
 export const d1InsertMany = async (

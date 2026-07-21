@@ -1,6 +1,6 @@
 # Discover Keywords 当前架构
 
-> 更新时间：2026-07-20
+> 更新时间：2026-07-21
 > 本文描述已经存在的实现，不把 BYOK 或未来 Queue 当作已上线能力。领域术语和强制不变量以 [CONTEXT.md](./CONTEXT.md) 为准。
 
 ## 1. 架构结论
@@ -78,7 +78,7 @@ Admin 或 Cron 可以使用平台环境变量中的 Provider 凭证执行真实�
 
 ### 3.3 BYOK：尚未上线
 
-BYOK 将在技术债稳定后作为旁路接入：
+BYOK 已在隔离分支按旁路实现，但尚未部署：
 
 - 用户显式选择 BYOK Live Mode。
 - 使用加密的用户 Provider Connection。
@@ -86,7 +86,7 @@ BYOK 将在技术债稳定后作为旁路接入：
 - 只写 Private Cache，默认 24 小时。
 - 失败不回退平台凭证。
 
-完整顺序见 ADR-0006；在 BYOK 上线前，Credential Source 为 user 的请求不应出现在真实 Provider 调用中。
+完整顺序见 ADR-0006；在 BYOK 灰度开旗前，Credential Source 为 user 的请求不应出现在生产真实 Provider 调用中。
 
 ## 4. 三条业务 Pipeline
 
@@ -184,7 +184,16 @@ DataForSEO Webhook 当前使用来源 IP 校验并保存原始回调。后续还
 
 Steam、CrazyGames、Poki、itch.io、HN Algolia 和 GitHub 等由 Python 管线采集。CrazyGames 当前需要 curl subprocess，这是已隔离、需健康监控的外部约束。
 
-Provider Transport 与纯业务核心的 D5 收口已经完成本地实现和特征测试。它只建立复用边界，没有新增用户凭证表、保存接口或 Live Mode 路由；现有平台调用仍是唯一可执行路径。下一步先完成 Pipeline 契约与可观测性，再单独增加 BYOK Credential Source 和 Private Cache 旁路。
+Provider Transport 与纯业务核心的 D5 收口已经完成。隔离 BYOK 分支在此边界上增加了
+Provider Connection envelope、Cookie-only 管理 API、OpenRouter 关键词语义过滤，以及
+DataForSEO Trends、SERP、Expand 和双 Provider Compare。DataForSEO/OpenRouter 地址和模型均由
+服务端固定；BYOK 模块不 import/call 平台 getter。执行使用 owner-scoped Job，在外部请求前写入
+不可自动重领的 `started` checkpoint；结果分别只写 `byok-semantic-filter`、`byok-trends`、
+`byok-serp`、`byok-expand` 和 `byok-compare` Private Cache。DataForSEO 能力使用短期报价、明确
+确认、owner 预算和并发门；Cost Event 标记 `credential_source=user` / `execution_mode=byok`。
+Compare 在 LLM 失败时保留 DataForSEO Partial Success，语义重试使用独立 Job 和报价且不重跑
+DataForSEO。管理员 BYOK 健康页只读展示隔离与账本证据，受控恢复不会重放 Provider。管理与执行
+feature 均默认关闭，当前未批准生产部署。
 
 ## 10. 缓存
 

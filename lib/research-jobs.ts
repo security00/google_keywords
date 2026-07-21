@@ -2,12 +2,13 @@ import "server-only";
 
 import { createHash, randomUUID } from "crypto";
 
-import { d1Query } from "@/lib/d1";
+import { d1Batch, d1Query } from "@/lib/d1";
 
 export type JobStatus = "pending" | "processing" | "complete" | "failed";
-export type JobType = "expand" | "compare" | "intent" | "trends";
+export type JobType = "expand" | "compare" | "compare_intent" | "intent" | "trends" | "serp" | "semantic_filter";
 export type JobExecutionMode = "platform" | "byok";
 export type JobCredentialSource = "platform" | "user";
+export type ProviderRequestState = "not_started" | "started" | "completed" | "failed";
 
 type CreateJobOptions = {
   executionMode?: JobExecutionMode;
@@ -30,6 +31,10 @@ export type ResearchJob = {
   claim_token: string | null;
   lease_expires_at: string | null;
   attempt_count: number;
+  provider_connection_id: string | null;
+  provider_connection_version: number | null;
+  provider_request_state: ProviderRequestState;
+  result_cache_key: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -49,6 +54,10 @@ type JobRow = {
   claim_token: string | null;
   lease_expires_at: string | null;
   attempt_count: number | null;
+  provider_connection_id?: string | null;
+  provider_connection_version?: number | null;
+  provider_request_state?: ProviderRequestState | null;
+  result_cache_key?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -82,6 +91,12 @@ const toJob = (row: JobRow): ResearchJob => ({
   claim_token: row.claim_token,
   lease_expires_at: row.lease_expires_at,
   attempt_count: Number(row.attempt_count ?? 0),
+  provider_connection_id: row.provider_connection_id ?? null,
+  provider_connection_version: row.provider_connection_version == null
+    ? null
+    : Number(row.provider_connection_version),
+  provider_request_state: row.provider_request_state ?? "not_started",
+  result_cache_key: row.result_cache_key ?? null,
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -130,6 +145,139 @@ export const createJob = async (
   return id;
 };
 
+type ByokJobType = "semantic_filter" | "trends" | "serp" | "expand" | "compare" | "compare_intent";
+
+export const createOrGetOwnedByokJob = async (input: Readonly<{
+  userId: string;
+  jobType: ByokJobType;
+  payload: Record<string, unknown>;
+  idempotencyKey: string;
+  providerConnectionId: string;
+  providerConnectionVersion: number;
+}>): Promise<{ job: ResearchJob; created: boolean }> => {
+  if (
+    !input.userId
+    || !input.idempotencyKey
+    || !input.providerConnectionId
+    || !Number.isInteger(input.providerConnectionVersion)
+    || input.providerConnectionVersion < 1
+  ) {
+    throw new Error("INVALID_BYOK_JOB_INPUT");
+  }
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const results = await d1Batch<JobRow>([
+    {
+      sql: `INSERT OR IGNORE INTO research_jobs
+            (id, user_id, job_type, status, task_ids, payload, session_id, error,
+             execution_mode, credential_source, idempotency_key,
+             provider_connection_id, provider_connection_version,
+             provider_request_state, created_at, updated_at)
+            VALUES (?, ?, ?, 'pending', '[]', ?, NULL, NULL,
+                    'byok', 'user', ?, ?, ?, 'not_started', ?, ?)`,
+      params: [
+        id,
+        input.userId,
+        input.jobType,
+        JSON.stringify(input.payload),
+        input.idempotencyKey,
+        input.providerConnectionId,
+        input.providerConnectionVersion,
+        now,
+        now,
+      ],
+    },
+    {
+      sql: `SELECT * FROM research_jobs
+            WHERE user_id = ? AND job_type = ? AND idempotency_key = ?
+              AND execution_mode = 'byok' AND credential_source = 'user'
+            LIMIT 1`,
+      params: [input.userId, input.jobType, input.idempotencyKey],
+    },
+  ]);
+  const row = results[1]?.rows[0];
+  if (!row) throw new Error("BYOK_JOB_PERSISTENCE_ERROR");
+  return {
+    job: toJob(row),
+    created: (results[0]?.meta?.changes ?? 0) === 1,
+  };
+};
+
+export const claimOwnedByokJob = async (input: Readonly<{
+  id: string;
+  userId: string;
+  jobType: ByokJobType;
+  providerConnectionId: string;
+  providerConnectionVersion: number;
+}>): Promise<ResearchJobClaim | null> => {
+  const now = new Date().toISOString();
+  const token = randomUUID();
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = 'processing', provider_request_state = 'started',
+         claim_token = ?, lease_expires_at = NULL,
+         attempt_count = attempt_count + 1, error = NULL, updated_at = ?
+     WHERE id = ? AND user_id = ? AND job_type = ?
+       AND execution_mode = 'byok' AND credential_source = 'user'
+       AND status = 'pending' AND provider_request_state = 'not_started'
+       AND provider_connection_id = ? AND provider_connection_version = ?`,
+    [
+      token,
+      now,
+      input.id,
+      input.userId,
+      input.jobType,
+      input.providerConnectionId,
+      input.providerConnectionVersion,
+    ],
+  );
+  return (meta?.changes ?? 0) === 1
+    ? { token, leaseExpiresAt: now }
+    : null;
+};
+
+export const completeOwnedByokJob = async (input: Readonly<{
+  id: string;
+  userId: string;
+  claimToken: string;
+  resultCacheKey: string;
+}>): Promise<boolean> => {
+  const now = new Date().toISOString();
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = 'complete', provider_request_state = 'completed',
+         result_cache_key = ?, error = NULL, claim_token = NULL,
+         lease_expires_at = NULL, updated_at = ?
+     WHERE id = ? AND user_id = ? AND claim_token = ?
+       AND execution_mode = 'byok' AND credential_source = 'user'
+       AND provider_request_state = 'started'`,
+    [input.resultCacheKey, now, input.id, input.userId, input.claimToken],
+  );
+  return (meta?.changes ?? 0) === 1;
+};
+
+export const failOwnedByokJob = async (input: Readonly<{
+  id: string;
+  userId: string;
+  claimToken: string;
+  errorCode: string;
+}>): Promise<boolean> => {
+  if (!/^[A-Z0-9_]{1,64}$/.test(input.errorCode)) {
+    throw new Error("INVALID_BYOK_JOB_ERROR");
+  }
+  const now = new Date().toISOString();
+  const { meta } = await d1Query(
+    `UPDATE research_jobs
+     SET status = 'failed', provider_request_state = 'failed', error = ?,
+         claim_token = NULL, lease_expires_at = NULL, updated_at = ?
+     WHERE id = ? AND user_id = ? AND claim_token = ?
+       AND execution_mode = 'byok' AND credential_source = 'user'
+       AND provider_request_state = 'started'`,
+    [input.errorCode, now, input.id, input.userId, input.claimToken],
+  );
+  return (meta?.changes ?? 0) === 1;
+};
+
 export const getOwnedJob = async (
   id: string,
   userId: string,
@@ -141,6 +289,22 @@ export const getOwnedJob = async (
   );
   const row = rows[0];
   return row ? toJob(row) : null;
+};
+
+export const getOwnedByokJobByIdempotency = async (input: Readonly<{
+  userId: string;
+  jobType: ByokJobType;
+  idempotencyKey: string;
+}>) => {
+  if (!input.userId || !input.idempotencyKey) return null;
+  const { rows } = await d1Query<JobRow>(
+    `SELECT * FROM research_jobs
+     WHERE user_id = ? AND job_type = ? AND idempotency_key = ?
+       AND execution_mode = 'byok' AND credential_source = 'user'
+     LIMIT 1`,
+    [input.userId, input.jobType, input.idempotencyKey],
+  );
+  return rows[0] ? toJob(rows[0]) : null;
 };
 
 export const getInternalJobById = async (id: string, jobType: JobType) => {
