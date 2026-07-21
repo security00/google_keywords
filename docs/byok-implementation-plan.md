@@ -2,9 +2,9 @@
 
 > 更新：2026-07-21
 >
-> 当前状态：B1-B3 已在隔离分支本地实现，B3 正在完成全量回归；B4 的运维健康、隔离守卫与
-> 受控恢复已实现，实际灰度和稳定观察尚未开始。生产 KEK、远程 migration、BYOK API 启用、
-> Live Mode 和生产部署仍未批准。
+> 当前状态：B1-B3 与 B4 代码侧运维工具已在隔离分支完成实现、完成审计与全量回归；
+> 实际灰度和稳定观察尚未开始。生产 KEK、远程 migration、BYOK API 启用、Live Mode
+> 和生产部署仍须按灰度 Runbook 分阶段批准。
 
 ## 1. 不可破坏边界
 
@@ -24,9 +24,9 @@
 | 阶段 | 目标 | 当前状态 | 完成定义 |
 | --- | --- | --- | --- |
 | B0 | 生产稳定与准入证据 | 开发准入已批准；生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
-| B1 | Provider Connection 安全管理 | 隔离分支已实现并通过本地验证，待审查 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
-| B2 | OpenRouter 单能力 Live Mode | 隔离分支已实现并通过本地验证，待审查 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
-| B3 | DataForSEO 与完整实时研究 | 隔离分支已实现，正在完成全量回归 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
+| B1 | Provider Connection 安全管理 | 隔离分支已完成实现、审计与全量回归，待生产 G0/G1 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
+| B2 | OpenRouter 单能力 Live Mode | 隔离分支已完成实现、审计与全量回归，待生产 G2 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
+| B3 | DataForSEO 与完整实时研究 | 隔离分支已完成实现、审计与全量回归，待生产 G2/G3 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
 | B4 | 产品化灰度与稳定观察 | 运维健康与受控恢复已实现；尚未部署观察 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
 
 Rising Sites 排在 BYOK B1-B4 完整验收之后；PDR 产品融合排在 Rising Sites 的公开

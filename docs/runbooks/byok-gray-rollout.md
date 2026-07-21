@@ -8,7 +8,6 @@
 - B1-B3 全量测试、构建、依赖审计、migration 检查、student paid-provider guard 与
   `check:byok-isolation` 全部通过；
 - 先应用 additive migrations，再部署同版本 Worker；
-- 生产 KEK、fingerprint HMAC key 按 keyring runbook 注入，禁止写入仓库或普通环境变量；
 - `BYOK_PROVIDER_CONNECTIONS_ENABLED=false` 与 `BYOK_LIVE_MODE_ENABLED=false` 保持关闭，
   allowlist 初始为空；
 - 部署前记录 D1 Time Travel bookmark、当前 Worker version 和回滚目标。
@@ -18,11 +17,13 @@
 ### G0：部署但不开功能
 
 只验证旧 Shared Cache、student、admin、Cron 和静态资源无回归。BYOK 路由必须返回功能关闭，
-健康页面可以只读访问。至少观察一个 Cron 完整周期。
+健康页面可以只读访问。G0 不配置 BYOK KEK/fingerprint Secret，缺少密钥与双开关关闭共同保持
+fail closed；至少观察一个 Cron 完整周期。
 
 ### G1：单维护者连接管理
 
-只把一个维护者账号加入 allowlist，仅开启 Connection Management。完成 OpenRouter 与
+先按 keyring runbook 通过未部署 version 配置 KEK/fingerprint Secret，并在双开关关闭时单独
+发布、运行无费用 smoke。随后只把一个维护者账号加入 allowlist，仅开启 Connection Management。完成 OpenRouter 与
 DataForSEO 的创建、免费验证、轮换、删除、重新创建以及跨 owner 拒绝。此阶段不打开 Live Mode，
 不产生付费 Provider 调用。
 

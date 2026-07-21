@@ -12,19 +12,29 @@
 - fingerprint key 不能只靠 DEK rewrap 轮换；旧 fingerprint key 必须保留到用户换钥或受控重加密完成。
 - 任一密钥缺失、版本未知或复核失败都 fail closed，不得回退平台凭证。
 
-## 首次配置（变更窗口内）
+## 首次配置（G1 前的独立变更窗口）
 
 1. 记录当前 commit、环境、D1 bookmark/备份标识与操作者。
 2. 在受控终端生成两个独立随机 secret；不要复制到 issue、聊天、日志或仓库。
-3. 通过交互式 `wrangler secret put BYOK_KEK_V1` 和
-   `wrangler secret put BYOK_FINGERPRINT_KEY_V1` 写入目标环境。
-4. 配置版本变量：
+3. G0 部署与观察期间不要求配置 BYOK Secret；两个 feature flag 必须保持关闭，缺少密钥时
+   Provider Connection 路径继续 fail closed。
+4. G1 前把两个 secret 放入仓库外、权限受限的临时 JSON 文件，并一次性执行
+   `wrangler versions secret bulk <FILE> --name google-keywords --message "stage BYOK v1 keyring"`。
+   该命令只创建未部署 Worker version；记录 version id，立即删除临时文件，不得把文件内容
+   输出到日志或 shell history。
+5. 禁止在本流程使用 `wrangler secret put` 或 `wrangler secret bulk`：普通 secret 命令会立即
+   创建并部署新 Worker version，绕过 G0/G1 的显式发布门。
+6. 用 `wrangler versions view <VERSION_ID> --json` 复核版本元数据，并确认以下版本变量仍为：
    - `BYOK_ACTIVE_KEK_VERSION=v1`
    - `BYOK_KEK_READ_VERSIONS=v1`
    - `BYOK_ACTIVE_FINGERPRINT_KEY_VERSION=v1`
    - `BYOK_FINGERPRINT_KEY_READ_VERSIONS=v1`
-5. 保持 `BYOK_PROVIDER_CONNECTIONS_ENABLED=false`，先运行无 Provider 费用的启动检查。
-6. 只有在 migration、回滚、删除对账和内部 allowlist 均通过审批后，才可对单个维护者账号开放。
+7. 由于当前 Next.js 静态资源没有 version affinity，不做长期 Worker 百分比切流。在批准的
+   变更窗口将该 version 明确发布到 100%，保持 `BYOK_PROVIDER_CONNECTIONS_ENABLED=false`
+   与 `BYOK_LIVE_MODE_ENABLED=false`，随即运行无费用 smoke；发布版本与开 Connection
+   Management 是两个独立动作。
+8. 只有 migration、回滚、删除对账和内部 allowlist 均通过审批后，才可通过新的配置发布
+   对单个维护者账号开放 Connection Management。
 
 ## KEK v1 -> v2
 
