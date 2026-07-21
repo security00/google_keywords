@@ -4,6 +4,7 @@ import {
   importProviderCredentialFingerprintKey,
   importProviderCredentialKek,
   type ProviderCredentialEncryptionKeys,
+  type ProviderCredentialDecryptionKeys,
 } from "./credential-crypto";
 
 export type ProviderConnectionKeyringErrorCode =
@@ -50,6 +51,17 @@ export const providerConnectionsManagementEnabled = (
   environment: Environment = process.env,
 ) => environment.BYOK_PROVIDER_CONNECTIONS_ENABLED === "true";
 
+export const providerConnectionOwnerAllowed = (
+  ownerId: string,
+  environment: Environment = process.env,
+) => {
+  const allowedOwners = (environment.BYOK_PROVIDER_CONNECTIONS_ALLOWLIST ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return allowedOwners.includes(ownerId);
+};
+
 export const loadActiveProviderCredentialEncryptionKeys = async (
   environment: Environment = process.env,
 ): Promise<ProviderCredentialEncryptionKeys> => {
@@ -71,6 +83,63 @@ export const loadActiveProviderCredentialEncryptionKeys = async (
     ]);
     return { kekVersion, kek, fingerprintKeyVersion, fingerprintKey };
   } catch {
+    throw new ProviderConnectionKeyringError("KEY_CONFIG_INVALID");
+  }
+};
+
+const readVersions = (
+  value: string | undefined,
+  activeVersion: string,
+) => {
+  const versions = (value ?? activeVersion)
+    .split(",")
+    .map((version) => requiredVersion(version))
+    .filter((version, index, all) => all.indexOf(version) === index);
+  if (!versions.includes(activeVersion)) versions.push(activeVersion);
+  return versions;
+};
+
+export const loadProviderCredentialDecryptionKeys = async (
+  environment: Environment = process.env,
+): Promise<ProviderCredentialDecryptionKeys> => {
+  const activeKekVersion = requiredVersion(environment.BYOK_ACTIVE_KEK_VERSION);
+  const activeFingerprintVersion = requiredVersion(
+    environment.BYOK_ACTIVE_FINGERPRINT_KEY_VERSION,
+  );
+  const kekVersions = readVersions(
+    environment.BYOK_KEK_READ_VERSIONS,
+    activeKekVersion,
+  );
+  const fingerprintVersions = readVersions(
+    environment.BYOK_FINGERPRINT_KEY_READ_VERSIONS,
+    activeFingerprintVersion,
+  );
+
+  try {
+    const kekEntries = await Promise.all(kekVersions.map(async (version) => [
+      version,
+      await importProviderCredentialKek(
+        requiredSecret(environment, "BYOK_KEK", version),
+        ["unwrapKey"],
+      ),
+    ] as const));
+    const fingerprintEntries = await Promise.all(
+      fingerprintVersions.map(async (version) => [
+        version,
+        await importProviderCredentialFingerprintKey(
+          requiredSecret(environment, "BYOK_FINGERPRINT_KEY", version),
+          ["verify"],
+        ),
+      ] as const),
+    );
+    const keks = new Map(kekEntries);
+    const fingerprintKeys = new Map(fingerprintEntries);
+    return {
+      resolveKek: (version) => keks.get(version),
+      resolveFingerprintKey: (version) => fingerprintKeys.get(version),
+    };
+  } catch (error) {
+    if (error instanceof ProviderConnectionKeyringError) throw error;
     throw new ProviderConnectionKeyringError("KEY_CONFIG_INVALID");
   }
 };

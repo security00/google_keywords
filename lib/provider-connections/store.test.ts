@@ -9,7 +9,9 @@ import {
   listProviderConnections,
   loadProviderConnection,
   recordProviderConnectionAuditEvent,
+  rewrapProviderConnectionDek,
   rotateProviderConnectionCredential,
+  updateProviderConnectionVerification,
 } from "./store";
 
 vi.mock("@/lib/d1", () => ({
@@ -213,6 +215,39 @@ describe("Provider Connection store", () => {
     ).rejects.toSatisfy(expectStoreError("CONNECTION_NOT_FOUND"));
   });
 
+  test("rewraps only the DEK with owner, credential and KEK version guards", async () => {
+    const rewrappedEnvelope = {
+      ...envelope,
+      kekVersion: "kek-v2",
+      wrappedDek: "rewrapped-dek",
+    };
+    mockD1Batch.mockResolvedValue([
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+    ]);
+    mockD1Query.mockResolvedValue({
+      rows: [{
+        ...fullRow,
+        wrapped_dek: rewrappedEnvelope.wrappedDek,
+        kek_version: rewrappedEnvelope.kekVersion,
+      }],
+    });
+
+    const result = await rewrapProviderConnectionDek({
+      context,
+      expectedCredentialVersion: 1,
+      expectedKekVersion: "kek-v1",
+      envelope: rewrappedEnvelope,
+    });
+
+    const statements = mockD1Batch.mock.calls[0][0];
+    expect(statements[0].sql).toContain("SET wrapped_dek = ?, kek_version = ?");
+    expect(statements[0].sql).toContain("AND credential_version = ? AND kek_version = ?");
+    expect(statements[0].params).not.toContain(envelope.ciphertext);
+    expect(statements[1].sql).toContain("'kek_rewrapped'");
+    expect(result.envelope.kekVersion).toBe("kek-v2");
+  });
+
   test("hard-deletes by owner and id while retaining a credential-free audit event", async () => {
     mockD1Batch.mockResolvedValue([
       { rows: [], meta: { changes: 1 } },
@@ -230,6 +265,37 @@ describe("Provider Connection store", () => {
       "WHERE owner_id = ? AND connection_id = ?",
     );
     expect(statements[1].params).toEqual([context.ownerId, context.connectionId]);
+  });
+
+  test("updates verification status with owner/provider/version guards and audit", async () => {
+    mockD1Batch.mockResolvedValue([
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+    ]);
+    mockD1Query.mockResolvedValue({
+      rows: [{
+        ...fullRow,
+        verification_status: "valid",
+        verified_at: "2026-07-21T00:05:00.000Z",
+        last_verification_code: "VERIFIED",
+      }],
+    });
+
+    const result = await updateProviderConnectionVerification({
+      context,
+      expectedCredentialVersion: 1,
+      status: "valid",
+      verificationCode: "VERIFIED",
+    });
+
+    const statements = mockD1Batch.mock.calls[0][0];
+    expect(statements[0].sql).toContain(
+      "WHERE owner_id = ? AND connection_id = ? AND provider = ?",
+    );
+    expect(statements[0].sql).toContain("AND credential_version = ?");
+    expect(statements[1].sql).toContain("WHERE changes() = 1");
+    expect(statements[1].params).not.toContain(envelope.ciphertext);
+    expect(result.verificationStatus).toBe("valid");
   });
 
   test("rejects unsafe audit error strings before touching D1", async () => {

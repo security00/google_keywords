@@ -6,6 +6,7 @@ import {
   encryptProviderCredential,
   importProviderCredentialFingerprintKey,
   importProviderCredentialKek,
+  rewrapProviderCredentialDek,
   type ProviderCredentialContext,
 } from "./credential-crypto";
 
@@ -270,5 +271,51 @@ describe("provider credential envelope crypto", () => {
       ),
       "INVALID_KEY",
     );
+  });
+
+  test("rewraps only the DEK and decrypts with the target KEK", async () => {
+    const source = await createKeys(0x11, 0x22);
+    const targetKek = await importProviderCredentialKek(base64UrlSecret(0x33));
+    const envelope = await encryptProviderCredential(
+      context,
+      { apiKey: "or-secret" },
+      source.encryption,
+    );
+
+    const rewrapped = await rewrapProviderCredentialDek(envelope, {
+      sourceKek: source.encryption.kek,
+      targetKekVersion: "kek-v2",
+      targetKek,
+    });
+
+    expect(rewrapped).toMatchObject({
+      ciphertext: envelope.ciphertext,
+      iv: envelope.iv,
+      fingerprintHmac: envelope.fingerprintHmac,
+      fingerprintKeyVersion: envelope.fingerprintKeyVersion,
+      kekVersion: "kek-v2",
+    });
+    expect(rewrapped.wrappedDek).not.toBe(envelope.wrappedDek);
+    await expect(decryptProviderCredential(context, rewrapped, {
+      resolveKek: (version) => version === "kek-v2" ? targetKek : null,
+      resolveFingerprintKey: source.decryption.resolveFingerprintKey,
+    })).resolves.toEqual({ apiKey: "or-secret" });
+  });
+
+  test("fails closed when rewrapping with the wrong source KEK", async () => {
+    const source = await createKeys(0x11, 0x22);
+    const wrongSource = await createKeys(0x44, 0x22);
+    const targetKek = await importProviderCredentialKek(base64UrlSecret(0x33));
+    const envelope = await encryptProviderCredential(
+      context,
+      { apiKey: "or-secret" },
+      source.encryption,
+    );
+
+    await expectCryptoError(rewrapProviderCredentialDek(envelope, {
+      sourceKek: wrongSource.encryption.kek,
+      targetKekVersion: "kek-v2",
+      targetKek,
+    }), "DECRYPTION_FAILED");
   });
 });

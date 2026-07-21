@@ -37,6 +37,7 @@ export type StoredProviderConnection = ProviderConnectionMetadata & Readonly<{
 export type ProviderConnectionAuditAction =
   | "created"
   | "credential_rotated"
+  | "kek_rewrapped"
   | "deleted"
   | "verification_succeeded"
   | "verification_failed";
@@ -155,6 +156,7 @@ const isVerificationStatus = (
 const isAuditAction = (value: string): value is ProviderConnectionAuditAction =>
   value === "created"
   || value === "credential_rotated"
+  || value === "kek_rewrapped"
   || value === "deleted"
   || value === "verification_succeeded"
   || value === "verification_failed";
@@ -500,6 +502,80 @@ export const rotateProviderConnectionCredential = async (input: Readonly<{
   return connection ?? fail("PERSISTENCE_ERROR");
 };
 
+export const rewrapProviderConnectionDek = async (input: Readonly<{
+  context: ProviderCredentialContext;
+  expectedCredentialVersion: number;
+  expectedKekVersion: string;
+  envelope: ProviderCredentialEnvelope;
+}>): Promise<StoredProviderConnection> => {
+  assertContext(input.context);
+  assertEnvelope(input.envelope);
+  if (
+    !Number.isInteger(input.expectedCredentialVersion)
+    || input.expectedCredentialVersion < 1
+    || !input.expectedKekVersion
+    || input.expectedKekVersion.length > 64
+    || input.envelope.kekVersion === input.expectedKekVersion
+  ) {
+    fail("INVALID_INPUT");
+  }
+  const now = new Date().toISOString();
+  const auditEventId = crypto.randomUUID();
+
+  let results;
+  try {
+    results = await d1Batch([
+      {
+        sql: `UPDATE provider_connections
+              SET wrapped_dek = ?, kek_version = ?, updated_at = ?
+              WHERE owner_id = ? AND connection_id = ? AND provider = ?
+                AND credential_version = ? AND kek_version = ?`,
+        params: [
+          input.envelope.wrappedDek,
+          input.envelope.kekVersion,
+          now,
+          input.context.ownerId,
+          input.context.connectionId,
+          input.context.provider,
+          input.expectedCredentialVersion,
+          input.expectedKekVersion,
+        ],
+      },
+      {
+        sql: `INSERT INTO provider_connection_audit_events (
+                event_id, connection_id, owner_id, provider,
+                action, outcome, error_code, created_at
+              )
+              SELECT ?, ?, ?, ?, 'kek_rewrapped', 'success', NULL, ?
+              WHERE changes() = 1`,
+        params: [
+          auditEventId,
+          input.context.connectionId,
+          input.context.ownerId,
+          input.context.provider,
+          now,
+        ],
+      },
+    ]);
+  } catch {
+    return fail("PERSISTENCE_ERROR");
+  }
+
+  if ((results[0]?.meta?.changes ?? 0) !== 1) {
+    const existing = await loadProviderConnection(
+      input.context.ownerId,
+      input.context.connectionId,
+    );
+    if (!existing) fail("CONNECTION_NOT_FOUND");
+    fail("CREDENTIAL_VERSION_CONFLICT");
+  }
+  const connection = await loadProviderConnection(
+    input.context.ownerId,
+    input.context.connectionId,
+  );
+  return connection ?? fail("PERSISTENCE_ERROR");
+};
+
 export const deleteProviderConnection = async (
   ownerId: string,
   connectionId: string,
@@ -534,6 +610,88 @@ export const deleteProviderConnection = async (
   }
 
   return (results[1]?.meta?.changes ?? 0) === 1;
+};
+
+export const updateProviderConnectionVerification = async (input: Readonly<{
+  context: ProviderCredentialContext;
+  expectedCredentialVersion: number;
+  status: Exclude<ProviderConnectionVerificationStatus, "unverified">;
+  verificationCode: string;
+}>): Promise<StoredProviderConnection> => {
+  assertContext(input.context);
+  if (
+    !Number.isInteger(input.expectedCredentialVersion)
+    || input.expectedCredentialVersion < 1
+    || !isVerificationStatus(input.status)
+    || !SAFE_ERROR_CODE.test(input.verificationCode)
+  ) {
+    fail("INVALID_INPUT");
+  }
+  const now = new Date().toISOString();
+  const verifiedAt = input.status === "valid" ? now : null;
+  const action: ProviderConnectionAuditAction = input.status === "valid"
+    ? "verification_succeeded"
+    : "verification_failed";
+  const outcome: ProviderConnectionAuditOutcome = input.status === "valid"
+    ? "success"
+    : "failure";
+
+  let results;
+  try {
+    results = await d1Batch([
+      {
+        sql: `UPDATE provider_connections
+              SET verification_status = ?, verified_at = ?,
+                  last_verification_code = ?, updated_at = ?
+              WHERE owner_id = ? AND connection_id = ? AND provider = ?
+                AND credential_version = ?`,
+        params: [
+          input.status,
+          verifiedAt,
+          input.verificationCode,
+          now,
+          input.context.ownerId,
+          input.context.connectionId,
+          input.context.provider,
+          input.expectedCredentialVersion,
+        ],
+      },
+      {
+        sql: `INSERT INTO provider_connection_audit_events (
+                event_id, connection_id, owner_id, provider,
+                action, outcome, error_code, created_at
+              )
+              SELECT ?, ?, ?, ?, ?, ?, ?, ?
+              WHERE changes() = 1`,
+        params: [
+          crypto.randomUUID(),
+          input.context.connectionId,
+          input.context.ownerId,
+          input.context.provider,
+          action,
+          outcome,
+          input.verificationCode,
+          now,
+        ],
+      },
+    ]);
+  } catch {
+    return fail("PERSISTENCE_ERROR");
+  }
+
+  if ((results[0]?.meta?.changes ?? 0) !== 1) {
+    const existing = await loadProviderConnection(
+      input.context.ownerId,
+      input.context.connectionId,
+    );
+    if (!existing) fail("CONNECTION_NOT_FOUND");
+    fail("CREDENTIAL_VERSION_CONFLICT");
+  }
+  const connection = await loadProviderConnection(
+    input.context.ownerId,
+    input.context.connectionId,
+  );
+  return connection ?? fail("PERSISTENCE_ERROR");
 };
 
 export const recordProviderConnectionAuditEvent = async (input: Readonly<{

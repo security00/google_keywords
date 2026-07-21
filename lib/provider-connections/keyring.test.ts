@@ -3,6 +3,8 @@ import { describe, expect, test } from "vitest";
 import {
   ProviderConnectionKeyringError,
   loadActiveProviderCredentialEncryptionKeys,
+  loadProviderCredentialDecryptionKeys,
+  providerConnectionOwnerAllowed,
   providerConnectionsManagementEnabled,
 } from "./keyring";
 
@@ -22,6 +24,15 @@ describe("Provider Connection keyring", () => {
     expect(providerConnectionsManagementEnabled({
       BYOK_PROVIDER_CONNECTIONS_ENABLED: "true",
     })).toBe(true);
+  });
+
+  test("requires an explicit exact owner allowlist match", () => {
+    const environment = {
+      BYOK_PROVIDER_CONNECTIONS_ALLOWLIST: " owner-1,owner-2 ",
+    };
+    expect(providerConnectionOwnerAllowed("owner-1", environment)).toBe(true);
+    expect(providerConnectionOwnerAllowed("owner", environment)).toBe(false);
+    expect(providerConnectionOwnerAllowed("owner-3", environment)).toBe(false);
   });
 
   test("loads active versioned encryption-only keys", async () => {
@@ -47,5 +58,23 @@ describe("Provider Connection keyring", () => {
       BYOK_ACTIVE_KEK_VERSION: "bad version",
       BYOK_ACTIVE_FINGERPRINT_KEY_VERSION: "v1",
     })).rejects.toMatchObject({ code: "KEY_CONFIG_INVALID" });
+  });
+
+  test("loads active and previous read-only decryption key versions", async () => {
+    const keys = await loadProviderCredentialDecryptionKeys({
+      BYOK_ACTIVE_KEK_VERSION: "v2",
+      BYOK_KEK_READ_VERSIONS: "v1,v2",
+      BYOK_KEK_V1: secret(1),
+      BYOK_KEK_V2: secret(2),
+      BYOK_ACTIVE_FINGERPRINT_KEY_VERSION: "v2",
+      BYOK_FINGERPRINT_KEY_READ_VERSIONS: "v1,v2",
+      BYOK_FINGERPRINT_KEY_V1: secret(3),
+      BYOK_FINGERPRINT_KEY_V2: secret(4),
+    });
+
+    expect(keys.resolveKek("v1")?.usages).toEqual(["unwrapKey"]);
+    expect(keys.resolveKek("v2")?.usages).toEqual(["unwrapKey"]);
+    expect(keys.resolveKek("v3")).toBeUndefined();
+    expect(keys.resolveFingerprintKey("v1")?.usages).toEqual(["verify"]);
   });
 });

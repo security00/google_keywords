@@ -3,7 +3,11 @@ import "server-only";
 import { NextResponse } from "next/server";
 
 import { requireEffectiveUser } from "@/lib/authz";
-import { ProviderConnectionKeyringError, providerConnectionsManagementEnabled } from "./keyring";
+import {
+  ProviderConnectionKeyringError,
+  providerConnectionOwnerAllowed,
+  providerConnectionsManagementEnabled,
+} from "./keyring";
 import { ProviderConnectionServiceError } from "./service";
 
 export const PROVIDER_CONNECTION_BODY_LIMIT_BYTES = 8 * 1024;
@@ -95,6 +99,9 @@ export const requireProviderConnectionOwner = async (
       { error: "Cookie authentication required", code: "COOKIE_AUTH_REQUIRED" },
       { status: 403 },
     );
+  }
+  if (!providerConnectionOwnerAllowed(principal.userId)) {
+    return featureDisabledResponse();
   }
   if (options.mutation && !sameOrigin(request)) {
     return noStoreJson(
@@ -233,6 +240,9 @@ export const providerConnectionErrorResponse = (error: unknown) => {
       CONNECTION_NOT_FOUND: 404,
       CREDENTIAL_VERSION_CONFLICT: 409,
       ENCRYPTION_FAILED: 503,
+      DECRYPTION_FAILED: 503,
+      RATE_LIMITED: 429,
+      RATE_LIMIT_PERSISTENCE_ERROR: 503,
       PERSISTENCE_ERROR: 503,
     };
     return noStoreJson(

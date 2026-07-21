@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { requireEffectiveUser } from "@/lib/authz";
-import { loadActiveProviderCredentialEncryptionKeys } from "@/lib/provider-connections/keyring";
+import {
+  loadActiveProviderCredentialEncryptionKeys,
+  loadProviderCredentialDecryptionKeys,
+} from "@/lib/provider-connections/keyring";
 import {
   ProviderConnectionServiceError,
   createOpenRouterConnection,
@@ -9,8 +12,10 @@ import {
   removeProviderConnection,
   rotateOpenRouterConnection,
 } from "@/lib/provider-connections/service";
+import { verifyOpenRouterConnection } from "@/lib/provider-connections/verification";
 import { GET, POST } from "./route";
 import { DELETE, PUT } from "./[id]/route";
+import { POST as VERIFY } from "./[id]/verify/route";
 
 vi.mock("@/lib/authz", () => ({
   requireEffectiveUser: vi.fn(),
@@ -23,6 +28,17 @@ vi.mock("@/lib/provider-connections/keyring", async (importOriginal) => {
   return {
     ...actual,
     loadActiveProviderCredentialEncryptionKeys: vi.fn(),
+    loadProviderCredentialDecryptionKeys: vi.fn(),
+  };
+});
+
+vi.mock("@/lib/provider-connections/verification", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@/lib/provider-connections/verification")
+  >();
+  return {
+    ...actual,
+    verifyOpenRouterConnection: vi.fn(),
   };
 });
 
@@ -41,10 +57,12 @@ vi.mock("@/lib/provider-connections/service", async (importOriginal) => {
 
 const mockRequireEffectiveUser = vi.mocked(requireEffectiveUser);
 const mockLoadKeys = vi.mocked(loadActiveProviderCredentialEncryptionKeys);
+const mockLoadDecryptionKeys = vi.mocked(loadProviderCredentialDecryptionKeys);
 const mockCreate = vi.mocked(createOpenRouterConnection);
 const mockList = vi.mocked(listOpenRouterConnections);
 const mockRemove = vi.mocked(removeProviderConnection);
 const mockRotate = vi.mocked(rotateOpenRouterConnection);
+const mockVerify = vi.mocked(verifyOpenRouterConnection);
 
 const publicConnection = {
   id: "connection-1",
@@ -81,12 +99,18 @@ describe("Provider Connection management routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("BYOK_PROVIDER_CONNECTIONS_ENABLED", "true");
+    vi.stubEnv("BYOK_PROVIDER_CONNECTIONS_ALLOWLIST", "owner-1");
     mockRequireEffectiveUser.mockResolvedValue(cookiePrincipal as never);
     mockLoadKeys.mockResolvedValue({} as never);
+    mockLoadDecryptionKeys.mockResolvedValue({} as never);
     mockList.mockResolvedValue([publicConnection]);
     mockCreate.mockResolvedValue(publicConnection);
     mockRotate.mockResolvedValue({ ...publicConnection, credentialVersion: 2 });
     mockRemove.mockResolvedValue();
+    mockVerify.mockResolvedValue({
+      connection: { ...publicConnection, verificationStatus: "valid" },
+      verification: { status: "valid", code: "VERIFIED" },
+    });
   });
 
   afterEach(() => {
@@ -196,5 +220,39 @@ describe("Provider Connection management routes", () => {
 
     expect(response.status).toBe(204);
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  test("verifies an owner-scoped connection without accepting a request body", async () => {
+    const response = await VERIFY(
+      mutationRequest(
+        "https://www.discoverkeywords.co/api/provider-connections/connection-1/verify",
+        "POST",
+      ),
+      { params: Promise.resolve({ id: "connection-1" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockVerify).toHaveBeenCalledWith(expect.objectContaining({
+      ownerId: "owner-1",
+      connectionId: "connection-1",
+      decryptionKeys: {},
+    }));
+  });
+
+  test("returns a stable 429 when verification is rate limited", async () => {
+    mockVerify.mockRejectedValue(
+      new ProviderConnectionServiceError("RATE_LIMITED"),
+    );
+    const response = await VERIFY(
+      mutationRequest(
+        "https://www.discoverkeywords.co/api/provider-connections/connection-1/verify",
+        "POST",
+      ),
+      { params: Promise.resolve({ id: "connection-1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.code).toBe("RATE_LIMITED");
   });
 });

@@ -35,6 +35,9 @@ export type ProviderConnectionServiceErrorCode =
   | "CONNECTION_NOT_FOUND"
   | "CREDENTIAL_VERSION_CONFLICT"
   | "ENCRYPTION_FAILED"
+  | "DECRYPTION_FAILED"
+  | "RATE_LIMITED"
+  | "RATE_LIMIT_PERSISTENCE_ERROR"
   | "PERSISTENCE_ERROR";
 
 export class ProviderConnectionServiceError extends Error {

@@ -49,6 +49,12 @@ export type ProviderCredentialDecryptionKeys = Readonly<{
   resolveFingerprintKey: (version: string) => CryptoKey | null | undefined;
 }>;
 
+export type ProviderCredentialRewrapKeys = Readonly<{
+  sourceKek: CryptoKey;
+  targetKekVersion: string;
+  targetKek: CryptoKey;
+}>;
+
 export type ProviderCredentialCryptoErrorCode =
   | "INVALID_CONTEXT"
   | "INVALID_CREDENTIAL"
@@ -425,6 +431,47 @@ export const decryptProviderCredential = async (
     return fail("DECRYPTION_FAILED");
   } finally {
     plaintext?.fill(0);
+    decoded.ciphertext.fill(0);
+    decoded.iv.fill(0);
+    decoded.wrappedDek.fill(0);
+    decoded.fingerprintHmac.fill(0);
+  }
+};
+
+export const rewrapProviderCredentialDek = async (
+  envelope: ProviderCredentialEnvelope,
+  keys: ProviderCredentialRewrapKeys,
+): Promise<ProviderCredentialEnvelope> => {
+  const decoded = validateEnvelope(envelope);
+  assertVersion(keys.targetKekVersion);
+  assertKey(keys.sourceKek, "AES-KW", "unwrapKey");
+  assertKey(keys.targetKek, "AES-KW", "wrapKey");
+
+  try {
+    const dek = await crypto.subtle.unwrapKey(
+      "raw",
+      decoded.wrappedDek,
+      keys.sourceKek,
+      "AES-KW",
+      { name: "AES-GCM", length: 256 },
+      true,
+      ["encrypt", "decrypt"],
+    );
+    const wrappedDek = await crypto.subtle.wrapKey(
+      "raw",
+      dek,
+      keys.targetKek,
+      "AES-KW",
+    );
+    return {
+      ...envelope,
+      kekVersion: keys.targetKekVersion,
+      wrappedDek: bytesToBase64Url(new Uint8Array(wrappedDek)),
+    };
+  } catch (error) {
+    if (error instanceof ProviderCredentialCryptoError) throw error;
+    return fail("DECRYPTION_FAILED");
+  } finally {
     decoded.ciphertext.fill(0);
     decoded.iv.fill(0);
     decoded.wrappedDek.fill(0);

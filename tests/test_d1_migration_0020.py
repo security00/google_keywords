@@ -191,6 +191,28 @@ class ProviderConnectionsMigrationTest(unittest.TestCase):
         ).fetchall()
         self.assertEqual(events, [("event-success",)])
 
+    def test_accepts_credential_free_kek_rewrap_audit_action(self) -> None:
+        self.connection.execute(
+            """INSERT INTO provider_connection_audit_events (
+                 event_id, connection_id, owner_id, provider,
+                 action, outcome, created_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "event-rewrap",
+                "connection-1",
+                "owner-1",
+                "openrouter",
+                "kek_rewrapped",
+                "success",
+                "2026-07-21T00:00:00.000Z",
+            ),
+        )
+        action = self.connection.execute(
+            "SELECT action FROM provider_connection_audit_events WHERE event_id = ?",
+            ("event-rewrap",),
+        ).fetchone()[0]
+        self.assertEqual(action, "kek_rewrapped")
+
 
 if __name__ == "__main__":
     unittest.main()

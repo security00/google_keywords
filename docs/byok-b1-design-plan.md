@@ -2,7 +2,7 @@
 
 > 更新：2026-07-21
 >
-> 状态：B1.1-B1.3 已在隔离分支完成；B1.4 未开始。本文不批准 B2
+> 状态：B1.1-B1.4 已在隔离分支实现，待完整验证与独立审查。本文不批准 B2
 > Live Mode 或任何生产部署。
 
 ## 1. 目标和非目标
@@ -88,6 +88,7 @@ B1.2 必须覆盖 migration shape/constraint/index、D1 binding/batch、metadata
 owner 条件、跨 owner miss、并发轮换、删除 audit、错误脱敏、TypeScript/Python 全量
 测试、migration check、Student paid guard、Lint 和生产构建。
 
-B1.3 已覆盖 API 身份、CSRF、body limit、严格 schema 和响应脱敏。B1.4 另行覆盖
-allowlist、限流、真实 verify、KEK rotation 和 restore/delete runbook。现有生产
-smoke 永远不加入真实 Provider 调用。
+B1.3 已覆盖 API 身份、CSRF、body limit、严格 schema 和响应脱敏。B1.4 已覆盖
+allowlist、持久化限流、固定 OpenRouter 官方端点 verify、KEK rewrap 和
+restore/delete runbook；仍需全量验证与独立审查。现有生产 smoke 永远不加入真实
+Provider 调用。

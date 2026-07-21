@@ -57,6 +57,7 @@ describe("Provider Connection API boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("BYOK_PROVIDER_CONNECTIONS_ENABLED", "true");
+    vi.stubEnv("BYOK_PROVIDER_CONNECTIONS_ALLOWLIST", "owner-1");
     mockRequireEffectiveUser.mockResolvedValue(cookiePrincipal as never);
   });
 
@@ -78,6 +79,15 @@ describe("Provider Connection API boundary", () => {
     await expect(
       requireProviderConnectionOwner(request("GET")),
     ).resolves.toEqual({ ownerId: "owner-1" });
+  });
+
+  test("hides management from authenticated owners outside the allowlist", async () => {
+    vi.stubEnv("BYOK_PROVIDER_CONNECTIONS_ALLOWLIST", "another-owner");
+
+    const result = await requireProviderConnectionOwner(request("GET"));
+
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(404);
   });
 
   test("preserves authentication and entitlement denials as no-store responses", async () => {

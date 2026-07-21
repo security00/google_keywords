@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS provider_connection_audit_events (
   CHECK (action IN (
     'created',
     'credential_rotated',
+    'kek_rewrapped',
     'deleted',
     'verification_succeeded',
     'verification_failed'
