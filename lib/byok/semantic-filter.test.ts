@@ -146,6 +146,7 @@ describe("BYOK semantic filter", () => {
     expect(complete.mock.calls[0][1]).toMatchObject({ maxRetries: 0 });
     expect(complete.mock.calls[0][0]).toMatchObject({
       provider: { require_parameters: true },
+      plugins: [{ id: "response-healing" }],
       response_format: {
         type: "json_schema",
         json_schema: {
@@ -324,6 +325,45 @@ describe("BYOK semantic filter", () => {
     }));
     expect(JSON.stringify(mockCost.mock.calls)).not.toContain(
       "secret-shaped provider body",
+    );
+  });
+
+  test("classifies an HTTP 200 in-band Provider error without parsing or leaking it", async () => {
+    const complete = vi.fn().mockResolvedValue({
+      usage: { cost: 0 },
+      error: {
+        code: 503,
+        message: "sensitive upstream failure detail",
+        metadata: { error_type: "provider_overloaded" },
+      },
+      choices: [{ message: { content: "" }, finish_reason: "error" }],
+    });
+    const clientFactory = () => ({
+      provider: "openrouter",
+      model: "test/model",
+      complete,
+    });
+
+    await expect(executeByokSemanticFilter({ ...input, clientFactory }))
+      .rejects.toMatchObject({ code: "PROVIDER_FAILED" });
+
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(mockCost).toHaveBeenCalledTimes(1);
+    expect(mockCost).toHaveBeenCalledWith(expect.objectContaining({
+      actualCostUsd: 0,
+      metadata: {
+        outcome: "provider_error_in_band",
+        model: "test/model",
+        connectionVersion: 1,
+        providerErrorType: "provider_overloaded",
+        providerStatusCode: 503,
+      },
+    }));
+    expect(mockFail).toHaveBeenCalledWith(expect.objectContaining({
+      errorCode: "PROVIDER_FAILED",
+    }));
+    expect(JSON.stringify(mockCost.mock.calls)).not.toContain(
+      "sensitive upstream failure detail",
     );
   });
 

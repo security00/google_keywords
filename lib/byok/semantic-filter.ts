@@ -150,6 +150,34 @@ const parseResponseJson = (response: unknown): unknown => {
   return invalidResponse("JSON_INVALID");
 };
 
+const openRouterInBandError = (response: unknown) => {
+  if (!response || typeof response !== "object" || Array.isArray(response)) {
+    return null;
+  }
+  const envelope = response as Record<string, unknown>;
+  if (!envelope.error || typeof envelope.error !== "object" || Array.isArray(envelope.error)) {
+    return null;
+  }
+  const error = envelope.error as Record<string, unknown>;
+  const metadata = error.metadata
+    && typeof error.metadata === "object"
+    && !Array.isArray(error.metadata)
+    ? error.metadata as Record<string, unknown>
+    : null;
+  const candidate = metadata?.error_type ?? envelope.error_type;
+  const errorType = typeof candidate === "string"
+    && /^[a-z0-9_-]{1,64}$/i.test(candidate)
+    ? candidate
+    : "provider_error";
+  const statusCode = typeof error.code === "number"
+    && Number.isInteger(error.code)
+    && error.code >= 400
+    && error.code <= 599
+    ? error.code
+    : null;
+  return { errorType, statusCode };
+};
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> => (
   Boolean(value)
   && typeof value === "object"
@@ -240,6 +268,9 @@ const promptFor = (keywords: readonly string[]) => ({
   provider: {
     require_parameters: true,
   },
+  plugins: [
+    { id: "response-healing" },
+  ],
   messages: [
     {
       role: "system" as const,
@@ -441,6 +472,40 @@ export const executeByokSemanticFilter = async (input: Readonly<{
           outcome: "provider_error",
           model: client.model,
           connectionVersion: input.expectedConnectionVersion,
+        },
+      });
+    } catch {
+      await markFailed(jobRecord.job, claim.token, "COST_LEDGER_WRITE_FAILED");
+      return fail("COST_LEDGER_WRITE_FAILED");
+    }
+    await markFailed(jobRecord.job, claim.token, "PROVIDER_FAILED");
+    return fail("PROVIDER_FAILED");
+  }
+
+  const inBandError = openRouterInBandError(response);
+  if (inBandError) {
+    try {
+      await recordPipelineCostEvent({
+        runId: jobRecord.job.id,
+        pipeline: "byok-semantic-filter",
+        provider: "openrouter",
+        endpoint: "chat/completions",
+        unitType: "request",
+        unitCount: 1,
+        unitPriceUsd: BYOK_SEMANTIC_FILTER_ESTIMATED_COST_USD,
+        actualCostUsd: openRouterCost(response),
+        researchJobId: jobRecord.job.id,
+        eventKey: `byok:${jobRecord.job.id}:openrouter:semantic-filter:v1`,
+        idempotencyKey: jobRecord.job.idempotency_key,
+        credentialSource: "user",
+        executionMode: "byok",
+        ownerId: input.ownerId,
+        metadata: {
+          outcome: "provider_error_in_band",
+          model: client.model,
+          connectionVersion: input.expectedConnectionVersion,
+          providerErrorType: inBandError.errorType,
+          providerStatusCode: inBandError.statusCode,
         },
       });
     } catch {

@@ -18,6 +18,9 @@ export type ChatCompletionInput = {
   provider?: {
     require_parameters?: boolean;
   };
+  plugins?: Array<{
+    id: string;
+  }>;
 };
 export type ChatCompletionClient = {
   provider: string;
