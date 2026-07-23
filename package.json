@@ -18,6 +18,7 @@
     "check:byok-isolation": "node scripts/run-python.mjs scripts/check_byok_isolation.py",
     "check:staging-isolation": "node scripts/check-staging-isolation.mjs",
     "bootstrap:staging-d1": "node scripts/schema/bootstrap-staging-d1.mjs",
+    "stage:staging-byok-keyring": "node scripts/byok/stage-staging-keyring.mjs",
     "smoke:production": "node scripts/smoke-production.mjs",
     "test": "vitest run",
     "test:python": "node scripts/run-python.mjs -m unittest discover tests",

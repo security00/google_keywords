@@ -14,6 +14,7 @@ const selfReference = staging.services?.find(
   (binding) => binding.binding === "WORKER_SELF_REFERENCE",
 );
 const stagingUrl = `https://${staging.name}.potter-faa.workers.dev`;
+const expectedStagingOwner = "2963cf41-05e6-4ac1-b2ee-d204bb73c030";
 
 if (!staging.name || staging.name === production.name) {
   errors.push("staging Worker name must differ from production");
@@ -52,14 +53,14 @@ if (staging.vars?.AUTH_COOKIE_SECURE !== "true") {
 if (staging.vars?.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED !== "false") {
   errors.push("Google OAuth must remain disabled in isolated staging");
 }
-if (staging.vars?.BYOK_PROVIDER_CONNECTIONS_ENABLED !== "false") {
-  errors.push("BYOK provider connections must remain disabled");
+if (staging.vars?.BYOK_PROVIDER_CONNECTIONS_ENABLED !== "true") {
+  errors.push("G1 staging must enable provider connection management");
 }
 if (staging.vars?.BYOK_LIVE_MODE_ENABLED !== "false") {
   errors.push("BYOK live mode must remain disabled");
 }
-if (staging.vars?.BYOK_PROVIDER_CONNECTIONS_ALLOWLIST !== "") {
-  errors.push("BYOK allowlist must remain empty");
+if (staging.vars?.BYOK_PROVIDER_CONNECTIONS_ALLOWLIST !== expectedStagingOwner) {
+  errors.push("G1 staging allowlist must contain only the staging administrator");
 }
 if (staging.routes || staging.route || staging.triggers) {
   errors.push("staging must not define production routes or scheduled triggers");
@@ -78,5 +79,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `Staging isolation OK: Worker=${staging.name}, D1=${stagingDb.database_name}, BYOK=off, OAuth=off`,
+  `Staging isolation OK: Worker=${staging.name}, D1=${stagingDb.database_name}, Connections=single-owner, LiveMode=off, OAuth=off`,
 );
