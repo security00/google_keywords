@@ -17,6 +17,8 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
+  const googleOAuthEnabled =
+    process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED !== "false";
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/dashboard/expand";
@@ -99,17 +101,21 @@ function LoginPageContent() {
           <CardDescription>使用已开通账号登录，或使用邀请码注册。</CardDescription>
         </CardHeader>
         <CardContent>
-          <a href={`/api/auth/google/start?next=${encodeURIComponent(nextPath)}${checkout ? `&checkout=${encodeURIComponent(checkout)}` : ""}`} className="mb-4 block">
-            <Button type="button" variant="outline" className="w-full">
-              Continue with Google
-            </Button>
-          </a>
+          {googleOAuthEnabled && (
+            <>
+              <a href={`/api/auth/google/start?next=${encodeURIComponent(nextPath)}${checkout ? `&checkout=${encodeURIComponent(checkout)}` : ""}`} className="mb-4 block">
+                <Button type="button" variant="outline" className="w-full">
+                  Continue with Google
+                </Button>
+              </a>
 
-          <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" />
-            <span>or</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
+              <div className="mb-4 flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="h-px flex-1 bg-border" />
+                <span>or</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            </>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">

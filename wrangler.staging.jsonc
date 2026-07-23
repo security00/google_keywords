@@ -1,0 +1,69 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "google-keywords-staging",
+  "compatibility_date": "2026-07-20",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "google-keywords-staging"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "BENCHMARK_KEYWORD": "gpts",
+    "NEXT_PUBLIC_BENCHMARK_KEYWORD": "gpts",
+    "CACHE_EXPIRY_HOURS": "24",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_MODEL": "openai/gpt-5.2",
+    "OPENROUTER_FILTER_TERMS": "璧屽崥,鍗氬僵,璧屽満,鎶曟敞,閾炬帴,鏂伴椈,鍚嶄汉,鐢靛奖",
+    "OPENROUTER_SITE_URL": "",
+    "OPENROUTER_APP_NAME": "keyword-research-staging",
+    "NEXT_PUBLIC_FILTER_TERMS": "gambling,betting,casino,news,celebrity,movie,film,lottery,鍗氬僵,璧屽崥,璧屽満,鎶曟敞,鏂伴椈,鍚嶄汉,鐢靛奖",
+    "DEBUG_API_LOGS": "true",
+    "RESEARCH_STATUS_GET_EXECUTION_COMPAT": "true",
+    "BYOK_PROVIDER_CONNECTIONS_ENABLED": "false",
+    "BYOK_LIVE_MODE_ENABLED": "false",
+    "BYOK_PROVIDER_CONNECTIONS_ALLOWLIST": "",
+    "BYOK_ACTIVE_KEK_VERSION": "v1",
+    "BYOK_KEK_READ_VERSIONS": "v1",
+    "BYOK_ACTIVE_FINGERPRINT_KEY_VERSION": "v1",
+    "BYOK_FINGERPRINT_KEY_READ_VERSIONS": "v1",
+    "BYOK_DEFAULT_DAILY_BUDGET_USD": "1",
+    "BYOK_MAX_DAILY_BUDGET_USD": "10",
+    "BYOK_DEFAULT_MAX_CONCURRENT_JOBS": "1",
+    "BYOK_MAX_CONCURRENT_JOBS": "2",
+    "SERP_LOCATION_NAME": "United States",
+    "SERP_LANGUAGE_CODE": "en",
+    "SERP_DEVICE": "desktop",
+    "SERP_OS": "windows",
+    "SERP_DEPTH": "10",
+    "NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED": "false",
+    "NEXT_PUBLIC_APP_URL": "https://google-keywords-staging.potter-faa.workers.dev",
+    "APP_URL": "https://google-keywords-staging.potter-faa.workers.dev",
+    "AUTH_SESSION_COOKIE": "kr_staging_session",
+    "AUTH_COOKIE_DOMAIN": "google-keywords-staging.potter-faa.workers.dev",
+    "AUTH_COOKIE_SECURE": "true",
+    "D1_DATABASE_NAME": "ai-trends-staging"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ai-trends-staging",
+      "database_id": "530bee1f-a79b-4511-be98-d339c160df94"
+    }
+  ]
+}
