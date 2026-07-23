@@ -10,7 +10,7 @@ import {
 import { loadProviderConnection } from "@/lib/provider-connections/store";
 import { recordPipelineCostEvent } from "@/lib/pipelines/cost-ledger";
 import { createByokOpenRouterClient } from "@/lib/byok/provider-clients";
-import { extractChatResponseText, extractJsonObject } from "@/lib/providers/chat-response";
+import { extractChatResponseText } from "@/lib/providers/chat-response";
 import type { ChatCompletionClient } from "@/lib/providers/llm";
 import {
   claimOwnedByokJob,
@@ -100,38 +100,106 @@ const requestKey = (input: Readonly<{
 
 const cacheKeyForJob = (jobId: string) => `byok-semantic-filter:v1:${jobId}`;
 
+type SemanticFilterValidationCode =
+  | "EMPTY_RESPONSE"
+  | "JSON_INVALID"
+  | "ROOT_INVALID"
+  | "ITEMS_MISSING"
+  | "ITEM_COUNT_MISMATCH"
+  | "ITEM_INVALID"
+  | "KEYWORD_MISMATCH"
+  | "DUPLICATE_KEYWORD"
+  | "DECISION_INVALID"
+  | "REASON_INVALID";
+
+class SemanticFilterResponseError extends Error {
+  readonly validationCode: SemanticFilterValidationCode;
+
+  constructor(validationCode: SemanticFilterValidationCode) {
+    super(validationCode);
+    this.name = "SemanticFilterResponseError";
+    this.validationCode = validationCode;
+  }
+}
+
+const invalidResponse = (validationCode: SemanticFilterValidationCode): never => {
+  throw new SemanticFilterResponseError(validationCode);
+};
+
+const parseResponseJson = (response: unknown): unknown => {
+  const text = extractChatResponseText(response).trim();
+  if (!text) return invalidResponse("EMPTY_RESPONSE");
+
+  const candidates = [text];
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced?.[1]) candidates.push(fenced[1].trim());
+
+  const objectStart = text.indexOf("{");
+  const objectEnd = text.lastIndexOf("}");
+  if (objectStart >= 0 && objectEnd > objectStart) {
+    candidates.push(text.slice(objectStart, objectEnd + 1));
+  }
+
+  for (const candidate of [...new Set(candidates)]) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next bounded representation without persisting response text.
+    }
+  }
+  return invalidResponse("JSON_INVALID");
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => (
+  Boolean(value)
+  && typeof value === "object"
+  && !Array.isArray(value)
+);
+
+const hasOnlyKeys = (value: Record<string, unknown>, keys: readonly string[]) => {
+  const actual = Object.keys(value);
+  return actual.length === keys.length && actual.every((key) => keys.includes(key));
+};
+
 const parseDecisions = (
   response: unknown,
   keywords: readonly string[],
 ): SemanticFilterDecision[] => {
-  const parsed = extractJsonObject(extractChatResponseText(response));
-  const items = Array.isArray(parsed?.items) ? parsed.items : null;
-  if (!items) return fail("PROVIDER_RESPONSE_INVALID");
+  const parsed = parseResponseJson(response);
+  if (!isPlainObject(parsed) || !hasOnlyKeys(parsed, ["items"])) {
+    return invalidResponse("ROOT_INVALID");
+  }
+  if (!Array.isArray(parsed.items)) return invalidResponse("ITEMS_MISSING");
+  if (parsed.items.length !== keywords.length) {
+    return invalidResponse("ITEM_COUNT_MISMATCH");
+  }
   const expected = new Map(
     keywords.map((keyword) => [keyword.toLocaleLowerCase("en-US"), keyword]),
   );
   const decisions = new Map<string, SemanticFilterDecision>();
-  for (const item of items) {
-    const keyword = typeof item?.keyword === "string" ? item.keyword.trim() : "";
+  for (const item of parsed.items) {
+    if (!isPlainObject(item) || !hasOnlyKeys(item, ["keyword", "decision", "reason"])) {
+      return invalidResponse("ITEM_INVALID");
+    }
+    const keyword = typeof item.keyword === "string" ? item.keyword.trim() : "";
     const key = keyword.toLocaleLowerCase("en-US");
     const original = expected.get(key);
+    if (!original) return invalidResponse("KEYWORD_MISMATCH");
+    if (decisions.has(key)) return invalidResponse("DUPLICATE_KEYWORD");
+    if (item.decision !== "keep" && item.decision !== "block") {
+      return invalidResponse("DECISION_INVALID");
+    }
     if (
-      !original
-      || decisions.has(key)
-      || (item?.decision !== "keep" && item?.decision !== "block")
-      || typeof item?.reason !== "string"
+      typeof item.reason !== "string"
       || !item.reason.trim()
       || item.reason.length > 240
-    ) {
-      return fail("PROVIDER_RESPONSE_INVALID");
-    }
+    ) return invalidResponse("REASON_INVALID");
     decisions.set(key, {
       keyword: original,
       decision: item.decision,
       reason: item.reason.trim(),
     });
   }
-  if (decisions.size !== expected.size) return fail("PROVIDER_RESPONSE_INVALID");
   return keywords.map((keyword) => decisions.get(
     keyword.toLocaleLowerCase("en-US"),
   ) as SemanticFilterDecision);
@@ -140,6 +208,38 @@ const parseDecisions = (
 const promptFor = (keywords: readonly string[]) => ({
   temperature: 0,
   max_tokens: 900,
+  response_format: {
+    type: "json_schema" as const,
+    json_schema: {
+      name: "semantic_filter_decisions",
+      strict: true,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          items: {
+            type: "array",
+            minItems: keywords.length,
+            maxItems: keywords.length,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                keyword: { type: "string", enum: keywords },
+                decision: { type: "string", enum: ["keep", "block"] },
+                reason: { type: "string", minLength: 1, maxLength: 240 },
+              },
+              required: ["keyword", "decision", "reason"],
+            },
+          },
+        },
+        required: ["items"],
+      },
+    },
+  },
+  provider: {
+    require_parameters: true,
+  },
   messages: [
     {
       role: "system" as const,
@@ -354,7 +454,10 @@ export const executeByokSemanticFilter = async (input: Readonly<{
   let results: SemanticFilterDecision[];
   try {
     results = parseDecisions(response, keywords);
-  } catch {
+  } catch (error) {
+    const validationCode = error instanceof SemanticFilterResponseError
+      ? error.validationCode
+      : "JSON_INVALID";
     try {
       await recordPipelineCostEvent({
         runId: jobRecord.job.id,
@@ -371,7 +474,12 @@ export const executeByokSemanticFilter = async (input: Readonly<{
         credentialSource: "user",
         executionMode: "byok",
         ownerId: input.ownerId,
-        metadata: { outcome: "invalid_response", model: client.model },
+        metadata: {
+          outcome: "invalid_response",
+          model: client.model,
+          connectionVersion: input.expectedConnectionVersion,
+          validationCode,
+        },
       });
     } catch {
       await markFailed(jobRecord.job, claim.token, "COST_LEDGER_WRITE_FAILED");

@@ -5,6 +5,19 @@ export type ChatCompletionInput = {
   }>;
   temperature?: number;
   max_tokens?: number;
+  response_format?:
+    | { type: "json_object" }
+    | {
+      type: "json_schema";
+      json_schema: {
+        name: string;
+        strict?: boolean;
+        schema: Readonly<Record<string, unknown>>;
+      };
+    };
+  provider?: {
+    require_parameters?: boolean;
+  };
 };
 export type ChatCompletionClient = {
   provider: string;

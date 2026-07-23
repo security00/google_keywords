@@ -144,6 +144,34 @@ describe("BYOK semantic filter", () => {
     expect(clientFactory).toHaveBeenCalledWith("user-openrouter-key");
     expect(complete).toHaveBeenCalledTimes(1);
     expect(complete.mock.calls[0][1]).toMatchObject({ maxRetries: 0 });
+    expect(complete.mock.calls[0][0]).toMatchObject({
+      provider: { require_parameters: true },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "semantic_filter_decisions",
+          strict: true,
+          schema: {
+            additionalProperties: false,
+            properties: {
+              items: {
+                minItems: 2,
+                maxItems: 2,
+                items: {
+                  additionalProperties: false,
+                  properties: {
+                    keyword: { enum: ["AI Tool", "celebrity news"] },
+                    decision: { enum: ["keep", "block"] },
+                  },
+                  required: ["keyword", "decision", "reason"],
+                },
+              },
+            },
+            required: ["items"],
+          },
+        },
+      },
+    });
     expect(mockSetCache).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(Array),
@@ -162,6 +190,38 @@ describe("BYOK semantic filter", () => {
       actualCostUsd: 0.000123,
     }));
     expect(mockPlatformClient).not.toHaveBeenCalled();
+  });
+
+  test("accepts a fenced JSON object without weakening decision validation", async () => {
+    const complete = vi.fn().mockResolvedValue({
+      choices: [{ message: { content: [
+        "```json",
+        JSON.stringify({
+          items: [
+            { keyword: "AI Tool", decision: "keep", reason: "durable utility" },
+            { keyword: "celebrity news", decision: "block", reason: "short-lived news" },
+          ],
+        }),
+        "```",
+      ].join("\n") } }],
+    });
+    const clientFactory = () => ({
+      provider: "openrouter",
+      model: "test/model",
+      complete,
+    });
+
+    const result = await executeByokSemanticFilter({ ...input, clientFactory });
+
+    expect(result).toMatchObject({
+      status: "complete",
+      results: [
+        { keyword: "AI Tool", decision: "keep" },
+        { keyword: "celebrity news", decision: "block" },
+      ],
+    });
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(mockFail).not.toHaveBeenCalled();
   });
 
   test("returns a completed private result without another Provider call", async () => {
@@ -264,6 +324,47 @@ describe("BYOK semantic filter", () => {
     }));
     expect(JSON.stringify(mockCost.mock.calls)).not.toContain(
       "secret-shaped provider body",
+    );
+  });
+
+  test("records a sanitized validation code and never retries an invalid response", async () => {
+    const complete = vi.fn().mockResolvedValue({
+      usage: { cost: 0.0000255 },
+      choices: [{ message: {
+        content: "sensitive-provider-text " + JSON.stringify({
+          items: [
+            { keyword: "AI Tool", decision: "maybe", reason: "uncertain" },
+            { keyword: "celebrity news", decision: "block", reason: "short-lived news" },
+          ],
+        }),
+      } }],
+    });
+    const clientFactory = () => ({
+      provider: "openrouter",
+      model: "test/model",
+      complete,
+    });
+
+    await expect(executeByokSemanticFilter({ ...input, clientFactory }))
+      .rejects.toMatchObject({ code: "PROVIDER_RESPONSE_INVALID" });
+
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(mockCost).toHaveBeenCalledTimes(1);
+    expect(mockCost).toHaveBeenCalledWith(expect.objectContaining({
+      unitType: "request",
+      actualCostUsd: 0.0000255,
+      metadata: {
+        outcome: "invalid_response",
+        model: "test/model",
+        connectionVersion: 1,
+        validationCode: "DECISION_INVALID",
+      },
+    }));
+    expect(mockFail).toHaveBeenCalledWith(expect.objectContaining({
+      errorCode: "PROVIDER_RESPONSE_INVALID",
+    }));
+    expect(JSON.stringify(mockCost.mock.calls)).not.toContain(
+      "sensitive-provider-text",
     );
   });
 });
