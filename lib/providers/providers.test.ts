@@ -1,6 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  createByokDataForSeoClient,
+  createByokOpenRouterClient,
+} from "../byok/provider-clients";
+import {
   DATAFORSEO_API_BASE_URL,
   DATAFORSEO_ENDPOINTS,
   createDataForSeoClient,
@@ -43,10 +47,10 @@ describe("provider transports", () => {
       `Basic ${Buffer.from("account@example.com:secret").toString("base64")}`,
     );
     expect(headers.get("Content-Type")).toBe("application/json");
-    expect(options.redirect).toBe("manual");
+    expect(options.redirect).toBeUndefined();
   });
 
-  test("OpenRouter BYOK adapter fixes the official URL and model in transport", async () => {
+  test("OpenRouter base adapter fixes the official URL without changing platform redirect behavior", async () => {
     const request = vi.fn().mockResolvedValue({ choices: [] });
     const client = createOpenRouterClient(
       { apiKey: "or-key" },
@@ -67,7 +71,33 @@ describe("provider transports", () => {
       model: "test/model",
       temperature: 0,
     });
-    expect(options.redirect).toBe("manual");
+    expect(options.redirect).toBeUndefined();
+  });
+
+  test("BYOK adapters use Worker-compatible manual redirects", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
+      .mockImplementation(async () =>
+        new Response('{"choices":[]}', { status: 200 })
+      );
+
+    const dataForSeo = createByokDataForSeoClient({
+      login: "account@example.com",
+      password: "secret",
+    });
+    await dataForSeo.request("get", DATAFORSEO_ENDPOINTS.userData, {}, 1);
+
+    const openRouter = createByokOpenRouterClient(
+      { apiKey: "or-key" },
+      { model: "test/model" },
+    );
+    await openRouter.complete({
+      messages: [{ role: "user", content: "hello" }],
+    }, { maxRetries: 1 });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({ redirect: "manual" });
+    expect(fetchSpy.mock.calls[1][1]).toMatchObject({ redirect: "manual" });
+    fetchSpy.mockRestore();
   });
 
   test("JSON transport preserves bounded retry and timeout behavior", async () => {

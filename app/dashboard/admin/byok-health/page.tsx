@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck } from "lucide-react";
 
+import { ByokSettings } from "@/components/byok-settings";
 import { Button } from "@/components/ui/button";
 
 type Summary = {
@@ -141,6 +142,8 @@ export default function ByokHealthPage() {
 
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       {notice && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div>}
+
+      <ByokSettings />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="连接 / 已验证" value={`${numberValue(health?.summary?.verified_connection_count)} / ${numberValue(health?.summary?.connection_count)}`} />

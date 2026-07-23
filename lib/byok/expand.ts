@@ -19,10 +19,10 @@ import {
 import { loadProviderConnection } from "@/lib/provider-connections/store";
 import { recordPipelineCostEvent } from "@/lib/pipelines/cost-ledger";
 import {
-  createDataForSeoClient,
   DATAFORSEO_ENDPOINTS,
   type DataForSeoClient,
 } from "@/lib/providers/dataforseo";
+import { createByokDataForSeoClient } from "@/lib/byok/provider-clients";
 import {
   claimOwnedByokJob,
   completeOwnedByokJob,
@@ -330,7 +330,7 @@ export const executeByokExpand = async (input: Readonly<{
     return current ? publicResult(input.ownerId, current) : fail("JOB_PERSISTENCE_ERROR");
   }
 
-  const client = (input.clientFactory ?? createDataForSeoClient)(credentials);
+  const client = (input.clientFactory ?? createByokDataForSeoClient)(credentials);
   let response: unknown;
   let outcome: "success" | "provider_error" | "invalid_response" = "success";
   try {

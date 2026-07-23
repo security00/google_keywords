@@ -9,10 +9,8 @@ import {
 } from "@/lib/provider-connections/credential-crypto";
 import { loadProviderConnection } from "@/lib/provider-connections/store";
 import { recordPipelineCostEvent } from "@/lib/pipelines/cost-ledger";
+import { createByokOpenRouterClient } from "@/lib/byok/provider-clients";
 import { extractChatResponseText, extractJsonObject } from "@/lib/providers/chat-response";
-import {
-  createOpenRouterClient,
-} from "@/lib/providers/openrouter";
 import type { ChatCompletionClient } from "@/lib/providers/llm";
 import {
   claimOwnedByokJob,
@@ -313,7 +311,7 @@ export const executeByokSemanticFilter = async (input: Readonly<{
     return fail("CREDENTIAL_UNAVAILABLE");
   }
 
-  const client = (input.clientFactory ?? ((key) => createOpenRouterClient(
+  const client = (input.clientFactory ?? ((key) => createByokOpenRouterClient(
     { apiKey: key },
     { model: BYOK_SEMANTIC_FILTER_MODEL },
   )))(apiKey);

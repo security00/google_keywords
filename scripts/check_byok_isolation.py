@@ -13,6 +13,18 @@ TARGETS = (
     ROOT / "app" / "api" / "provider-connections",
     ROOT / "components" / "byok-settings.tsx",
 )
+WORKER_RUNTIME_ROOTS = (
+    ROOT / "app",
+    ROOT / "lib",
+    ROOT / "components",
+)
+SHARED_RUNTIME_TARGETS = (
+    ROOT / "app" / "api" / "research",
+    ROOT / "lib" / "expand",
+    ROOT / "lib" / "compare",
+    ROOT / "lib" / "serp.ts",
+    ROOT / "lib" / "ai-intent.ts",
+)
 FORBIDDEN = {
     "platform DataForSEO client": re.compile(r"\bgetPlatformDataForSeoClient\b"),
     "platform OpenRouter client": re.compile(r"\bgetPlatformOpenRouterClient\b"),
@@ -24,6 +36,15 @@ FORBIDDEN = {
         r"namespace\s*:\s*[\"'](?:expand-result|compare-result|trends-result|serp-result|legacy)[\"']"
     ),
 }
+DIRECT_PROVIDER_FACTORY = re.compile(
+    r"\b(?:createDataForSeoClient|createOpenRouterClient)\b"
+)
+WORKER_UNSUPPORTED_REDIRECT = re.compile(
+    r"redirect\s*:\s*[\"']error[\"']"
+)
+SHARED_IMPORTS_BYOK = re.compile(
+    r"from\s+[\"']@/lib/(?:byok|provider-connections)(?:/|[\"'])"
+)
 
 
 def production_typescript_files() -> list[Path]:
@@ -39,6 +60,19 @@ def production_typescript_files() -> list[Path]:
     return sorted(files)
 
 
+def production_files_under(targets: tuple[Path, ...]) -> list[Path]:
+    files: list[Path] = []
+    for target in targets:
+        if not target.exists():
+            continue
+        candidates = [target] if target.is_file() else target.rglob("*.ts*")
+        for path in candidates:
+            if path.name.endswith(".test.ts"):
+                continue
+            files.append(path)
+    return sorted(set(files))
+
+
 def main() -> int:
     violations: list[str] = []
     files = production_typescript_files()
@@ -51,6 +85,44 @@ def main() -> int:
             for match in pattern.finditer(text):
                 line = text.count("\n", 0, match.start()) + 1
                 violations.append(f"{relative}:{line}: forbidden {label}")
+        if (
+            relative.parts[:2] == ("lib", "byok")
+            and relative != Path("lib/byok/provider-clients.ts")
+        ):
+            for match in DIRECT_PROVIDER_FACTORY.finditer(text):
+                line = text.count("\n", 0, match.start()) + 1
+                violations.append(
+                    f"{relative}:{line}: BYOK must use the redirect-isolated provider wrapper"
+                )
+
+    for path in production_files_under(WORKER_RUNTIME_ROOTS):
+        text = path.read_text(encoding="utf-8")
+        relative = path.relative_to(ROOT)
+        for match in WORKER_UNSUPPORTED_REDIRECT.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            violations.append(
+                f"{relative}:{line}: redirect='error' is unsupported by Cloudflare Workers"
+            )
+
+    for path in production_files_under(SHARED_RUNTIME_TARGETS):
+        if "byok" in path.relative_to(ROOT).parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        relative = path.relative_to(ROOT)
+        for match in SHARED_IMPORTS_BYOK.finditer(text):
+            line = text.count("\n", 0, match.start()) + 1
+            violations.append(
+                f"{relative}:{line}: Shared runtime path imports BYOK implementation"
+            )
+
+    student_settings = ROOT / "app" / "dashboard" / "settings" / "page.tsx"
+    if student_settings.exists():
+        text = student_settings.read_text(encoding="utf-8")
+        if "ByokSettings" in text:
+            line = text.count("\n", 0, text.index("ByokSettings")) + 1
+            violations.append(
+                f"{student_settings.relative_to(ROOT)}:{line}: student settings expose BYOK UI"
+            )
     if violations:
         print("BYOK isolation guard failed:", file=sys.stderr)
         for violation in violations:

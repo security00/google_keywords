@@ -61,11 +61,14 @@ export const verifyOpenRouterCredential: OpenRouterCredentialVerifier = async (
     const response = await fetch(`${OPENROUTER_API_BASE_URL}/key`, {
       method: "GET",
       headers: { Authorization: `Bearer ${apiKey}` },
-      redirect: "error",
+      redirect: "manual",
       cache: "no-store",
       signal: AbortSignal.timeout(5_000),
     });
     await response.body?.cancel();
+    if (response.status >= 300 && response.status < 400) {
+      return "VERIFICATION_FAILED";
+    }
     if (response.status === 200) return "VERIFIED";
     if (response.status === 401 || response.status === 403) {
       return "INVALID_CREDENTIAL";
@@ -87,11 +90,14 @@ export const verifyDataForSeoCredential: DataForSeoCredentialVerifier = async (
     const response = await fetch(`${DATAFORSEO_API_BASE_URL}/appendix/user_data`, {
       method: "GET",
       headers: { Authorization: `Basic ${authorization}` },
-      redirect: "error",
+      redirect: "manual",
       cache: "no-store",
       signal: AbortSignal.timeout(5_000),
     });
     await response.body?.cancel();
+    if (response.status >= 300 && response.status < 400) {
+      return "VERIFICATION_FAILED";
+    }
     if (response.status === 200) return "VERIFIED";
     if (response.status === 401 || response.status === 403) {
       return "INVALID_CREDENTIAL";

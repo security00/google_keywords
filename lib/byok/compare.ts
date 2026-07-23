@@ -19,14 +19,16 @@ import {
 } from "@/lib/provider-connections/credential-crypto";
 import { loadProviderConnection } from "@/lib/provider-connections/store";
 import { recordPipelineCostEvent } from "@/lib/pipelines/cost-ledger";
+import {
+  createByokDataForSeoClient,
+  createByokOpenRouterClient,
+} from "@/lib/byok/provider-clients";
 import { extractChatResponseText, extractJsonObject } from "@/lib/providers/chat-response";
 import {
-  createDataForSeoClient,
   DATAFORSEO_ENDPOINTS,
   type DataForSeoClient,
 } from "@/lib/providers/dataforseo";
 import type { ChatCompletionClient } from "@/lib/providers/llm";
-import { createOpenRouterClient } from "@/lib/providers/openrouter";
 import {
   claimOwnedByokJob,
   completeOwnedByokJob,
@@ -458,7 +460,9 @@ export const executeByokCompare = async (input: Readonly<{
     }).catch(() => undefined);
     return fail(code);
   };
-  const dataForSeoClient = (input.dataForSeoClientFactory ?? createDataForSeoClient)(dataForSeoCredentials);
+  const dataForSeoClient = (
+    input.dataForSeoClientFactory ?? createByokDataForSeoClient
+  )(dataForSeoCredentials);
   let dataForSeoResponse: unknown;
   try {
     dataForSeoResponse = await dataForSeoClient.request("post", DATAFORSEO_ENDPOINTS.trendsLive, {
@@ -529,7 +533,7 @@ export const executeByokCompare = async (input: Readonly<{
     });
   } catch { return failJob("PRIVATE_CACHE_WRITE_FAILED"); }
 
-  const openRouterClient = (input.openRouterClientFactory ?? ((apiKey) => createOpenRouterClient(
+  const openRouterClient = (input.openRouterClientFactory ?? ((apiKey) => createByokOpenRouterClient(
     { apiKey }, { model: BYOK_COMPARE_MODEL },
   )))(openRouterApiKey);
   let openRouterResponse: unknown;
@@ -752,7 +756,7 @@ export const executeByokCompareIntentRetry = async (input: Readonly<{
     return fail(code);
   };
 
-  const client = (input.openRouterClientFactory ?? ((key) => createOpenRouterClient(
+  const client = (input.openRouterClientFactory ?? ((key) => createByokOpenRouterClient(
     { apiKey: key }, { model: BYOK_COMPARE_MODEL },
   )))(apiKey);
   let response: unknown;

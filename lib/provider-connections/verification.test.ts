@@ -246,10 +246,25 @@ describe("OpenRouter Provider Connection verification", () => {
       "https://openrouter.ai/api/v1/key",
       expect.objectContaining({
         method: "GET",
-        redirect: "error",
+        redirect: "manual",
         headers: { Authorization: "Bearer sk-or-sensitive-1234" },
       }),
     );
+    fetchSpy.mockRestore();
+  });
+
+  test("rejects an OpenRouter redirect without following it", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { Location: "https://redirected.example.test" },
+      }),
+    );
+
+    await expect(verifyOpenRouterCredential("sk-or-sensitive-1234"))
+      .resolves.toBe("VERIFICATION_FAILED");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({ redirect: "manual" });
     fetchSpy.mockRestore();
   });
 });
@@ -308,7 +323,7 @@ describe("DataForSEO Provider Connection verification", () => {
       "https://api.dataforseo.com/v3/appendix/user_data",
       expect.objectContaining({
         method: "GET",
-        redirect: "error",
+        redirect: "manual",
         cache: "no-store",
       }),
     );
@@ -316,6 +331,23 @@ describe("DataForSEO Provider Connection verification", () => {
     expect((request.headers as Record<string, string>).Authorization)
       .toMatch(/^Basic /);
     expect(JSON.stringify(request)).not.toContain("dataforseo-sensitive-password");
+    fetchSpy.mockRestore();
+  });
+
+  test("rejects a DataForSEO redirect without following it", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, {
+        status: 307,
+        headers: { Location: "https://redirected.example.test" },
+      }),
+    );
+
+    await expect(verifyDataForSeoCredential(
+      "owner@example.com",
+      "dataforseo-sensitive-password",
+    )).resolves.toBe("VERIFICATION_FAILED");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({ redirect: "manual" });
     fetchSpy.mockRestore();
   });
 });

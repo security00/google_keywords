@@ -26,6 +26,7 @@ export type DataForSeoCredentials = {
 };
 export type DataForSeoClientOptions = {
   transport?: JsonHttpTransport;
+  rejectRedirects?: boolean;
 };
 
 const normalizeCredentials = (credentials: DataForSeoCredentials) => {
@@ -63,10 +64,17 @@ export const createDataForSeoClient = (
       const headers = new Headers(requestOptions.headers);
       headers.set("Authorization", `Basic ${encoded}`);
       headers.set("Content-Type", "application/json");
+      const redirect = options.rejectRedirects
+        ? "manual"
+        : requestOptions.redirect;
       return transport.request(
         method,
         url,
-        { ...requestOptions, headers, redirect: "manual" },
+        {
+          ...requestOptions,
+          headers,
+          ...(redirect ? { redirect } : {}),
+        },
         maxRetries,
         timeoutMs,
       );

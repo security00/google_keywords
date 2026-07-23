@@ -4,8 +4,8 @@ import { getCached, setCache } from "@/lib/cache";
 import { decryptProviderCredential } from "@/lib/provider-connections/credential-crypto";
 import { loadProviderConnection } from "@/lib/provider-connections/store";
 import { recordPipelineCostEvent } from "@/lib/pipelines/cost-ledger";
+import { createByokOpenRouterClient } from "@/lib/byok/provider-clients";
 import {
-  createOpenRouterClient,
   getPlatformOpenRouterClient,
 } from "@/lib/providers/openrouter";
 import {
@@ -33,9 +33,12 @@ vi.mock("@/lib/provider-connections/store", async (importOriginal) => ({
 vi.mock("@/lib/pipelines/cost-ledger", () => ({
   recordPipelineCostEvent: vi.fn(),
 }));
+vi.mock("@/lib/byok/provider-clients", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/byok/provider-clients")>()),
+  createByokOpenRouterClient: vi.fn(),
+}));
 vi.mock("@/lib/providers/openrouter", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/providers/openrouter")>()),
-  createOpenRouterClient: vi.fn(),
   getPlatformOpenRouterClient: vi.fn(),
 }));
 vi.mock("@/lib/research-jobs", async (importOriginal) => ({
@@ -53,7 +56,7 @@ const mockDecrypt = vi.mocked(decryptProviderCredential);
 const mockLoadConnection = vi.mocked(loadProviderConnection);
 const mockCost = vi.mocked(recordPipelineCostEvent);
 const mockPlatformClient = vi.mocked(getPlatformOpenRouterClient);
-const mockCreateOpenRouterClient = vi.mocked(createOpenRouterClient);
+const mockCreateOpenRouterClient = vi.mocked(createByokOpenRouterClient);
 const mockClaim = vi.mocked(claimOwnedByokJob);
 const mockComplete = vi.mocked(completeOwnedByokJob);
 const mockCreateJob = vi.mocked(createOrGetOwnedByokJob);

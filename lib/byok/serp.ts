@@ -18,10 +18,10 @@ import {
 import { loadProviderConnection } from "@/lib/provider-connections/store";
 import { recordPipelineCostEvent } from "@/lib/pipelines/cost-ledger";
 import {
-  createDataForSeoClient,
   DATAFORSEO_ENDPOINTS,
   type DataForSeoClient,
 } from "@/lib/providers/dataforseo";
+import { createByokDataForSeoClient } from "@/lib/byok/provider-clients";
 import {
   buildSerpTask,
   parseSerpSummariesResponse,
@@ -284,7 +284,7 @@ export const executeByokSerp = async (input: Readonly<{
     return current ? publicResult(input.ownerId, current) : fail("JOB_PERSISTENCE_ERROR");
   }
 
-  const client = (input.clientFactory ?? createDataForSeoClient)(credentials);
+  const client = (input.clientFactory ?? createByokDataForSeoClient)(credentials);
   let response: unknown;
   try {
     response = await client.request("post", DATAFORSEO_ENDPOINTS.serpLiveAdvanced, {

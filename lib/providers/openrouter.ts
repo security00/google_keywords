@@ -16,6 +16,7 @@ export type OpenRouterClientOptions = {
   referer?: string;
   appName?: string;
   transport?: JsonHttpTransport;
+  rejectRedirects?: boolean;
 };
 
 const createOpenRouterClientWithBaseUrl = (
@@ -45,7 +46,7 @@ const createOpenRouterClientWithBaseUrl = (
         {
           headers,
           body: JSON.stringify({ model, ...input }),
-          redirect: "manual",
+          ...(options.rejectRedirects ? { redirect: "manual" as const } : {}),
         },
         requestOptions.maxRetries ?? 3,
         requestOptions.timeoutMs ?? 60_000,
