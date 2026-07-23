@@ -306,6 +306,42 @@ describe("Provider Connection management routes", () => {
     }));
   });
 
+  test("accepts a zero-byte POST body emitted by an edge runtime", async () => {
+    const response = await VERIFY(
+      new Request(
+        "https://www.discoverkeywords.co/api/provider-connections/connection-1/verify",
+        {
+          method: "POST",
+          headers: {
+            origin: "https://www.discoverkeywords.co",
+            "content-length": "0",
+          },
+          body: "",
+        },
+      ),
+      { params: Promise.resolve({ id: "connection-1" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockVerify).toHaveBeenCalledOnce();
+  });
+
+  test("rejects a verification POST that contains body bytes", async () => {
+    const response = await VERIFY(
+      mutationRequest(
+        "https://www.discoverkeywords.co/api/provider-connections/connection-1/verify",
+        "POST",
+        { unexpected: true },
+      ),
+      { params: Promise.resolve({ id: "connection-1" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("INVALID_REQUEST");
+    expect(mockVerify).not.toHaveBeenCalled();
+  });
+
   test("returns a stable 429 when verification is rate limited", async () => {
     mockVerify.mockRejectedValue(
       new ProviderConnectionServiceError("RATE_LIMITED"),
