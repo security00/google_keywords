@@ -15,6 +15,13 @@ export type JsonHttpTransportOptions = {
   sleepImpl?: (ms: number) => Promise<void>;
 };
 
+class JsonHttpRedirectError extends Error {
+  constructor() {
+    super("Provider redirect responses are not allowed");
+    this.name = "JsonHttpRedirectError";
+  }
+}
+
 const defaultSleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -44,6 +51,9 @@ export const createJsonHttpTransport = (
             method: method.toUpperCase(),
             signal: controller.signal,
           });
+          if (response.status >= 300 && response.status < 400) {
+            throw new JsonHttpRedirectError();
+          }
           const text = await response.text();
           const trimmed = text.trim();
           const data = trimmed ? JSON.parse(trimmed) : null;
@@ -59,6 +69,7 @@ export const createJsonHttpTransport = (
           return data;
         } catch (error) {
           lastError = error instanceof Error ? error : new Error("Unknown error");
+          if (lastError instanceof JsonHttpRedirectError) throw lastError;
         } finally {
           clearTimeout(timeout);
         }

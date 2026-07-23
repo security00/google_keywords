@@ -43,7 +43,7 @@ describe("provider transports", () => {
       `Basic ${Buffer.from("account@example.com:secret").toString("base64")}`,
     );
     expect(headers.get("Content-Type")).toBe("application/json");
-    expect(options.redirect).toBe("error");
+    expect(options.redirect).toBe("manual");
   });
 
   test("OpenRouter BYOK adapter fixes the official URL and model in transport", async () => {
@@ -67,7 +67,7 @@ describe("provider transports", () => {
       model: "test/model",
       temperature: 0,
     });
-    expect(options.redirect).toBe("error");
+    expect(options.redirect).toBe("manual");
   });
 
   test("JSON transport preserves bounded retry and timeout behavior", async () => {
@@ -86,6 +86,26 @@ describe("provider transports", () => {
     expect(result).toEqual({ ok: true });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(sleepImpl).toHaveBeenCalledWith(5_000);
+  });
+
+  test("JSON transport rejects a manual redirect without following or retrying", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(null, {
+      status: 302,
+      headers: { Location: "https://redirected.example.test" },
+    }));
+    const sleepImpl = vi.fn().mockResolvedValue(undefined);
+    const transport = createJsonHttpTransport({ fetchImpl, sleepImpl });
+
+    await expect(transport.request(
+      "post",
+      "https://provider.example.test",
+      { redirect: "manual", body: "{}" },
+      3,
+    )).rejects.toThrow("Provider redirect responses are not allowed");
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][1]).toMatchObject({ redirect: "manual" });
+    expect(sleepImpl).not.toHaveBeenCalled();
   });
 });
 describe("pure provider response parsers", () => {

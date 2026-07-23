@@ -45,7 +45,7 @@ const createOpenRouterClientWithBaseUrl = (
         {
           headers,
           body: JSON.stringify({ model, ...input }),
-          redirect: "error",
+          redirect: "manual",
         },
         requestOptions.maxRetries ?? 3,
         requestOptions.timeoutMs ?? 60_000,
