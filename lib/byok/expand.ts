@@ -38,6 +38,7 @@ const CAPABILITY_VERSION = 1;
 // Official Google Trends Live price per task checked on 2026-07-21:
 // https://dataforseo.com/pricing/keywords-data/google-trends
 export const BYOK_EXPAND_ESTIMATED_COST_USD = 0.011;
+const EXPAND_PROVIDER_TIMEOUT_MS = 60_000;
 const MIN_DAYS = 7;
 const MAX_DAYS = 365 * 5;
 const MAX_SEED_LENGTH = 100;
@@ -344,7 +345,7 @@ export const executeByokExpand = async (input: Readonly<{
         date_from: request.dateFrom,
         date_to: request.dateTo,
       }]),
-    }, 0, 40_000);
+    }, 0, EXPAND_PROVIDER_TIMEOUT_MS);
   } catch {
     outcome = "provider_error";
     response = null;

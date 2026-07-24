@@ -172,7 +172,7 @@ describe("BYOK Expand", () => {
     ]);
     expect(providerRequest).toHaveBeenCalledWith(
       "post", "/keywords_data/google_trends/explore/live",
-      expect.objectContaining({ body: expect.stringContaining("google_trends_queries_list") }), 0, 40_000,
+      expect.objectContaining({ body: expect.stringContaining("google_trends_queries_list") }), 0, 60_000,
     );
     expect(mockCache).toHaveBeenCalledWith(
       "byok-expand:v1:job-1", expect.any(Object), expect.objectContaining({
