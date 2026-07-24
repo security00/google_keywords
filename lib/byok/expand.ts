@@ -215,6 +215,15 @@ const responseTasks = (response: unknown): Array<Record<string, unknown>> => {
     ? tasks.filter((task): task is Record<string, unknown> => Boolean(task) && typeof task === "object")
     : [];
 };
+const isSuccessfulProviderResponse = (
+  response: unknown,
+  tasks: Array<Record<string, unknown>>,
+) => Boolean(
+  response
+  && typeof response === "object"
+  && Number((response as { status_code?: unknown }).status_code) === 20000
+  && tasks.some((task) => Number(task.status_code) === 20000),
+);
 const sanitizeCandidates = (candidates: Candidate[], seed: string): Candidate[] => {
   const seen = new Set<string>();
   const sanitized: Candidate[] = [];
@@ -351,11 +360,14 @@ export const executeByokExpand = async (input: Readonly<{
     response = null;
   }
 
+  const tasks = responseTasks(response);
   const candidates = sanitizeCandidates(
-    getExpansionResultsFromTasks(responseTasks(response)),
+    getExpansionResultsFromTasks(tasks),
     request.keyword,
   );
-  if (outcome === "success" && candidates.length === 0) outcome = "invalid_response";
+  if (outcome === "success" && !isSuccessfulProviderResponse(response, tasks)) {
+    outcome = "invalid_response";
+  }
   const actualCostUsd = rootCost(response);
   try {
     await recordPipelineCostEvent({

@@ -184,4 +184,55 @@ describe("BYOK Expand", () => {
     }));
     expect(mockPlatform).not.toHaveBeenCalled();
   });
+
+  test("treats a successful provider response with no related queries as an empty result", async () => {
+    const { bundle, connection } = await stored();
+    mockLoad.mockResolvedValue(connection);
+    const request = { keyword: "niche discovery phrase", dateFrom: "2026-04-22", dateTo: "2026-07-21" };
+    const requestHash = buildByokExpandRequestHash({
+      ownerId: "owner-1", connectionId: "connection-1", connectionVersion: 1, request,
+    });
+    const job = {
+      id: "job-empty", user_id: "owner-1", job_type: "expand" as const, status: "pending" as const,
+      task_ids: [], payload: { request }, session_id: null, error: null,
+      execution_mode: "byok" as const, credential_source: "user" as const,
+      idempotency_key: requestHash, claim_token: null, lease_expires_at: null, attempt_count: 0,
+      provider_connection_id: "connection-1", provider_connection_version: 1,
+      provider_request_state: "not_started" as const, result_cache_key: null,
+      created_at: "now", updated_at: "now",
+    };
+    mockCreate.mockResolvedValue({ job, created: true });
+    const providerRequest = vi.fn().mockResolvedValue({
+      status_code: 20000,
+      cost: 0.011,
+      tasks: [{
+        status_code: 20000,
+        result: [{
+          keywords: ["niche discovery phrase"],
+          items: [{
+            type: "google_trends_queries_list",
+            data: { top: [], rising: [] },
+          }],
+        }],
+      }],
+    });
+
+    const result = await executeByokExpand({
+      ownerId: "owner-1", connectionId: "connection-1", expectedConnectionVersion: 1,
+      request, quoteId: "quote-empty", requestHash, confirmedEstimatedCostUsd: 0.011,
+      confirmation: "CONFIRM", decryptionKeys: bundle.decryption,
+      clientFactory: vi.fn().mockReturnValue({ provider: "dataforseo", request: providerRequest }),
+    });
+
+    expect(result.status).toBe("complete");
+    expect(result.data?.candidates).toEqual([]);
+    expect(mockCache).toHaveBeenCalledWith(
+      "byok-expand:v1:job-empty",
+      expect.objectContaining({ candidates: [] }),
+      expect.objectContaining({
+        namespace: "byok-expand",
+        scope: { type: "private", ownerId: "owner-1" },
+      }),
+    );
+  });
 });
