@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Loader2, Play, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  getByokOperationSection,
+  type ByokOperationSection,
+} from "@/lib/byok/ui-operation-errors";
 
 type Connection = {
   id: string;
@@ -93,6 +97,9 @@ export function ByokSettings() {
   const [intentRetryQuote, setIntentRetryQuote] = useState<IntentRetryQuote | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [operationErrors, setOperationErrors] = useState<
+    Partial<Record<ByokOperationSection, string>>
+  >({});
 
   const load = useCallback(async () => {
     const response = await fetch("/api/provider-connections", {
@@ -133,8 +140,15 @@ export function ByokSettings() {
   useEffect(() => void load(), [load]);
 
   const mutate = async (action: string, url: string, init: RequestInit) => {
+    const operationSection = getByokOperationSection(action);
     setBusy(action);
     setMessage(null);
+    if (operationSection) {
+      setOperationErrors((current) => ({
+        ...current,
+        [operationSection]: undefined,
+      }));
+    }
     try {
       const response = await fetch(url, {
         ...init,
@@ -145,7 +159,15 @@ export function ByokSettings() {
       if (!response.ok) throw new Error(body?.code || body?.error || "Request failed");
       return body;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Request failed");
+      const errorMessage = error instanceof Error ? error.message : "Request failed";
+      if (operationSection) {
+        setOperationErrors((current) => ({
+          ...current,
+          [operationSection]: errorMessage,
+        }));
+      } else {
+        setMessage(errorMessage);
+      }
       return null;
     } finally {
       setBusy(null);
@@ -658,6 +680,9 @@ export function ByokSettings() {
         {trendsResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
           {JSON.stringify(trendsResult, null, 2)}
         </pre>}
+        {operationErrors.trends && <p role="alert" className="mt-3 text-sm text-destructive">
+          {operationErrors.trends}
+        </p>}
       </div>}
       {liveEnabled && dataForSeoConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private Google SERP check</h4>
@@ -687,6 +712,9 @@ export function ByokSettings() {
         {serpResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
           {JSON.stringify(serpResult, null, 2)}
         </pre>}
+        {operationErrors.serp && <p role="alert" className="mt-3 text-sm text-destructive">
+          {operationErrors.serp}
+        </p>}
       </div>}
       {liveEnabled && dataForSeoConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private Related Queries expansion</h4>
@@ -721,6 +749,9 @@ export function ByokSettings() {
         {expandResult && <pre className="mt-3 max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
           {JSON.stringify(expandResult, null, 2)}
         </pre>}
+        {operationErrors.expand && <p role="alert" className="mt-3 text-sm text-destructive">
+          {operationErrors.expand}
+        </p>}
       </div>}
       {liveEnabled && dataForSeoConnection?.verificationStatus === "valid"
         && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
@@ -777,6 +808,9 @@ export function ByokSettings() {
             </Button>
           </div>}
         </div>}
+        {operationErrors.compare && <p role="alert" className="mt-3 text-sm text-destructive">
+          {operationErrors.compare}
+        </p>}
       </div>}
       {liveEnabled && openRouterConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private keyword semantic filter</h4>
@@ -796,6 +830,9 @@ export function ByokSettings() {
               <span className={item.decision === "keep" ? "text-emerald-600" : "text-amber-600"}>{item.decision}</span></div>
             <p className="mt-1 text-xs text-muted-foreground">{item.reason}</p>
           </div>)}</div>}
+        {operationErrors.semantic && <p role="alert" className="mt-3 text-sm text-destructive">
+          {operationErrors.semantic}
+        </p>}
       </div>}
       {message && <p className="mt-3 text-sm text-muted-foreground">{message}</p>}
     </section>
