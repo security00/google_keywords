@@ -9,10 +9,15 @@
 3. Require the `Quality gates and Linux build` check before merging.
 4. A push or manual workflow run on `main` starts the `deploy` job in the
    GitHub `production` environment.
-5. The deploy job rebuilds the exact commit on Linux, records the current D1
-   Time Travel bookmark, previews and applies pending migrations, verifies the
-   migration ledger, deploys the Worker, and performs no-cost production smoke
-   tests.
+5. The deploy job rebuilds the exact commit on Linux, retains static assets
+   referenced by the active production prerendered routes, and validates the
+   resulting bundle.
+6. It records the current D1 Time Travel bookmark, previews and applies pending
+   migrations, verifies the migration ledger, then uploads a tagged Worker
+   candidate without changing production traffic.
+7. The candidate must pass no-cost smoke tests through its aliased Preview URL
+   before it may be promoted to 100% production traffic. Production receives a
+   second no-cost smoke after promotion.
 
 Pull requests never receive Cloudflare credentials and never modify D1 or
 Worker traffic.
@@ -52,8 +57,22 @@ GitHub plan supports deployment protection rules.
 The Next.js build uses content-hashed static assets. Until Cloudflare version
 affinity is configured, do not leave two Worker versions in a long-lived
 traffic split: HTML from one version can request assets unavailable in the
-other version. The automated workflow therefore performs a tested 100% deploy
-and relies on immediate Worker rollback if the smoke check fails.
+other version.
+
+Before uploading a candidate, `npm run retain:production-assets` reads the
+current build's prerender manifest, visits the corresponding active production
+routes, and copies any referenced same-origin `/_next/static/` asset that is
+missing from the candidate bundle. It skips routes that are new in the
+candidate and therefore return 404 from the active version, but fails closed on
+other route or asset errors, cross-origin redirects, unsafe paths, excessive
+counts, or excessive byte sizes.
+
+The Worker is uploaded with a commit tag and stable Preview alias without
+traffic. Only a successful candidate Preview smoke permits a 100% promotion.
+The production smoke recaptures the landing-page asset graph after a transient
+404 instead of continuing to validate an HTML snapshot captured during version
+propagation. Any persistently incoherent graph still fails and triggers the
+immediate Worker rollback.
 
 ## No-cost smoke scope
 
