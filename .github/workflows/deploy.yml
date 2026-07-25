@@ -98,6 +98,14 @@ jobs:
       - name: Build with OpenNext on Linux
         run: npx opennextjs-cloudflare build
 
+      - name: Retain active production static assets
+        run: npm run retain:production-assets
+        env:
+          PRODUCTION_ASSET_BASE_URL: https://www.discoverkeywords.co
+
+      - name: Validate retained candidate bundle
+        run: npx wrangler versions upload --dry-run --config wrangler.jsonc
+
       - name: Capture D1 Time Travel rollback bookmark
         run: npx wrangler d1 time-travel info ai-trends --config wrangler.jsonc
         env:
@@ -122,9 +130,36 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Deploy Worker at 100 percent
+      - name: Upload production candidate without traffic
+        id: upload_worker
+        run: >-
+          npx wrangler versions upload
+          --config wrangler.jsonc
+          --keep-vars
+          --strict
+          --tag "$GITHUB_SHA"
+          --preview-alias production-candidate
+          --message "production candidate $GITHUB_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Smoke production candidate preview
+        run: npm run smoke:production
+        env:
+          SMOKE_BASE_URL: https://production-candidate-google-keywords.potter-faa.workers.dev
+          SMOKE_MAX_ATTEMPTS: "6"
+          SMOKE_RETRY_DELAY_MS: "5000"
+
+      - name: Deploy validated candidate at 100 percent
         id: deploy_worker
-        run: npx wrangler deploy --config wrangler.jsonc --keep-vars
+        run: >-
+          npx wrangler versions deploy
+          --config wrangler.jsonc
+          --version-tag "$GITHUB_SHA"
+          --percentage 100
+          --yes
+          --message "deploy validated production candidate $GITHUB_SHA"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
