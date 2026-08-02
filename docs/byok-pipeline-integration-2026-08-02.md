@@ -4,9 +4,9 @@
 
 - 分支：`codex/byok-pipeline-integration`
 - 基线：`origin/main@94834fab6686d22f37f108ed985f2cc83c55f872`
-- 状态：代码、本地 migration 测试、回归、生产构建、staging migration 和 staging Worker 部署通过。
-- staging Worker 版本：`95135438-d376-44c1-be3d-6e45897e282c`。
-- 未执行：生产 migration/部署、生产 Secret 修改、allowlist 扩大、预算或并发调整、付费 Provider E2E。
+- 状态：代码、本地 migration 测试、回归、生产构建、staging migration、staging Worker 部署和 Bearer API 付费 E2E 通过；UI 付费 E2E 触发一条 Provider outcome uncertain，尚待通过受控管理员入口终止。
+- staging Worker 版本：初始关闭版 `95135438-d376-44c1-be3d-6e45897e282c`；临时开启版 `ce63904e-d8a8-4a94-84b9-68b7001dfe07`；重新关闭版 `593f8a1a-3a20-40e3-84d6-f1492cb62a15`。
+- 未执行：生产 migration/部署、生产 Secret 修改、allowlist 扩大、预算或并发调整、G3 多账号灰度。
 - 因此本文件不是 G2/G3 上线批准。
 
 ## 已完成能力
@@ -49,14 +49,31 @@ OpenNext Cloudflare production build: passed
 - staging Worker 为 `google-keywords-staging`，绑定独立 D1 `530bee1f-a79b-4511-be98-d339c160df94`。
 - `BYOK_LIVE_MODE_ENABLED=false`；allowlist 保持单维护者账号；日预算 `$1`、最大并发 `1` 未调整。
 - DataForSEO 与 OpenRouter Provider Connection 均为 `valid`；核对仅使用 masked 元数据，未读取凭证明文或加密字段。
-- 单维护者账号当前没有 API Key，Chrome 与应用内浏览器均无 staging 登录会话；未绕过 Cookie-only 管理边界创建 `byok:execute` Key。
+- 单维护者账号通过 Cookie-only 设置页创建了专用 API Key `gk_live_f7f3…0901`，scope 为 `cache:read` 与 `byok:execute`；完整 Key 未写入文件、命令行、日志或本文档。
 - 无会话冒烟：`/`、`/login`、`/api/auth/session` 正常；`/api/me` 与 shared history 拒绝未授权请求；BYOK readiness 返回 `FEATURE_DISABLED`。
 - shared 模式默认值、原 API 路由和请求适配由回归测试覆盖；本次 migration 未更新 Shared Cache 或已有 shared 研究记录。
 - staging 账本核对：platform fallback、attribution mismatch、Shared Cache violation、orphan quote、missing event key、duplicate event key、missing Cost Event 均为 `0`。
 
+### 单维护者 API E2E
+
+- 临时开启 Live Mode 时仍仅允许 owner `2963cf41-05e6-4ac1-b2ee-d204bb73c030`，日预算 `$1`、并发 `1`。
+- readiness 返回双 Provider 已验证、预算剩余 `$1`、并发可用。
+- Expand 报价 `0ecb3d74-5a27-4759-90ba-2856e7d30743`：汇总上限 `$0.016`，DataForSEO `$0.011`、OpenRouter `$0.005`，内部批次 `6`。
+- execute 父 Job `b5e4b3d2-ae14-4130-a46c-22a80ce3388c` 完成 `3/3` 阶段，输出 `28` 个候选词；history 的 `operation=expand`、`status=complete`、`executionSource=byok` 和父 Job 一致。
+- 账本包含一条 DataForSEO Expand Cost Event（实记 `$0.011`）及两条 OpenRouter Semantic Filter Cost Event（实记 `$0.0002519`、`$0.0001205`）；全部为 owner-scoped、`credential_source=user`、`execution_mode=byok` 和 Private Cache。
+
+### 单维护者 UI E2E
+
+- UI 保留原“我的 Key 实时结果”入口、原按钮和原进度组件，仅出现一次汇总费用确认；输入单词根 `aitool` 后，后台汇总报价为 `$0.016`。
+- 父 Job `af60b842-9fde-49e9-8127-6865c31501cc` 创建成功；DataForSEO Expand 子 Job `645ccdb3-313a-404b-afd9-c8c858ef40d9` 在 `provider_request_state=started` 后 Worker 中断。
+- 子 Job 无 Private Cache、无 Cost Event；系统没有自动重领或重试，最近 7 天对账正确分类为 `provider_outcome_uncertain`，估算 `$0.011`、实记 `$0`。
+- 该调用未被猜测为成功、未自动退款、未再次调用 Provider。管理员健康页显示 stale `1`、隔离/账本违规 `0`；必须使用 `mark_uncertain` 受控动作终止后才能收口 G2。
+- 验证结束后 staging Live Mode 已关闭，匿名 readiness 返回 `404 FEATURE_DISABLED`。
+
 ## 下一门禁
 
-1. 在保持单维护者 allowlist、日预算 `$1` 和并发 `1` 的前提下，临时开启 staging BYOK Live Mode。
-2. 使用专用低预算账号验证 UI 与 API 的 quote → execute → poll → result → history，并记录调用渠道。
-3. 注入一次可控 Partial Success，验证 retry quote 只包含失败阶段费用，并核对成功 DataForSEO Event Key 未增加。
-4. 再次核对全部隔离与账本门禁为 `0`，关闭 staging Live Mode，之后才可正式收口 G2。
+1. 在管理员 BYOK 运行页对 Job `645ccdb3-313a-404b-afd9-c8c858ef40d9` 执行 `mark_uncertain`，保留精确 `updated_at` 乐观并发和审计事件；不得直接改 D1，也不得重放 Provider。
+2. 核对 stale 归零、`PROVIDER_OUTCOME_UNCERTAIN` 与 reconciliation audit event 已写入，并再次确认全部隔离与账本门禁为 `0`。
+3. 诊断 UI Worker 中断原因；在仍关闭 Live Mode 的前提下完成不产生 Provider 调用的回归。若需再次付费验证，必须另开新的受控操作边界。
+4. 注入一次可控 Partial Success，验证 retry quote 只包含失败阶段费用，并核对成功 DataForSEO Event Key 未增加。
+5. 上述证据全部通过后才可正式收口 G2；G3 仍需 3–5 个内部账号同时覆盖 UI 与 API，不扩大生产 allowlist。
