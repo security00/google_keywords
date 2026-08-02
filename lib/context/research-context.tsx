@@ -37,6 +37,15 @@ type SessionSummary = {
     created_at: string | null;
 };
 
+type ResearchExecutionMode = "shared" | "byok";
+type PipelineJobResult<T> = {
+    jobId: string;
+    status: "processing" | "complete" | "partial" | "failed";
+    progress: { completed: number; total: number };
+    errorCode?: string | null;
+    result?: T | null;
+};
+
 // --- Constants ---
 export const DEFAULT_KEYWORDS = [
     ...sharedKeywordDefaults.defaultKeywords,
@@ -291,6 +300,10 @@ interface ResearchContextType {
     sessionId: string | null;
     comparisonId: string | null;
 
+    executionMode: ResearchExecutionMode;
+    setExecutionMode: (mode: ResearchExecutionMode) => Promise<void>;
+    byokReady: boolean;
+
     // Actions
     handleExpand: () => Promise<void>;
     handleCompare: () => Promise<void>;
@@ -352,7 +365,6 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     const [expandData, setExpandData] = useState<ExpandResponse | null>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [compareData, setCompareData] = useState<CompareResponse | null>(null);
-    const [userId] = useState<string | null>(null);
 
     const [loadingExpand, setLoadingExpand] = useState(false);
     const [loadingCompare, setLoadingCompare] = useState(false);
@@ -367,6 +379,8 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     const [sessionList, setSessionList] = useState<SessionSummary[]>([]);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [comparisonId, setComparisonId] = useState<string | null>(null);
+    const [executionMode, setExecutionModeState] = useState<ResearchExecutionMode>("shared");
+    const [byokReady, setByokReady] = useState(false);
 
     // --- Computed ---
     const parsedKeywords = useMemo(() => parseKeywords(keywordsText), [keywordsText]);
@@ -645,6 +659,131 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user, loadSessionList]);
 
+    useEffect(() => {
+        if (!user) return;
+        Promise.all([
+            fetch("/api/research/preferences", { credentials: "include", cache: "no-store" }),
+            fetch("/api/research/byok/readiness", { credentials: "include", cache: "no-store" }),
+        ]).then(async ([preferenceResponse, readinessResponse]) => {
+            const preference = preferenceResponse.ok ? await preferenceResponse.json() : {};
+            const readiness = readinessResponse.ok ? await readinessResponse.json() : {};
+            setByokReady(readiness.ready === true);
+            setExecutionModeState(preference.executionMode === "byok" && readiness.ready === true ? "byok" : "shared");
+        }).catch(() => {
+            setByokReady(false);
+            setExecutionModeState("shared");
+        });
+    }, [user]);
+
+    const setExecutionMode = useCallback(async (mode: ResearchExecutionMode) => {
+        if (mode === "byok" && !byokReady) {
+            setError("请先在账号设置中保存并验证 DataForSEO 与 OpenRouter 凭证");
+            return;
+        }
+        const response = await fetch("/api/research/preferences", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ executionMode: mode }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            setError(body?.error || "无法保存研究模式");
+            return;
+        }
+        setExecutionModeState(mode);
+        setError(null);
+    }, [byokReady]);
+
+    const runByokPipeline = useCallback(async <T,>(
+        operation: "expand" | "compare",
+        body: Record<string, unknown>,
+        onProgress: (progress: { completed: number; total: number }) => void,
+    ): Promise<T> => {
+        type PipelineQuote = {
+            quoteId: string; requestHash: string; estimatedCostUsd: number;
+            expiresAt: string; batchCount: number;
+        };
+        const executeQuote = async (quote: PipelineQuote, executeKey: string) => {
+            const response = await fetch(`/api/research/byok/pipeline/${operation}/execute`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Idempotency-Key": executeKey },
+                credentials: "include",
+                body: JSON.stringify({
+                    quoteId: quote.quoteId,
+                    requestHash: quote.requestHash,
+                    confirmedEstimatedCostUsd: quote.estimatedCostUsd,
+                }),
+            });
+            const job = await response.json().catch(() => ({})) as PipelineJobResult<T>;
+            if (!response.ok) throw new Error((job as { code?: string }).code || "实时请求启动失败");
+            return job;
+        };
+        const pollJob = async (initial: PipelineJobResult<T>) => {
+            let job = initial;
+            const deadline = Date.now() + CLIENT_MAX_WAIT_MS;
+            while (job.status === "processing" && Date.now() < deadline) {
+                onProgress(job.progress);
+                await new Promise((resolve) => window.setTimeout(resolve, CLIENT_POLL_INTERVAL_MS));
+                const statusResponse = await fetch(`/api/research/byok/pipeline/jobs/${encodeURIComponent(job.jobId)}`, {
+                    credentials: "include",
+                    cache: "no-store",
+                });
+                job = await statusResponse.json().catch(() => ({})) as PipelineJobResult<T>;
+                if (!statusResponse.ok) throw new Error((job as { code?: string }).code || "实时任务状态不可用");
+            }
+            onProgress(job.progress);
+            return job;
+        };
+        const quoteKey = `${operation}-${crypto.randomUUID()}`;
+        const quoteResponse = await fetch(`/api/research/byok/pipeline/${operation}/quote`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Idempotency-Key": quoteKey },
+            credentials: "include",
+            body: JSON.stringify(body),
+        });
+        const quoted = await quoteResponse.json().catch(() => ({}));
+        if (!quoteResponse.ok) throw new Error(quoted?.code || quoted?.error || "无法生成实时费用报价");
+        const quote = quoted.quote as PipelineQuote;
+        const confirmed = window.confirm(
+            `本次实时${operation === "expand" ? "扩词" : "对比"}将使用你的 Provider 额度。\n`
+            + `保守费用上限：$${quote.estimatedCostUsd.toFixed(3)}\n`
+            + `内部批次：${quote.batchCount}\n\n确认继续？`,
+        );
+        if (!confirmed) throw new Error("已取消实时请求");
+        let job = await pollJob(await executeQuote(quote, `execute-${quoteKey}`));
+        if (job.status === "failed") throw new Error(job.errorCode || "实时任务失败");
+        if (!job.result) throw new Error("实时任务等待超时");
+        if (job.status === "partial") {
+            const retryKey = `retry-${operation}-${crypto.randomUUID()}`;
+            const retryResponse = await fetch(
+                `/api/research/byok/pipeline/jobs/${encodeURIComponent(job.jobId)}/retry/quote`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Idempotency-Key": retryKey },
+                    credentials: "include",
+                    body: "{}",
+                },
+            );
+            const retryBody = await retryResponse.json().catch(() => ({}));
+            if (retryResponse.ok) {
+                const retryQuote = retryBody.quote as PipelineQuote;
+                const retryConfirmed = window.confirm(
+                    `部分阶段未完成。是否只重试失败阶段？\n`
+                    + `追加费用上限：$${retryQuote.estimatedCostUsd.toFixed(3)}\n`
+                    + `重试批次：${retryQuote.batchCount}\n\n已成功阶段不会再次调用 Provider。`,
+                );
+                if (retryConfirmed) {
+                    const retried = await pollJob(await executeQuote(retryQuote, `execute-${retryKey}`));
+                    if (retried.result) job = retried;
+                }
+            } else if (retryBody?.code !== "NO_RETRYABLE_STEPS") {
+                window.alert(`部分结果已保留，但失败阶段暂时无法重新报价：${retryBody?.code || "RETRY_UNAVAILABLE"}`);
+            }
+        }
+        return job.result as T;
+    }, []);
+
     const handleExpand = async () => {
         setLoadingExpand(true);
         setError(null);
@@ -654,6 +793,20 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         pushLog("info", "扩展请求已发送", `keywords=${effectiveKeywords.length}`);
 
         try {
+            if (executionMode === "byok") {
+                const completedPayload = await runByokPipeline<ExpandResponse>("expand", {
+                    keywords: effectiveKeywords,
+                    days: 90,
+                    filterTerms: parsedFilterTerms,
+                    filterPrompt,
+                }, (progress) => setExpandProgress({ ready: progress.completed, total: progress.total }));
+                setExpandData(completedPayload);
+                setSelected(new Set(buildRecommendedSelection(completedPayload)));
+                setSessionId(completedPayload.sessionId ?? null);
+                pushLog("success", "实时扩展完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
+                router.push("/dashboard/candidates");
+                return;
+            }
             const response = await fetch("/api/research/expand", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -736,6 +889,20 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         pushLog("info", "对比请求已发送", `selected=${selected.size}`);
 
         try {
+            if (executionMode === "byok") {
+                const completedPayload = await runByokPipeline<CompareResponse>("compare", {
+                    keywords: Array.from(selected),
+                    benchmark: DEFAULT_BENCHMARK,
+                    ...(expandData?.dateFrom && expandData?.dateTo
+                        ? { dateFrom: expandData.dateFrom, dateTo: expandData.dateTo }
+                        : { days: 90 }),
+                }, (progress) => setCompareProgress({ ready: progress.completed, total: progress.total }));
+                setCompareData(completedPayload);
+                setComparisonId(completedPayload.comparisonId ?? null);
+                pushLog("success", "实时对比完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
+                router.push("/dashboard/analysis");
+                return;
+            }
             const response = await fetch("/api/research/compare", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -857,6 +1024,9 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 loadSessionById,
                 sessionId,
                 comparisonId,
+                executionMode,
+                setExecutionMode,
+                byokReady,
                 handleExpand,
                 handleCompare,
                 toggleCandidate,

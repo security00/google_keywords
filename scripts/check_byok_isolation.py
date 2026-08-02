@@ -118,10 +118,17 @@ def main() -> int:
     student_settings = ROOT / "app" / "dashboard" / "settings" / "page.tsx"
     if student_settings.exists():
         text = student_settings.read_text(encoding="utf-8")
-        if "ByokSettings" in text:
-            line = text.count("\n", 0, text.index("ByokSettings")) + 1
+        if "showResearchTools={true}" in text:
+            line = text.count("\n", 0, text.index("showResearchTools={true}")) + 1
             violations.append(
-                f"{student_settings.relative_to(ROOT)}:{line}: student settings expose BYOK UI"
+                f"{student_settings.relative_to(ROOT)}:{line}: student settings expose BYOK research tools"
+            )
+    byok_settings = ROOT / "components" / "byok-settings.tsx"
+    if byok_settings.exists():
+        text = byok_settings.read_text(encoding="utf-8")
+        if "showResearchTools = false" not in text:
+            violations.append(
+                f"{byok_settings.relative_to(ROOT)}: BYOK research tools must remain hidden by default"
             )
     if violations:
         print("BYOK isolation guard failed:", file=sys.stderr)

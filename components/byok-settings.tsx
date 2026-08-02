@@ -60,7 +60,7 @@ type IntentRetryQuote = {
   requestHash: string;
 };
 
-export function ByokSettings() {
+export function ByokSettings({ showResearchTools = false }: { showResearchTools?: boolean }) {
   const [available, setAvailable] = useState(false);
   const [liveEnabled, setLiveEnabled] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -647,6 +647,7 @@ export function ByokSettings() {
           Save spend controls
         </Button>
       </div>
+      {showResearchTools && <>
       {liveEnabled && dataForSeoConnection?.verificationStatus === "valid" && <div className="mt-5 border-t pt-4">
         <h4 className="font-medium">Private Google Trends check</h4>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -834,6 +835,7 @@ export function ByokSettings() {
           {operationErrors.semantic}
         </p>}
       </div>}
+      </>}
       {message && <p className="mt-3 text-sm text-muted-foreground">{message}</p>}
     </section>
   );

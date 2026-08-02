@@ -18,7 +18,9 @@ export type CacheNamespace =
   | "byok-trends"
   | "byok-serp"
   | "byok-expand"
-  | "byok-compare";
+  | "byok-compare"
+  | "byok-pipeline-expand"
+  | "byok-pipeline-compare";
 
 export type CacheScope =
   | { type: "shared" }

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck } from "lucide-react";
 
-import { ByokSettings } from "@/components/byok-settings";
 import { Button } from "@/components/ui/button";
 
 type Summary = {
@@ -60,6 +59,7 @@ type Health = {
 };
 
 type RecoveryAction = "complete_from_private_cache" | "mark_uncertain";
+type PendingRecovery = { job: StaleJob; action: RecoveryAction };
 
 const numberValue = (value: number | null | undefined) => Number(value ?? 0);
 const formatCost = (value: number | null | undefined) => `$${numberValue(value).toFixed(4)}`;
@@ -69,6 +69,7 @@ export default function ByokHealthPage() {
   const [health, setHealth] = useState<Health | null>(null);
   const [loading, setLoading] = useState(true);
   const [recovering, setRecovering] = useState<string | null>(null);
+  const [pendingRecovery, setPendingRecovery] = useState<PendingRecovery | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,10 +95,6 @@ export default function ByokHealthPage() {
     : 0, [health]);
 
   const recover = async (job: StaleJob, action: RecoveryAction) => {
-    const label = action === "complete_from_private_cache"
-      ? "仅依据私有缓存与成本证据完成任务"
-      : "将任务标记为 PROVIDER_OUTCOME_UNCERTAIN";
-    if (!window.confirm(`${label}？\n\nJob: ${job.job_id}\nOwner: ${job.owner_id}\n\n此操作不会重新调用 Provider。`)) return;
     setRecovering(job.job_id);
     setNotice(null);
     setError(null);
@@ -143,8 +140,6 @@ export default function ByokHealthPage() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
       {notice && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</div>}
 
-      <ByokSettings />
-
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="连接 / 已验证" value={`${numberValue(health?.summary?.verified_connection_count)} / ${numberValue(health?.summary?.connection_count)}`} />
         <Stat label="24h BYOK Jobs" value={numberValue(health?.summary?.byok_jobs_24h)} />
@@ -182,7 +177,7 @@ export default function ByokHealthPage() {
                 <td className="px-4 py-3"><div className="font-mono text-xs">{job.provider_connection_id || "-"}</div><div className="text-xs text-muted-foreground">v{job.provider_connection_version ?? "-"}</div></td>
                 <td className="px-4 py-3">{job.cost_event_count} / {formatCost(job.accounted_cost_usd)}</td>
                 <td className="whitespace-nowrap px-4 py-3">{formatTime(job.updated_at)}</td>
-                <td className="px-4 py-3"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" disabled={recovering === job.job_id} onClick={() => void recover(job, "complete_from_private_cache")}>从私有缓存完成</Button><Button size="sm" variant="destructive" disabled={recovering === job.job_id} onClick={() => void recover(job, "mark_uncertain")}>标记不确定</Button></div></td>
+                <td className="px-4 py-3"><div className="flex justify-end gap-2"><Button size="sm" variant="outline" disabled={recovering === job.job_id} onClick={() => setPendingRecovery({ job, action: "complete_from_private_cache" })}>从私有缓存完成</Button><Button size="sm" variant="destructive" disabled={recovering === job.job_id} onClick={() => setPendingRecovery({ job, action: "mark_uncertain" })}>标记不确定</Button></div></td>
               </tr>
             ))}</tbody>
           </table>
@@ -197,6 +192,37 @@ export default function ByokHealthPage() {
           </table>
         </div>
       </section>
+
+      {pendingRecovery && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" role="dialog" aria-modal="true" aria-labelledby="byok-recovery-title">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <h3 id="byok-recovery-title" className="text-lg font-semibold">确认受控 BYOK 对账</h3>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {pendingRecovery.action === "complete_from_private_cache"
+                ? "仅依据当前 owner 的私有缓存与成本证据完成任务。"
+                : "将任务及其仍在处理的父管线标记为 PROVIDER_OUTCOME_UNCERTAIN。"}
+            </p>
+            <dl className="mt-4 space-y-2 rounded-xl bg-muted/50 p-4 font-mono text-xs">
+              <div><dt className="inline text-muted-foreground">Job: </dt><dd className="inline break-all">{pendingRecovery.job.job_id}</dd></div>
+              <div><dt className="inline text-muted-foreground">Owner: </dt><dd className="inline break-all">{pendingRecovery.job.owner_id}</dd></div>
+            </dl>
+            <p className="mt-4 text-sm font-medium text-amber-700">此操作不会重新调用 Provider，也不会清除旧 checkpoint。</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setPendingRecovery(null)}>取消</Button>
+              <Button
+                variant={pendingRecovery.action === "mark_uncertain" ? "destructive" : "default"}
+                onClick={() => {
+                  const pending = pendingRecovery;
+                  setPendingRecovery(null);
+                  void recover(pending.job, pending.action);
+                }}
+              >
+                {pendingRecovery.action === "mark_uncertain" ? "确认标记不确定" : "确认从私有缓存完成"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

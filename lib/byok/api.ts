@@ -2,7 +2,7 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 
-import { requireEffectiveUser } from "@/lib/authz";
+import { hasApiKeyScope, requireEffectiveUser } from "@/lib/authz";
 import {
   ProviderConnectionApiError,
   readLimitedJsonObject,
@@ -57,13 +57,13 @@ export const requireByokLiveOwner = async (
     principal.headers.set("Cache-Control", "no-store");
     return principal;
   }
-  if (
-    principal.authMethod !== "cookie"
-    || !providerConnectionOwnerAllowed(principal.userId)
-  ) {
+  const cookieOwner = principal.authMethod === "cookie";
+  const apiOwner = principal.authMethod === "api_key"
+    && hasApiKeyScope(principal, "byok:execute");
+  if ((!cookieOwner && !apiOwner) || !providerConnectionOwnerAllowed(principal.userId)) {
     return hiddenResponse();
   }
-  if (options.mutation && !isSameOrigin(request)) {
+  if (options.mutation && cookieOwner && !isSameOrigin(request)) {
     return noStoreJson(
       { error: "Cross-origin request rejected", code: "CROSS_ORIGIN_REQUEST" },
       { status: 403 },

@@ -121,6 +121,7 @@ export const buildByokExpandRequestHash = (input: Readonly<{
   connectionId: string;
   connectionVersion: number;
   request: ByokExpandRequest;
+  retryAttempt?: string;
 }>) => createHash("sha256").update(JSON.stringify({
   capability: "expand",
   version: CAPABILITY_VERSION,
@@ -128,6 +129,7 @@ export const buildByokExpandRequestHash = (input: Readonly<{
   connectionId: input.connectionId,
   connectionVersion: input.connectionVersion,
   request: { ...input.request, keyword: input.request.keyword.toLocaleLowerCase("en-US") },
+  ...(input.retryAttempt ? { retryAttempt: input.retryAttempt } : {}),
   config: {
     endpoint: DATAFORSEO_ENDPOINTS.trendsLive,
     locationCode: 2840,
@@ -161,6 +163,9 @@ export const quoteByokExpand = async (input: Readonly<{
   clientRequestId: string;
   keyword: string;
   days?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  retryAttempt?: string;
   now?: Date;
 }>): Promise<Readonly<{ quote: ByokCostQuote; request: ByokExpandRequest; requestHash: string }>> => {
   await loadConnection(input);
@@ -170,6 +175,7 @@ export const quoteByokExpand = async (input: Readonly<{
     connectionId: input.connectionId,
     connectionVersion: input.expectedConnectionVersion,
     request,
+    retryAttempt: input.retryAttempt,
   });
   const quote = await createByokCostQuote({
     ownerId: input.ownerId,
@@ -255,6 +261,7 @@ export const executeByokExpand = async (input: Readonly<{
   confirmedEstimatedCostUsd: number;
   confirmation: "CONFIRM";
   decryptionKeys: ProviderCredentialDecryptionKeys;
+  retryAttempt?: string;
   clientFactory?: (credentials: { login: string; password: string }) => DataForSeoClient;
 }>): Promise<ByokExpandResult> => {
   const request = normalizeByokExpandRequest(input.request);
@@ -264,6 +271,7 @@ export const executeByokExpand = async (input: Readonly<{
     connectionId: input.connectionId,
     connectionVersion: input.expectedConnectionVersion,
     request,
+    retryAttempt: input.retryAttempt,
   });
   if (expectedHash !== input.requestHash) return fail("INVALID_INPUT");
 

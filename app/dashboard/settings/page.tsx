@@ -16,6 +16,7 @@ import {
   Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ByokSettings } from "@/components/byok-settings";
 
 interface AccessInfo {
   userId: string;
@@ -35,6 +36,7 @@ interface ApiKeyItem {
   created_at: string;
   expires_at: string | null;
   active: number;
+  scopes: Array<"cache:read" | "provider:execute" | "byok:execute">;
 }
 
 interface BillingStatus {
@@ -58,6 +60,7 @@ function SettingsPageContent() {
   const [loading, setLoading] = useState(true);
   const [newKeyName, setNewKeyName] = useState("");
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [newKeyByokEnabled, setNewKeyByokEnabled] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -124,12 +127,16 @@ function SettingsPageContent() {
       const res = await fetch("/api/auth/keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKeyName || "default" }),
+        body: JSON.stringify({
+          name: newKeyName || "default",
+          scopes: newKeyByokEnabled ? ["cache:read", "byok:execute"] : ["cache:read"],
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "生成失败");
       setNewKey(data.key);
       setNewKeyName("");
+      setNewKeyByokEnabled(false);
       fetchData(); // refresh list
     } catch (err) {
       setError(err instanceof Error ? err.message : "生成失败");
@@ -372,6 +379,11 @@ function SettingsPageContent() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">{k.name}</span>
+                    {k.scopes?.includes("byok:execute") && (
+                      <span className="rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                        BYOK execute
+                      </span>
+                    )}
                   </div>
                   <code className="block break-all text-xs text-muted-foreground">{k.key}</code>
                   <div className="text-xs text-muted-foreground">
@@ -418,12 +430,28 @@ function SettingsPageContent() {
             生成 Key
           </Button>
         </div>
+        <label className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={newKeyByokEnabled}
+            onChange={(event) => setNewKeyByokEnabled(event.target.checked)}
+          />
+          <span>
+            <strong>允许使用我的 Provider 额度</strong>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              为新 Key 增加 byok:execute 权限。持有者可以通过 API 消耗你已连接的 DataForSEO 和 OpenRouter 额度。
+            </span>
+          </span>
+        </label>
         {!canManageApiKeys && (
           <p className="mt-3 text-sm text-muted-foreground">
             账号开通后才可以生成和管理 API Key。
           </p>
         )}
       </div>
+
+      <ByokSettings />
 
       {/* 管理后台入口 */}
       {access.role === "admin" && (

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { requireEffectiveUser } from "@/lib/authz";
+import { hasApiKeyScope, requireEffectiveUser } from "@/lib/authz";
 import {
   parseByokExpandBody,
   parseByokCompareBody,
@@ -11,7 +11,11 @@ import {
   requireByokLiveOwner,
 } from "./api";
 
-vi.mock("@/lib/authz", () => ({ requireEffectiveUser: vi.fn() }));
+vi.mock("@/lib/authz", () => ({
+  requireEffectiveUser: vi.fn(),
+  hasApiKeyScope: vi.fn((principal, scope) =>
+    principal.authMethod === "api_key" && principal.scopes.includes(scope)),
+}));
 
 const mockRequireEffectiveUser = vi.mocked(requireEffectiveUser);
 const request = (body?: unknown, origin = "https://app.test") => new Request(
@@ -71,6 +75,16 @@ describe("BYOK live API boundary", () => {
     } as never);
     const apiKey = await requireByokLiveOwner(request());
     expect((apiKey as Response).status).toBe(404);
+
+    mockRequireEffectiveUser.mockResolvedValueOnce({
+      userId: "owner-1",
+      authMethod: "api_key",
+      scopes: ["byok:execute"],
+      access: { allowed: true },
+    } as never);
+    const scopedApiKey = await requireByokLiveOwner(request(), { mutation: true });
+    expect(scopedApiKey).toEqual({ ownerId: "owner-1" });
+    expect(hasApiKeyScope).toHaveBeenCalledWith(expect.anything(), "byok:execute");
   });
 
   test("requires an explicit byok/openrouter request and rejects unknown fields", async () => {

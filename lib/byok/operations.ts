@@ -106,8 +106,23 @@ export const loadByokOperationsHealth = async (now = new Date()) => {
               AND c.cache_scope = 'private' AND c.owner_id = j.user_id
               AND json_extract(c.response_data, '$.partialSuccess') = 1 AND j.created_at >= ?) AS partial_compare_jobs_24h,
          (SELECT COUNT(*) FROM research_jobs WHERE execution_mode = 'byok' AND status = 'failed' AND created_at >= ?) AS failed_jobs_24h,
-         (SELECT COUNT(*) FROM research_jobs WHERE execution_mode = 'byok' AND status = 'processing'
-            AND provider_request_state = 'started' AND updated_at < ?) AS stale_started_jobs,
+         (SELECT COUNT(*) FROM research_jobs j WHERE j.execution_mode = 'byok' AND (
+            (j.status = 'processing' AND j.provider_request_state = 'started' AND j.updated_at < ?)
+            OR (j.status = 'failed' AND j.error = 'PROVIDER_OUTCOME_UNCERTAIN' AND EXISTS (
+              SELECT 1 FROM byok_pipeline_runs r
+              WHERE r.owner_id = j.user_id AND r.status = 'processing' AND (
+                EXISTS (SELECT 1 FROM byok_pipeline_steps s
+                  WHERE s.parent_job_id = r.job_id AND s.child_job_id = j.id AND s.status = 'processing')
+                OR EXISTS (
+                  SELECT 1 FROM byok_pipeline_quotes pq JOIN byok_cost_quotes cq
+                    ON cq.owner_id = pq.owner_id AND cq.research_job_id = j.id
+                  WHERE pq.parent_job_id = r.job_id AND pq.owner_id = j.user_id
+                    AND EXISTS (SELECT 1 FROM json_each(pq.child_quotes_json) x
+                      WHERE json_extract(x.value, '$.quoteId') = cq.quote_id)
+                )
+              )
+            ))
+          )) AS stale_started_jobs,
          (SELECT SUM(estimated_cost_micro_usd) / 1000000.0 FROM byok_cost_quotes
             WHERE status = 'committed' AND updated_at >= ?) AS committed_estimate_usd_24h,
          (SELECT SUM(COALESCE(actual_cost_usd, estimated_cost_usd)) FROM pipeline_cost_events
@@ -122,9 +137,23 @@ export const loadByokOperationsHealth = async (now = new Date()) => {
               SUM(COALESCE(e.actual_cost_usd, e.estimated_cost_usd)) AS accounted_cost_usd
        FROM research_jobs j
        LEFT JOIN pipeline_cost_events e ON e.research_job_id = j.id
-       WHERE j.execution_mode = 'byok' AND j.credential_source = 'user'
-         AND j.status = 'processing' AND j.provider_request_state = 'started'
-         AND j.updated_at < ?
+       WHERE j.execution_mode = 'byok' AND j.credential_source = 'user' AND (
+         (j.status = 'processing' AND j.provider_request_state = 'started' AND j.updated_at < ?)
+         OR (j.status = 'failed' AND j.error = 'PROVIDER_OUTCOME_UNCERTAIN' AND EXISTS (
+           SELECT 1 FROM byok_pipeline_runs r
+           WHERE r.owner_id = j.user_id AND r.status = 'processing' AND (
+             EXISTS (SELECT 1 FROM byok_pipeline_steps s
+               WHERE s.parent_job_id = r.job_id AND s.child_job_id = j.id AND s.status = 'processing')
+             OR EXISTS (
+               SELECT 1 FROM byok_pipeline_quotes pq JOIN byok_cost_quotes cq
+                 ON cq.owner_id = pq.owner_id AND cq.research_job_id = j.id
+               WHERE pq.parent_job_id = r.job_id AND pq.owner_id = j.user_id
+                 AND EXISTS (SELECT 1 FROM json_each(pq.child_quotes_json) x
+                   WHERE json_extract(x.value, '$.quoteId') = cq.quote_id)
+             )
+           )
+         ))
+       )
        GROUP BY j.id
        ORDER BY j.updated_at ASC
        LIMIT 100`,
@@ -195,6 +224,8 @@ type ReconcileJobRow = {
   updated_at: string;
   result_cache_key: string | null;
   payload: string | null;
+  error: string | null;
+  pending_parent_count: number;
 };
 
 type CacheIdentity = Readonly<{
@@ -292,24 +323,62 @@ export const reconcileStaleByokJob = async (input: Readonly<{
   const now = input.now ?? new Date();
   const staleBefore = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
   const loaded = await d1Query<ReconcileJobRow>(
-    `SELECT id, user_id, job_type, status, provider_request_state, updated_at,
-            result_cache_key, payload
-     FROM research_jobs
-     WHERE id = ? AND user_id = ? AND execution_mode = 'byok'
-       AND credential_source = 'user' LIMIT 1`,
+    `SELECT j.id, j.user_id, j.job_type, j.status, j.provider_request_state, j.updated_at,
+            j.result_cache_key, j.payload, j.error,
+            (SELECT COUNT(*) FROM byok_pipeline_runs r
+             WHERE r.owner_id = j.user_id AND r.status = 'processing' AND (
+               EXISTS (SELECT 1 FROM byok_pipeline_steps s
+                 WHERE s.parent_job_id = r.job_id AND s.child_job_id = j.id AND s.status = 'processing')
+               OR EXISTS (
+                 SELECT 1 FROM byok_pipeline_quotes pq JOIN byok_cost_quotes cq
+                   ON cq.owner_id = pq.owner_id AND cq.research_job_id = j.id
+                 WHERE pq.parent_job_id = r.job_id AND pq.owner_id = j.user_id
+                   AND EXISTS (SELECT 1 FROM json_each(pq.child_quotes_json) x
+                     WHERE json_extract(x.value, '$.quoteId') = cq.quote_id)
+               )
+             )) AS pending_parent_count
+     FROM research_jobs j
+     WHERE j.id = ? AND j.user_id = ? AND j.execution_mode = 'byok'
+       AND j.credential_source = 'user' LIMIT 1`,
     [input.jobId, input.ownerId],
   ).catch(() => reconciliationFail("PERSISTENCE_ERROR"));
   const job = loaded.rows[0];
   if (!job) return reconciliationFail("JOB_NOT_FOUND");
-  if (job.updated_at !== input.expectedUpdatedAt || job.status !== "processing"
-    || job.provider_request_state !== "started") return reconciliationFail("JOB_STATE_CONFLICT");
-  if (job.updated_at >= staleBefore) return reconciliationFail("JOB_NOT_STALE");
+  if (job.updated_at !== input.expectedUpdatedAt) return reconciliationFail("JOB_STATE_CONFLICT");
+  const staleStarted = job.status === "processing" && job.provider_request_state === "started";
+  const pendingUncertainCascade = input.action === "mark_uncertain"
+    && job.status === "failed" && job.provider_request_state === "failed"
+    && job.error === "PROVIDER_OUTCOME_UNCERTAIN" && Number(job.pending_parent_count) > 0;
+  if (!staleStarted && !pendingUncertainCascade) return reconciliationFail("JOB_STATE_CONFLICT");
+  if (staleStarted && job.updated_at >= staleBefore) return reconciliationFail("JOB_NOT_STALE");
 
   const nowIso = now.toISOString();
   const auditId = crypto.randomUUID();
   if (input.action === "mark_uncertain") {
-    const [updated] = await d1Batch([
-      {
+    const jobUpdate = pendingUncertainCascade
+      ? {
+        sql: `UPDATE research_jobs SET updated_at = ?
+              WHERE id = ? AND user_id = ? AND status = 'failed'
+                AND provider_request_state = 'failed' AND error = 'PROVIDER_OUTCOME_UNCERTAIN'
+                AND updated_at = ? AND execution_mode = 'byok' AND credential_source = 'user'
+                AND EXISTS (
+                  SELECT 1 FROM byok_pipeline_runs r
+                  WHERE r.owner_id = research_jobs.user_id AND r.status = 'processing' AND (
+                    EXISTS (SELECT 1 FROM byok_pipeline_steps s
+                      WHERE s.parent_job_id = r.job_id AND s.child_job_id = research_jobs.id
+                        AND s.status = 'processing')
+                    OR EXISTS (
+                      SELECT 1 FROM byok_pipeline_quotes pq JOIN byok_cost_quotes cq
+                        ON cq.owner_id = pq.owner_id AND cq.research_job_id = research_jobs.id
+                      WHERE pq.parent_job_id = r.job_id AND pq.owner_id = research_jobs.user_id
+                        AND EXISTS (SELECT 1 FROM json_each(pq.child_quotes_json) x
+                          WHERE json_extract(x.value, '$.quoteId') = cq.quote_id)
+                    )
+                  )
+                )`,
+        params: [nowIso, job.id, job.user_id, input.expectedUpdatedAt],
+      }
+      : {
         sql: `UPDATE research_jobs
               SET status = 'failed', provider_request_state = 'failed',
                   error = 'PROVIDER_OUTCOME_UNCERTAIN', claim_token = NULL,
@@ -318,7 +387,9 @@ export const reconcileStaleByokJob = async (input: Readonly<{
                 AND provider_request_state = 'started' AND updated_at = ?
                 AND execution_mode = 'byok' AND credential_source = 'user'`,
         params: [nowIso, job.id, job.user_id, input.expectedUpdatedAt],
-      },
+      };
+    const [updated] = await d1Batch([
+      jobUpdate,
       {
         sql: `INSERT INTO byok_reconciliation_audit_events (
                 id, actor_id, owner_id, research_job_id, action,
@@ -327,6 +398,55 @@ export const reconcileStaleByokJob = async (input: Readonly<{
               SELECT ?, ?, ?, ?, 'mark_uncertain', ?, 'failed', ?
               WHERE changes() = 1`,
         params: [auditId, input.actorId, job.user_id, job.id, input.expectedUpdatedAt, nowIso],
+      },
+      {
+        sql: `UPDATE byok_pipeline_steps
+              SET status = 'failed', child_job_id = COALESCE(child_job_id, ?),
+                  error_code = 'PROVIDER_OUTCOME_UNCERTAIN', updated_at = ?
+              WHERE status = 'processing' AND parent_job_id IN (
+                SELECT r.job_id FROM byok_pipeline_runs r
+                WHERE r.owner_id = ? AND r.status = 'processing' AND (
+                  EXISTS (SELECT 1 FROM byok_pipeline_steps linked
+                    WHERE linked.parent_job_id = r.job_id AND linked.child_job_id = ?)
+                  OR EXISTS (
+                    SELECT 1 FROM byok_pipeline_quotes pq JOIN byok_cost_quotes cq
+                      ON cq.owner_id = pq.owner_id AND cq.research_job_id = ?
+                    WHERE pq.parent_job_id = r.job_id AND pq.owner_id = ?
+                      AND EXISTS (SELECT 1 FROM json_each(pq.child_quotes_json) x
+                        WHERE json_extract(x.value, '$.quoteId') = cq.quote_id)
+                  )
+                )
+              )`,
+        params: [job.id, nowIso, job.user_id, job.id, job.id, job.user_id],
+      },
+      {
+        sql: `UPDATE byok_pipeline_runs
+              SET status = 'failed',
+                  completed_steps = (
+                    SELECT COUNT(*) FROM byok_pipeline_steps s
+                    WHERE s.parent_job_id = byok_pipeline_runs.job_id
+                      AND s.status IN ('complete', 'failed')
+                  ),
+                  error_code = 'PROVIDER_OUTCOME_UNCERTAIN', updated_at = ?
+              WHERE owner_id = ? AND status = 'processing'
+                AND job_id IN (
+                  SELECT parent_job_id FROM byok_pipeline_steps
+                  WHERE child_job_id = ? AND status = 'failed'
+                    AND error_code = 'PROVIDER_OUTCOME_UNCERTAIN'
+                )`,
+        params: [nowIso, job.user_id, job.id],
+      },
+      {
+        sql: `UPDATE byok_pipeline_quotes
+              SET status = 'failed', updated_at = ?
+              WHERE owner_id = ? AND status = 'executing'
+                AND parent_job_id IN (
+                  SELECT job_id FROM byok_pipeline_runs
+                  WHERE owner_id = ? AND status = 'failed'
+                    AND error_code = 'PROVIDER_OUTCOME_UNCERTAIN'
+                    AND updated_at = ?
+                )`,
+        params: [nowIso, job.user_id, job.user_id, nowIso],
       },
     ]).catch(() => reconciliationFail("PERSISTENCE_ERROR"));
     if ((updated?.meta?.changes ?? 0) !== 1) return reconciliationFail("JOB_STATE_CONFLICT");
