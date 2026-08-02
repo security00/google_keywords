@@ -4,7 +4,7 @@
 
 - 分支：`codex/byok-pipeline-integration`
 - 基线：`origin/main@94834fab6686d22f37f108ed985f2cc83c55f872`
-- 状态：代码、本地 migration 测试、回归、生产构建、staging migration、staging Worker 部署和 Bearer API 付费 E2E 通过；UI 付费 E2E 触发一条 Provider outcome uncertain，尚待通过受控管理员入口终止。
+- 状态：代码、本地 migration 测试、回归、生产构建、staging migration、staging Worker 部署和 Bearer API 付费 E2E 通过；UI 付费 E2E 触发的一条 Provider outcome uncertain 已通过受控管理员入口终止并留下审计记录。
 - staging Worker 版本：初始关闭版 `95135438-d376-44c1-be3d-6e45897e282c`；临时开启版 `ce63904e-d8a8-4a94-84b9-68b7001dfe07`；重新关闭版 `593f8a1a-3a20-40e3-84d6-f1492cb62a15`。
 - 未执行：生产 migration/部署、生产 Secret 修改、allowlist 扩大、预算或并发调整、G3 多账号灰度。
 - 因此本文件不是 G2/G3 上线批准。
@@ -67,13 +67,18 @@ OpenNext Cloudflare production build: passed
 - UI 保留原“我的 Key 实时结果”入口、原按钮和原进度组件，仅出现一次汇总费用确认；输入单词根 `aitool` 后，后台汇总报价为 `$0.016`。
 - 父 Job `af60b842-9fde-49e9-8127-6865c31501cc` 创建成功；DataForSEO Expand 子 Job `645ccdb3-313a-404b-afd9-c8c858ef40d9` 在 `provider_request_state=started` 后 Worker 中断。
 - 子 Job 无 Private Cache、无 Cost Event；系统没有自动重领或重试，最近 7 天对账正确分类为 `provider_outcome_uncertain`，估算 `$0.011`、实记 `$0`。
-- 该调用未被猜测为成功、未自动退款、未再次调用 Provider。管理员健康页显示 stale `1`、隔离/账本违规 `0`；必须使用 `mark_uncertain` 受控动作终止后才能收口 G2。
+- 该调用未被猜测为成功、未自动退款、未再次调用 Provider。管理员通过 `mark_uncertain` 将子 Job 稳定终止为 `failed/PROVIDER_OUTCOME_UNCERTAIN`；审计事件的 actor、owner、原 `updated_at` 和结果状态均匹配。
+- 对账后 stale、platform fallback、attribution mismatch、Shared Cache violation、orphan quote、missing event key、duplicate event key、missing Cost Event 全部为 `0`。另保留 `1` 条 uncertain-without-cost-event 分类，这是本次无法证明 Provider 结果的预期状态，不得伪造 Cost Event。
 - 验证结束后 staging Live Mode 已关闭，匿名 readiness 返回 `404 FEATURE_DISABLED`。
+
+### 可控 Partial Success 回归
+
+- 在 Live Mode 关闭状态下运行 `lib/byok/pipeline.test.ts` 与 `lib/byok/compare.test.ts`，共 `9` 个测试通过，未调用真实 Provider。
+- 可控故障覆盖两个 Compare 批次中一个成功、一个失败：retry quote 只重新报价失败批次，成功批次保持原 quote、`chargeable=false` 并引用原 `checkpointJobId`。
+- DataForSEO Compare 已成功但 OpenRouter intent 失败时，retry quote 仅包含 OpenRouter `$0.001`；DataForSEO 费用为 `$0`，且不会创建新的 DataForSEO Provider 调用。
 
 ## 下一门禁
 
-1. 在管理员 BYOK 运行页对 Job `645ccdb3-313a-404b-afd9-c8c858ef40d9` 执行 `mark_uncertain`，保留精确 `updated_at` 乐观并发和审计事件；不得直接改 D1，也不得重放 Provider。
-2. 核对 stale 归零、`PROVIDER_OUTCOME_UNCERTAIN` 与 reconciliation audit event 已写入，并再次确认全部隔离与账本门禁为 `0`。
-3. 诊断 UI Worker 中断原因；在仍关闭 Live Mode 的前提下完成不产生 Provider 调用的回归。若需再次付费验证，必须另开新的受控操作边界。
-4. 注入一次可控 Partial Success，验证 retry quote 只包含失败阶段费用，并核对成功 DataForSEO Event Key 未增加。
-5. 上述证据全部通过后才可正式收口 G2；G3 仍需 3–5 个内部账号同时覆盖 UI 与 API，不扩大生产 allowlist。
+1. UI 与 API 使用同一个 execute 路由、`ctx.waitUntil(executePipelineJob(...))` 和编排服务；本次中断发生在共用 DataForSEO 子 Job 已进入 `started` 之后，现有证据不能归因为 UI 分叉或重复实现。继续检查 Worker/Provider 可观测性，但不得根据无日志状态猜测 Provider 结果。
+2. 若要补齐 UI 成功结果，必须在单维护者 allowlist、日预算 `$1`、并发 `1` 下重新临时开启 staging Live Mode，并由用户显式发起一个全新的付费操作；不得重放旧 Job。
+3. 新 UI 操作成功并再次通过全量隔离/账本核对后才可正式收口 G2；G3 仍需 3–5 个内部账号同时覆盖 UI 与 API，不扩大生产 allowlist。
