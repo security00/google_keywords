@@ -2,7 +2,7 @@ import { d1Query } from '@/lib/d1';
 import { getEffectiveEntitlement } from '@/lib/entitlements';
 import { createHash } from 'crypto';
 
-export type ApiKeyScope = 'cache:read' | 'provider:execute';
+export type ApiKeyScope = 'cache:read' | 'provider:execute' | 'byok:execute';
 
 const DEFAULT_API_KEY_SCOPES: ApiKeyScope[] = ['cache:read'];
 
@@ -13,7 +13,7 @@ function parseApiKeyScopes(value: string | null | undefined): ApiKeyScope[] {
         if (!Array.isArray(parsed)) return [...DEFAULT_API_KEY_SCOPES];
         const scopes = parsed.filter(
             (scope): scope is ApiKeyScope =>
-                scope === 'cache:read' || scope === 'provider:execute'
+                scope === 'cache:read' || scope === 'provider:execute' || scope === 'byok:execute'
         );
         return scopes.length > 0 ? [...new Set(scopes)] : [...DEFAULT_API_KEY_SCOPES];
     } catch {

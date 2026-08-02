@@ -168,6 +168,7 @@ export const buildByokCompareRequestHash = (input: Readonly<{
   openRouterConnectionId: string;
   openRouterConnectionVersion: number;
   request: ByokCompareRequest;
+  retryAttempt?: string;
 }>) => createHash("sha256").update(JSON.stringify({
   capability: "compare",
   version: CAPABILITY_VERSION,
@@ -179,6 +180,7 @@ export const buildByokCompareRequestHash = (input: Readonly<{
     keywords: input.request.keywords.map((value) => value.toLocaleLowerCase("en-US")).sort(),
     benchmark: input.request.benchmark.toLocaleLowerCase("en-US"),
   },
+  ...(input.retryAttempt ? { retryAttempt: input.retryAttempt } : {}),
   config: {
     trendsEndpoint: DATAFORSEO_ENDPOINTS.trendsLive,
     model: BYOK_COMPARE_MODEL,
@@ -215,6 +217,9 @@ export const quoteByokCompare = async (input: Readonly<{
   keywords: readonly string[];
   benchmark?: string;
   days?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  retryAttempt?: string;
   now?: Date;
 }>): Promise<Readonly<{ quote: ByokCostQuote; request: ByokCompareRequest; requestHash: string }>> => {
   await Promise.all([
@@ -363,6 +368,7 @@ export const executeByokCompare = async (input: Readonly<{
   confirmedEstimatedCostUsd: number;
   confirmation: "CONFIRM";
   decryptionKeys: ProviderCredentialDecryptionKeys;
+  retryAttempt?: string;
   dataForSeoClientFactory?: (credentials: { login: string; password: string }) => DataForSeoClient;
   openRouterClientFactory?: (apiKey: string) => ChatCompletionClient;
 }>): Promise<ByokCompareResult> => {
@@ -377,7 +383,7 @@ export const executeByokCompare = async (input: Readonly<{
       expectedVersion: input.openRouterConnectionVersion, provider: "openrouter",
     }),
   ]);
-  const expectedHash = buildByokCompareRequestHash({ ...input, request });
+  const expectedHash = buildByokCompareRequestHash({ ...input, request, retryAttempt: input.retryAttempt });
   if (expectedHash !== input.requestHash) return fail("INVALID_INPUT");
 
   let dataForSeoCredentials: { login: string; password: string };

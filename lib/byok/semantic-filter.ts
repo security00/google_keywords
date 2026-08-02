@@ -89,6 +89,8 @@ const requestKey = (input: Readonly<{
   connectionId: string;
   connectionVersion: number;
   keywords: readonly string[];
+  filterPrompt?: string;
+  retryAttempt?: string;
 }>) => createHash("sha256").update(JSON.stringify({
   capability: "semantic-filter",
   version: CAPABILITY_VERSION,
@@ -96,6 +98,8 @@ const requestKey = (input: Readonly<{
   connectionId: input.connectionId,
   connectionVersion: input.connectionVersion,
   keywords: input.keywords.map((value) => value.toLocaleLowerCase("en-US")).sort(),
+  filterPrompt: input.filterPrompt ?? "",
+  ...(input.retryAttempt ? { retryAttempt: input.retryAttempt } : {}),
 })).digest("hex");
 
 const cacheKeyForJob = (jobId: string) => `byok-semantic-filter:v1:${jobId}`;
@@ -233,7 +237,7 @@ const parseDecisions = (
   ) as SemanticFilterDecision);
 };
 
-const promptFor = (keywords: readonly string[]) => ({
+const promptFor = (keywords: readonly string[], filterPrompt = "") => ({
   temperature: 0,
   max_tokens: 900,
   response_format: {
@@ -285,6 +289,7 @@ const promptFor = (keywords: readonly string[]) => ({
       role: "user" as const,
       content: JSON.stringify({
         keywords,
+        additionalFilterInstruction: filterPrompt || undefined,
         output: {
           items: [{ keyword: "", decision: "keep|block", reason: "" }],
         },
@@ -361,6 +366,8 @@ export const executeByokSemanticFilter = async (input: Readonly<{
   connectionId: string;
   expectedConnectionVersion: number;
   keywords: readonly string[];
+  filterPrompt?: string;
+  retryAttempt?: string;
   decryptionKeys: ProviderCredentialDecryptionKeys;
   clientFactory?: (apiKey: string) => ChatCompletionClient;
 }>): Promise<ByokSemanticFilterResult> => {
@@ -373,6 +380,9 @@ export const executeByokSemanticFilter = async (input: Readonly<{
     return fail("INVALID_INPUT");
   }
   const keywords = normalizeKeywords(input.keywords);
+  const filterPrompt = typeof input.filterPrompt === "string"
+    ? input.filterPrompt.trim().slice(0, 1000)
+    : "";
   const connection = await loadProviderConnection(input.ownerId, input.connectionId)
     .catch(() => fail("JOB_PERSISTENCE_ERROR"));
   if (!connection || connection.provider !== "openrouter") {
@@ -390,12 +400,14 @@ export const executeByokSemanticFilter = async (input: Readonly<{
     jobRecord = await createOrGetOwnedByokJob({
       userId: input.ownerId,
       jobType: "semantic_filter",
-      payload: { keywords, capabilityVersion: CAPABILITY_VERSION },
+      payload: { keywords, filterPrompt, capabilityVersion: CAPABILITY_VERSION },
       idempotencyKey: requestKey({
         ownerId: input.ownerId,
         connectionId: input.connectionId,
         connectionVersion: input.expectedConnectionVersion,
         keywords,
+        filterPrompt,
+        retryAttempt: input.retryAttempt,
       }),
       providerConnectionId: input.connectionId,
       providerConnectionVersion: input.expectedConnectionVersion,
@@ -448,7 +460,7 @@ export const executeByokSemanticFilter = async (input: Readonly<{
   )))(apiKey);
   let response: unknown;
   try {
-    response = await client.complete(promptFor(keywords), {
+    response = await client.complete(promptFor(keywords, filterPrompt), {
       maxRetries: 0,
       timeoutMs: 15_000,
     });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { generateApiKey, listApiKeys, revokeApiKey } from '@/lib/api_keys';
+import { generateApiKey, listApiKeys, revokeApiKey, type ApiKeyScope } from '@/lib/api_keys';
 import { getEffectiveEntitlement } from '@/lib/entitlements';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    let body: { name?: string } = {};
+    let body: { name?: string; scopes?: ApiKeyScope[] } = {};
     try {
         body = await req.json();
     } catch {
@@ -41,9 +41,15 @@ export async function POST(req: NextRequest) {
     const name = String(body.name || 'default').slice(0, 50);
 
     try {
-        const key = await generateApiKey(String(user.id), name);
+        const requested: ApiKeyScope[] = Array.isArray(body.scopes) ? body.scopes : ['cache:read'];
+        if (requested.some((scope) => scope !== 'cache:read' && scope !== 'byok:execute')) {
+            return NextResponse.json({ error: 'Unsupported API key scope' }, { status: 400 });
+        }
+        const scopes = [...new Set<ApiKeyScope>(['cache:read' as const, ...requested])];
+        const key = await generateApiKey(String(user.id), name, scopes);
         return NextResponse.json({
             key,
+            scopes,
             message: 'Save this key securely. It will not be shown again.',
         });
     } catch (err: unknown) {

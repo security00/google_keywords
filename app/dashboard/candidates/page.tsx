@@ -137,6 +137,7 @@ export default function CandidatesPage() {
     clearSelection,
     loadingCompare,
     handleCompare,
+    executionMode,
     compareProgress,
   } = useResearch();
 
@@ -330,6 +331,11 @@ export default function CandidatesPage() {
               <Link href="/dashboard/expand">
                 <Button variant="outline">上一步</Button>
               </Link>
+              {executionMode === "byok" && (
+                <span className="text-xs text-amber-700 dark:text-amber-300">
+                  将使用你的 Provider Key，点击后先显示汇总费用
+                </span>
+              )}
               <Button onClick={handleCompare} disabled={loadingCompare || selected.size === 0}>
                 {loadingCompare && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {loadingCompare ? "对比中..." : "开始趋势对比"}

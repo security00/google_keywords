@@ -107,6 +107,26 @@ describe("API key security", () => {
     expect(String(insertParams[0])).toMatch(/^hash:[0-9a-f]{64}$/);
   });
 
+  test("persists an explicit BYOK execution scope without granting platform execution", async () => {
+    mockEntitlement.mockResolvedValue({
+      allowed: true,
+      source: "stripe",
+      planKey: "founding",
+      status: "active",
+      expiresAt: "2026-08-01T00:00:00Z",
+    });
+    mockD1Query
+      .mockResolvedValueOnce({ rows: [{ cnt: 0 }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await generateApiKey("user-1", "byok automation", ["cache:read", "byok:execute"]);
+
+    const insertParams = mockD1Query.mock.calls[2][1] ?? [];
+    expect(insertParams.at(-1)).toBe('["cache:read","byok:execute"]');
+    expect(String(insertParams.at(-1))).not.toContain("provider:execute");
+  });
+
   test("lists masked keys with parsed scopes", async () => {
     mockD1Query.mockResolvedValueOnce({
       rows: [

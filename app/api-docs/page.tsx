@@ -57,6 +57,19 @@ const endpoints = [
     ],
   },
   {
+    group: "BYOK real-time pipeline",
+    items: [
+      ["GET", "/api/research/byok/readiness", "Check verified Provider connections, budget, and concurrency."],
+      ["POST", "/api/research/byok/pipeline/expand/quote", "Quote multi-seed expansion and semantic filtering."],
+      ["POST", "/api/research/byok/pipeline/expand/execute", "Confirm one aggregate quote and start the private expansion job."],
+      ["POST", "/api/research/byok/pipeline/compare/quote", "Quote a private comparison of up to 50 keywords."],
+      ["POST", "/api/research/byok/pipeline/compare/execute", "Confirm one aggregate quote and start the private compare job."],
+      ["GET", "/api/research/byok/pipeline/jobs/{jobId}", "Poll an owner-scoped BYOK pipeline job and read its result."],
+      ["POST", "/api/research/byok/pipeline/jobs/{jobId}/retry/quote", "Quote only failed or partial stages; successful Provider work is reused."],
+      ["GET", "/api/research/byok/pipeline/history", "List owner-scoped BYOK pipeline history."],
+    ],
+  },
+  {
     group: "Game and discovery",
     items: [
       ["GET", "/api/game-keywords", "Read reviewed game keyword opportunities."],
@@ -221,6 +234,108 @@ export default function ApiDocsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-zinc-200 bg-[#f7f7f2]">
+        <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">BYOK API flow</p>
+            <h2 className="mt-3 text-3xl font-semibold text-zinc-950">Quote, explicitly confirm, then poll.</h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-600">
+              Create a dedicated dashboard API key with <code>byok:execute</code>. Provider credentials are saved and
+              verified in account settings and are never sent in research API payloads. Reuse the same Idempotency-Key
+              when retrying a request after a network failure.
+            </p>
+          </div>
+          <div className="mt-8 grid gap-5 lg:grid-cols-2">
+            <div className="rounded-lg border border-zinc-200 bg-white p-5">
+              <h3 className="font-semibold">curl</h3>
+              <pre className="mt-4 overflow-x-auto rounded-lg bg-zinc-950 p-4 text-xs leading-6 text-zinc-100"><code>{`TOKEN="gk_live_..."
+BASE="https://discoverkeywords.co"
+
+curl -H "Authorization: Bearer $TOKEN" \\
+  "$BASE/api/research/byok/readiness"
+
+curl -X POST "$BASE/api/research/byok/pipeline/expand/quote" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: expand-example-001" \\
+  -d '{"keywords":["ai resume builder"],"days":90,"filterTerms":["news"]}'
+
+# Copy quoteId, requestHash, and estimatedCostUsd from the quote response.
+curl -X POST "$BASE/api/research/byok/pipeline/expand/execute" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: execute-expand-example-001" \\
+  -d '{"quoteId":"...","requestHash":"...","confirmedEstimatedCostUsd":0.016}'
+
+curl -H "Authorization: Bearer $TOKEN" \\
+  "$BASE/api/research/byok/pipeline/jobs/JOB_ID"
+
+# If status is partial, request an additional quote for failed stages only.
+curl -X POST "$BASE/api/research/byok/pipeline/jobs/JOB_ID/retry/quote" \\
+  -H "Authorization: Bearer $TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: retry-expand-example-001" \\
+  -d '{}'
+
+# Confirm the returned retry quote through the same expand/execute endpoint.
+# Successful stages are loaded from private checkpoints and are not repurchased.
+
+curl -H "Authorization: Bearer $TOKEN" \\
+  "$BASE/api/research/byok/pipeline/history?limit=20"`}</code></pre>
+            </div>
+            <div className="rounded-lg border border-zinc-200 bg-white p-5">
+              <h3 className="font-semibold">TypeScript</h3>
+              <pre className="mt-4 overflow-x-auto rounded-lg bg-zinc-950 p-4 text-xs leading-6 text-zinc-100"><code>{`const headers = {
+  Authorization: \`Bearer \${process.env.DISCOVER_KEYWORDS_API_KEY}\`,
+  "Content-Type": "application/json",
+  "Idempotency-Key": crypto.randomUUID(),
+};
+const quoted = await fetch(
+  "https://discoverkeywords.co/api/research/byok/pipeline/compare/quote",
+  { method: "POST", headers, body: JSON.stringify({
+      keywords, benchmark: "gpts", days: 90,
+  }) },
+).then((response) => response.json());
+
+// Show quoted.quote.estimatedCostUsd to the operator before executing.
+const job = await fetch(
+  "https://discoverkeywords.co/api/research/byok/pipeline/compare/execute",
+  { method: "POST", headers: { ...headers,
+      "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify({
+      quoteId: quoted.quote.quoteId,
+      requestHash: quoted.quote.requestHash,
+      confirmedEstimatedCostUsd: quoted.quote.estimatedCostUsd,
+    }) },
+).then((response) => response.json());`}</code></pre>
+            </div>
+          </div>
+          <div className="mt-5 rounded-lg border border-zinc-200 bg-white p-5 text-sm leading-6 text-zinc-600">
+            <h3 className="font-semibold text-zinc-950">Contract and retry rules</h3>
+            <p className="mt-2">
+              A quote includes the aggregate upper bound, expiry, batch count, and Provider/stage cost summary.
+              Supply either <code>days</code> or a <code>dateFrom</code>/<code>dateTo</code> pair. Poll until the Job is
+              <code>complete</code>, <code>partial</code>, or <code>failed</code>; a partial Job can still contain a
+              standards-compatible result. For a partial Job, call its retry/quote endpoint and explicitly confirm
+              that quote through the matching expand/execute or compare/execute endpoint.
+            </p>
+            <p className="mt-2">
+              Reuse the exact same Idempotency-Key and request body after a timeout. Reusing a key with different
+              content returns <code>IDEMPOTENCY_CONFLICT</code>. Other stable rejection codes include
+              <code>QUOTE_EXPIRED</code>, <code>COST_CONFIRMATION_MISMATCH</code>,
+              <code>DAILY_BUDGET_EXCEEDED</code>, <code>CONCURRENCY_LIMIT_REACHED</code>, and
+              <code>JOB_NOT_FOUND</code>.
+            </p>
+            <p className="mt-2">
+              <code>gk_live_*</code> identifies the Discover Keywords caller; Provider Connections hold the user&apos;s
+              encrypted DataForSEO/OpenRouter credentials; <code>byok:execute</code> authorizes that API key to spend
+              the owner&apos;s Provider allowance. Provider Connection lifecycle operations remain cookie-only in account
+              settings, and Provider secrets are never accepted by these research endpoints.
+            </p>
           </div>
         </div>
       </section>

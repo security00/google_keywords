@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +37,9 @@ export default function ExpandPage() {
     expandData,
     error,
     debugLogs,
+    executionMode,
+    setExecutionMode,
+    byokReady,
   } = useResearch();
 
   const expansionCost = formatUsd(effectiveKeywords.length * TASK_COST_USD);
@@ -53,6 +57,38 @@ export default function ExpandPage() {
             <CardDescription>
               设置种子词和过滤条件，系统会基于趋势相关词生成候选关键词。
             </CardDescription>
+          </div>
+          <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium">数据模式</span>
+              <Button
+                type="button"
+                size="sm"
+                variant={executionMode === "shared" ? "default" : "outline"}
+                onClick={() => void setExecutionMode("shared")}
+              >
+                共享结果
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={executionMode === "byok" ? "default" : "outline"}
+                disabled={!byokReady}
+                onClick={() => void setExecutionMode("byok")}
+              >
+                我的 Key 实时结果
+              </Button>
+              {!byokReady && (
+                <Link href="/dashboard/settings" className="text-xs text-primary underline-offset-4 hover:underline">
+                  先配置并验证 Provider Key
+                </Link>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {executionMode === "byok"
+                ? "实时模式使用你的 DataForSEO 与 OpenRouter 额度，结果仅你可见；执行前会汇总确认费用。"
+                : "共享模式沿用预计算结果，不会因页面操作触发平台 Provider 费用。"}
+            </p>
           </div>
         </CardHeader>
 
