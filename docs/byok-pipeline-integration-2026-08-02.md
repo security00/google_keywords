@@ -71,6 +71,17 @@ OpenNext Cloudflare production build: passed
 - 对账后 stale、platform fallback、attribution mismatch、Shared Cache violation、orphan quote、missing event key、duplicate event key、missing Cost Event 全部为 `0`。另保留 `1` 条 uncertain-without-cost-event 分类，这是本次无法证明 Provider 结果的预期状态，不得伪造 Cost Event。
 - 验证结束后 staging Live Mode 已关闭，匿名 readiness 返回 `404 FEATURE_DISABLED`。
 
+### 父 Job 级联对账与 UI 成功补测
+
+- 初次 uncertain 子 Job 的父步骤曾遗留为 `processing` 且缺少 `child_job_id`。管理员入口现可通过直接子 Job 关联或聚合 Quote 的 `child_quotes_json` 关联发现该父管线，并在同一个 D1 batch 中终止子 Job、父步骤、父 Job 与聚合 Quote；不调用 Provider、不清除 checkpoint。
+- 受控对账后，父步骤 `expand:0`、父 Job `af60b842-9fde-49e9-8127-6865c31501cc` 和聚合 Quote `d0882c4a-0894-474b-be8e-589b7249e7a9` 均为 `failed/PROVIDER_OUTCOME_UNCERTAIN`，第二条审计事件保留原 `updated_at`，活动并发计数恢复为 `0`。
+- 管理员对账确认改为站内可访问对话框，仍需两次显式点击；确认文案明确说明不会重放 Provider。
+- 经用户明确授权后，在 staging 单 owner、日预算 `$1`、并发 `1` 下临时开启 Live Mode，使用全新单词根 `aidesign` 完成 UI Expand。父 Job `eedb6cd6-73a8-462d-8ca4-edc57e60d0b5` 与 DataForSEO 子 Job `6f242c96-7ea5-4891-a30a-93f8455fd78b` 均为 `complete`。
+- 页面沿用原入口、原“获取候选词”按钮、原进度和原“第二步：人工筛选”页面；除一次汇总费用确认外没有新增后续操作。本次 Provider 返回 `0` 个候选词，因此 Compare 按原规则禁用，而不是产生新的 BYOK 专属步骤。
+- 本次实际 Cost Event 为 DataForSEO `$0.011`，`credential_source=user`、`execution_mode=byok`、owner 与 Job 一致；父结果写入 `byok-pipeline-expand` owner-scoped Private Cache。
+- 补测后 platform fallback、attribution mismatch、Shared Cache violation、orphan quote、missing event key、duplicate event key、missing Cost Event、active Job 全部为 `0`。
+- staging 已重新部署 Live Mode off 版本 `3d14c934-bf26-4235-a45f-9e56d756a278`（100%）；匿名 readiness 再次返回 `404`。
+
 ### 可控 Partial Success 回归
 
 - 在 Live Mode 关闭状态下运行 `lib/byok/pipeline.test.ts` 与 `lib/byok/compare.test.ts`，共 `9` 个测试通过，未调用真实 Provider。
@@ -79,6 +90,6 @@ OpenNext Cloudflare production build: passed
 
 ## 下一门禁
 
-1. UI 与 API 使用同一个 execute 路由、`ctx.waitUntil(executePipelineJob(...))` 和编排服务；本次中断发生在共用 DataForSEO 子 Job 已进入 `started` 之后，现有证据不能归因为 UI 分叉或重复实现。继续检查 Worker/Provider 可观测性，但不得根据无日志状态猜测 Provider 结果。
-2. 若要补齐 UI 成功结果，必须在单维护者 allowlist、日预算 `$1`、并发 `1` 下重新临时开启 staging Live Mode，并由用户显式发起一个全新的付费操作；不得重放旧 Job。
-3. 新 UI 操作成功并再次通过全量隔离/账本核对后才可正式收口 G2；G3 仍需 3–5 个内部账号同时覆盖 UI 与 API，不扩大生产 allowlist。
+1. 当前分支的 UI/API 共用管线、父 Job 对账补偿与单维护者 staging 成功证据已闭环；代码完成不构成生产 G2/G3 上线批准。
+2. 下一步先完成分支审阅、合并与既定生产 G2 门禁复核；不得因 staging 通过而修改生产 Worker、Secret、allowlist、预算或并发。
+3. G3 仍需另行授权并准备 3–5 个内部账号，连续 7 个自然日同时覆盖 UI 与 API；在该批准前保持现有生产范围，不进入 G4 或全量开放。

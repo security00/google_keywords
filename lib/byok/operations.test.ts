@@ -20,6 +20,8 @@ const staleJob = (overrides: Record<string, unknown> = {}) => ({
   updated_at: "2026-07-21T00:00:00.000Z",
   result_cache_key: null,
   payload: "{}",
+  error: null,
+  pending_parent_count: 0,
   ...overrides,
 });
 
@@ -47,7 +49,11 @@ describe("BYOK operations reconciliation", () => {
   test("marks an exact stale owner job uncertain without replaying a provider", async () => {
     mockD1Query.mockResolvedValueOnce({ rows: [staleJob()] });
     mockD1Batch.mockResolvedValueOnce([
-      { rows: [], meta: { changes: 1 } }, { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
     ]);
 
     await expect(reconcileStaleByokJob({
@@ -62,7 +68,45 @@ describe("BYOK operations reconciliation", () => {
     });
     expect(mockD1Query).toHaveBeenCalledTimes(1);
     expect(mockD1Batch).toHaveBeenCalledTimes(1);
-    expect(mockD1Batch.mock.calls[0]?.[0][1]?.params).toContain("admin-1");
+    const statements = mockD1Batch.mock.calls[0]?.[0] ?? [];
+    expect(statements[1]?.params).toContain("admin-1");
+    expect(statements[2]?.sql).toContain("UPDATE byok_pipeline_steps");
+    expect(statements[2]?.params).toContain("job-1");
+    expect(statements[3]?.sql).toContain("UPDATE byok_pipeline_runs");
+    expect(statements[3]?.sql).toContain("PROVIDER_OUTCOME_UNCERTAIN");
+    expect(statements[4]?.sql).toContain("UPDATE byok_pipeline_quotes");
+  });
+
+  test("idempotently cascades an already uncertain child into its processing parent", async () => {
+    mockD1Query.mockResolvedValueOnce({ rows: [staleJob({
+      status: "failed",
+      provider_request_state: "failed",
+      error: "PROVIDER_OUTCOME_UNCERTAIN",
+      pending_parent_count: 1,
+    })] });
+    mockD1Batch.mockResolvedValueOnce([
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+      { rows: [], meta: { changes: 1 } },
+    ]);
+
+    await expect(reconcileStaleByokJob({
+      actorId: "admin-1",
+      ownerId: "owner-1",
+      jobId: "job-1",
+      expectedUpdatedAt: "2026-07-21T00:00:00.000Z",
+      action: "mark_uncertain",
+      now: new Date("2026-07-21T00:10:00.000Z"),
+    })).resolves.toMatchObject({ status: "failed" });
+
+    const statements = mockD1Batch.mock.calls[0]?.[0] ?? [];
+    expect(statements[0]?.sql).toContain("status = 'failed'");
+    expect(statements[0]?.sql).toContain("EXISTS");
+    expect(statements[2]?.sql).toContain("UPDATE byok_pipeline_steps");
+    expect(statements[3]?.sql).toContain("UPDATE byok_pipeline_runs");
+    expect(statements[4]?.sql).toContain("UPDATE byok_pipeline_quotes");
   });
 
   test("completes only when the expected private cache and cost evidence both exist", async () => {
