@@ -105,15 +105,66 @@ describe("listKeywordOpportunities", () => {
     expect(result.gated).toBe(false);
     expect(mockD1Query).toHaveBeenCalledTimes(3);
     expect(result.items.map((item) => item.pipeline)).toEqual([
+      "game_new",
       "validated_market",
       "google_new",
-      "game_new",
     ]);
-    expect(result.items[0]).toMatchObject({
+    expect(result.items[1]).toMatchObject({
       keyword: "pricing calculator template",
       status: "strong_pass",
       isPublicSample: false,
     });
+  });
+
+  test("sorts merged opportunities by newest timestamp before score", async () => {
+    mockD1Query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "cmp-new",
+            keyword: "new low score keyword",
+            ratio_recent: 1,
+            ratio_peak: 1.2,
+            slope_diff: 0.1,
+            verdict: "watch",
+            explanation: null,
+            intent: null,
+            created_at: "2026-08-14T09:00:00Z",
+          },
+          {
+            id: "cmp-old",
+            keyword: "old high score keyword",
+            ratio_recent: 4,
+            ratio_peak: 5,
+            slope_diff: 1,
+            verdict: "strong",
+            explanation: null,
+            intent: null,
+            created_at: "2026-08-12T09:00:00Z",
+          },
+          {
+            id: "cmp-undated",
+            keyword: "undated keyword",
+            ratio_recent: 3,
+            ratio_peak: 4,
+            slope_diff: 0.8,
+            verdict: "strong",
+            explanation: null,
+            intent: null,
+            created_at: null,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const result = await listKeywordOpportunities(allowedEntitlement);
+
+    expect(result.items.map((item) => item.keyword)).toEqual([
+      "new low score keyword",
+      "old high score keyword",
+      "undated keyword",
+    ]);
   });
 
   test("applies filters and pagination after merging", async () => {

@@ -284,6 +284,25 @@ const matchesFilters = (item: KeywordOpportunity, filters: OpportunityFilters) =
   return true;
 };
 
+const opportunityTimestamp = (value: string | null) => {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+};
+
+const compareOpportunitiesByNewest = (
+  a: KeywordOpportunity,
+  b: KeywordOpportunity
+) => {
+  const timeDifference = opportunityTimestamp(b.updatedAt) - opportunityTimestamp(a.updatedAt);
+  if (timeDifference !== 0) return timeDifference;
+
+  const scoreDifference = b.opportunityScore - a.opportunityScore;
+  if (scoreDifference !== 0) return scoreDifference;
+
+  return a.keyword.localeCompare(b.keyword);
+};
+
 const isOptionalSourceError = (error: unknown) => {
   const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
   return (
@@ -338,7 +357,7 @@ export async function listKeywordOpportunities(
               recommendation, reason, trend_checked_at
        FROM game_keyword_pipeline
        WHERE status = 'recommended'
-       ORDER BY trend_ratio DESC
+       ORDER BY trend_checked_at DESC
        LIMIT 80`
     ),
     optionalD1Query<OldRow>(
@@ -357,7 +376,7 @@ export async function listKeywordOpportunities(
   ]
     .filter((item) => item.status !== "skip")
     .filter((item) => matchesFilters(item, filters))
-    .sort((a, b) => b.opportunityScore - a.opportunityScore);
+    .sort(compareOpportunitiesByNewest);
 
   return {
     gated: false,
