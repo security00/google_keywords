@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb, FileText, Gauge, SlidersHorizontal, Radar, ChevronDown, type LucideIcon } from "lucide-react";
 
+import { TrialBanner } from "@/components/trial-banner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ResearchProvider, useResearch } from "@/lib/context/research-context";
@@ -390,6 +391,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background/40 pb-20">
       <Navigation isSidebarCollapsed={isSidebarCollapsed} setIsSidebarCollapsed={setIsSidebarCollapsed} />
+      {!isAdmin ? <TrialBanner /> : null}
       <main
         className={cn(
           "container mx-auto max-w-7xl px-3 py-5 transition-[padding] duration-200 sm:px-4 sm:py-8",

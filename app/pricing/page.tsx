@@ -141,8 +141,9 @@ export default function PricingPage() {
               The price is tied to decision value, not raw keyword volume.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
-              $49/month is the early Founding Member price for access to reviewed opportunities, evidence, and brief
-              credits. Lower-cost and higher-limit tiers can come later after the first paid beta proves usage patterns.
+              $49/month, tax included, is the early Founding Member price for access to reviewed opportunities,
+              evidence, and brief credits. Lower-cost and higher-limit tiers can come later after the first paid beta
+              proves usage patterns.
             </p>
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

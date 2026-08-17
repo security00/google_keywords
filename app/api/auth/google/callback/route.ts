@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
-  createPendingOAuthUser,
+  createStudentFromOAuth,
   createSession,
   findUserByEmail,
   findUserByIdentity,
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const user =
       existingIdentity ||
       (await findUserByEmail(profile.email)) ||
-      (await createPendingOAuthUser(profile.email));
+      (await createStudentFromOAuth(profile.email));
 
     await linkOAuthIdentity({
       userId: user.id,

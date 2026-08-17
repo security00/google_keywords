@@ -7,6 +7,7 @@ import {
   getFoundingPriceId,
   getStripe,
 } from "@/lib/stripe-billing";
+import { stripeCheckoutTaxParams } from "@/lib/stripe-tax";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export async function POST() {
         },
       },
       allow_promotion_codes: true,
+      ...stripeCheckoutTaxParams(),
     });
 
     return NextResponse.json({ url: session.url });

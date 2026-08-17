@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { publicSignupCta } from "@/lib/public-signup";
 
 type SessionUser = {
   id: string;
@@ -64,7 +65,7 @@ export function MarketingAuthActions() {
         href="/register"
         className="whitespace-nowrap rounded-md bg-zinc-950 px-2.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 sm:px-3 sm:text-sm"
       >
-        Request access
+        {publicSignupCta()}
       </Link>
     </div>
   );

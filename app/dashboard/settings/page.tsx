@@ -225,7 +225,11 @@ function SettingsPageContent() {
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               type="button"
-              variant="outline"
+              variant={
+                access.blockedCode === "trial_expired" || billing?.entitlement.allowed === false
+                  ? "default"
+                  : "outline"
+              }
               disabled={actionLoading}
               onClick={() => openBillingUrl("/api/billing/checkout")}
             >

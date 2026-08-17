@@ -51,6 +51,7 @@
     "SERP_DEPTH": "10",
     "NEXT_PUBLIC_APP_URL": "https://www.discoverkeywords.co",
     "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAES0vIKvFezd0jFe",
+    "NEXT_PUBLIC_PUBLIC_SIGNUP_ENABLED": "false",
     "APP_URL": "https://www.discoverkeywords.co",
     "D1_DATABASE_NAME": "ai-trends"
   },

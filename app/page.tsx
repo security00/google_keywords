@@ -17,6 +17,7 @@ import {
 import { FaqSchema } from "@/components/faq-schema";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
 import { FOUNDING_MEMBER_PLAN } from "@/lib/pricing-copy";
+import { publicSignupCta } from "@/lib/public-signup";
 
 export const dynamic = "force-static";
 
@@ -198,7 +199,7 @@ export default function Home() {
                 href="/register"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-6 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800"
               >
-                Request access
+                {publicSignupCta()}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
               <Link
