@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { TurnstileField } from "@/components/turnstile-field";
+import { trackGaEvent } from "@/lib/analytics";
 
 export default function LoginPage() {
   return (
@@ -25,11 +27,14 @@ function LoginPageContent() {
   const checkout = searchParams.get("checkout") || "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const continueAfterLogin = async () => {
     if (checkout === "founding") {
+      trackGaEvent("begin_checkout", { currency: "USD", value: 49, items: [{ item_name: "Founding Member" }] });
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         credentials: "include",
@@ -79,10 +84,11 @@ function LoginPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
       const payload = await response.json();
       if (!response.ok) {
+        setTurnstileReset((value) => value + 1);
         throw new Error(payload?.error || "登录失败");
       }
       await continueAfterLogin();
@@ -139,6 +145,7 @@ function LoginPageContent() {
                 disabled={loading}
               />
             </div>
+            <TurnstileField onToken={setTurnstileToken} resetSignal={turnstileReset} />
             {error && <div className="text-sm font-medium text-destructive animate-in fade-in">{error}</div>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

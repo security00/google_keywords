@@ -114,7 +114,7 @@ describe("getSaasEntitlement", () => {
 
     expect(entitlement.allowed).toBe(false);
     expect(entitlement.status).toBe("expired");
-    expect(entitlement.reason).toContain("Subscription required");
+    expect(entitlement.reason).toContain("Subscribe from Settings");
   });
 
   test("resolves access entitlement without creating usage counters", async () => {

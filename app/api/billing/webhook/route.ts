@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
+import { sendPaymentSucceededEmail } from "@/lib/lifecycle-emails";
 import { getStripe, upsertStripeSubscription, upsertSubscriptionById } from "@/lib/stripe-billing";
+import {
+  claimStripeWebhookEvent,
+  completeStripeWebhookEvent,
+  failStripeWebhookEvent,
+} from "@/lib/stripe-webhook-events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,12 +18,17 @@ const webhookSecret = () => {
   return value;
 };
 
-async function handleEvent(event: Stripe.Event) {
+export async function handleStripeEvent(event: Stripe.Event) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (typeof session.subscription === "string") {
         await upsertSubscriptionById(session.subscription);
+      }
+      const userId = session.metadata?.user_id;
+      const email = session.customer_details?.email || session.customer_email;
+      if (userId && email && session.payment_status === "paid") {
+        await sendPaymentSucceededEmail(userId, email, session.id);
       }
       return;
     }
@@ -29,7 +40,9 @@ async function handleEvent(event: Stripe.Event) {
     }
     case "invoice.paid":
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null };
+      const invoice = event.data.object as Stripe.Invoice & {
+        subscription?: string | Stripe.Subscription | null;
+      };
       const subscriptionId =
         typeof invoice.subscription === "string"
           ? invoice.subscription
@@ -50,13 +63,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 });
   }
 
+  let event: Stripe.Event;
   try {
     const body = await request.text();
-    const event = getStripe().webhooks.constructEvent(body, signature, webhookSecret());
-    await handleEvent(event);
-    return NextResponse.json({ received: true });
+    event = getStripe().webhooks.constructEvent(body, signature, webhookSecret());
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook failed";
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  try {
+    const claim = await claimStripeWebhookEvent(event.id, event.type);
+    if (claim.kind === "duplicate") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    if (claim.kind === "in_flight") {
+      return NextResponse.json({ error: "Event is already being processed" }, { status: 503 });
+    }
+
+    try {
+      await handleStripeEvent(event);
+      await completeStripeWebhookEvent(event.id);
+      return NextResponse.json({ received: true });
+    } catch (error) {
+      await failStripeWebhookEvent(event.id);
+      const message = error instanceof Error ? error.message : "Webhook failed";
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Webhook ledger unavailable" }, { status: 503 });
   }
 }

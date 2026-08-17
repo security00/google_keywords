@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { MarketingAuthActions } from "@/components/marketing-auth-actions";
+import { publicSignupCta } from "@/lib/public-signup";
 
 export const solutionLinks = [
   { href: "/keyword-opportunity-platform", label: "Opportunity platform" },
@@ -73,7 +74,7 @@ export function MarketingFooter() {
             links={[
               ...resourceLinks,
               { href: "/login", label: "Login" },
-              { href: "/register", label: "Request access" },
+              { href: "/register", label: publicSignupCta() },
             ]}
           />
         </div>

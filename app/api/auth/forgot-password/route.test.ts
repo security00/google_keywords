@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockD1Query = vi.hoisted(() => vi.fn());
+const mockRejectIfAuthRateLimited = vi.hoisted(() => vi.fn());
+const mockRejectInvalidTurnstile = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/d1", () => ({
   d1Query: mockD1Query,
+}));
+
+vi.mock("@/lib/auth-rate-limit", () => ({
+  rejectIfAuthRateLimited: mockRejectIfAuthRateLimited,
+}));
+
+vi.mock("@/lib/turnstile", () => ({
+  rejectInvalidTurnstile: mockRejectInvalidTurnstile,
 }));
 
 const { POST } = await import("./route");
@@ -23,18 +33,20 @@ describe("POST /api/auth/forgot-password", () => {
     vi.stubEnv("RESEND_API_KEY", "test-resend-key");
     vi.stubEnv("PUBLIC_BASE_URL", "https://discoverkeywords.co");
     mockD1Query.mockReset();
+    mockRejectIfAuthRateLimited.mockReset();
+    mockRejectInvalidTurnstile.mockReset();
+    mockRejectIfAuthRateLimited.mockResolvedValue(null);
+    mockRejectInvalidTurnstile.mockResolvedValue(null);
     global.fetch = vi.fn();
   });
 
-  test("tells unregistered users to register before resetting password", async () => {
+  test("returns the same accepted payload for an unregistered email", async () => {
     mockD1Query.mockResolvedValueOnce({ rows: [] });
 
     const response = await postForgotPassword("missing@example.com");
 
-    expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
-      error: "该邮箱未注册，请先注册账号",
-    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ success: true });
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -88,5 +100,17 @@ describe("POST /api/auth/forgot-password", () => {
       "DELETE FROM password_reset_tokens WHERE user_id = ? AND token_hash = ?",
       expect.arrayContaining(["user-1"])
     );
+  });
+
+  test("returns 429 before looking up the user when rate limited", async () => {
+    mockRejectIfAuthRateLimited.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "尝试次数过多，请稍后再试" }), { status: 429 })
+    );
+
+    const response = await postForgotPassword("student@example.com");
+
+    expect(response.status).toBe(429);
+    expect(mockD1Query).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });

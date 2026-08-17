@@ -187,6 +187,7 @@ describe("authz Principal", () => {
       expect(result.status).toBe(403);
       await expect(result.json()).resolves.toMatchObject({
         code: "trial_expired",
+        action: "subscribe",
       });
     }
   });

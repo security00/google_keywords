@@ -12,6 +12,7 @@ import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 
 import { d1Query } from "@/lib/d1";
+import { PUBLIC_SIGNUP_TRIAL_DAYS, isPublicSignupEnabled } from "@/lib/public-signup";
 
 export type AuthUser = {
   id: string;
@@ -196,6 +197,19 @@ export const createPendingOAuthUser = async (email: string): Promise<AuthUser> =
   );
 
   return { id: userId, email: normalized, role: "student" };
+};
+
+export const createStudentFromOAuth = async (email: string): Promise<AuthUser> => {
+  const existing = await findUserByEmail(email);
+  if (existing) return existing;
+  if (!isPublicSignupEnabled()) {
+    return createPendingOAuthUser(email);
+  }
+  return createUser(email, randomBytes(32).toString("base64url"), {
+    role: "student",
+    trialDays: PUBLIC_SIGNUP_TRIAL_DAYS,
+    activateTrial: true,
+  });
 };
 
 export const findUserByIdentity = async (

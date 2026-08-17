@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, KeyRound, LockKeyhole, ServerCog } from "lucide-react";
 import { FaqSchema } from "@/components/faq-schema";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
+import { publicSignupCta } from "@/lib/public-signup";
 
 export const dynamic = "force-static";
 
@@ -141,7 +142,7 @@ export default function ApiDocsPage() {
                 href="/register"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
               >
-                Request access
+                {publicSignupCta()}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
               <Link

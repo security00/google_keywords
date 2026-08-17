@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { trackGaEvent } from "@/lib/analytics";
 
 export function PricingCheckoutButton({
   className = "",
@@ -29,6 +30,7 @@ export function PricingCheckoutButton({
         return;
       }
 
+      trackGaEvent("begin_checkout", { currency: "USD", value: 49, items: [{ item_name: "Founding Member" }] });
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         credentials: "include",

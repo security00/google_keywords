@@ -5,7 +5,7 @@ const mockExchangeGoogleCode = vi.hoisted(() => vi.fn());
 const mockFetchGoogleUserInfo = vi.hoisted(() => vi.fn());
 const mockFindUserByIdentity = vi.hoisted(() => vi.fn());
 const mockFindUserByEmail = vi.hoisted(() => vi.fn());
-const mockCreatePendingOAuthUser = vi.hoisted(() => vi.fn());
+const mockCreateStudentFromOAuth = vi.hoisted(() => vi.fn());
 const mockLinkOAuthIdentity = vi.hoisted(() => vi.fn());
 const mockCreateSession = vi.hoisted(() => vi.fn());
 const mockSetSessionCookie = vi.hoisted(() => vi.fn((response) => response));
@@ -20,7 +20,7 @@ vi.mock("@/lib/google-oauth", () => ({
 vi.mock("@/lib/auth", () => ({
   findUserByIdentity: mockFindUserByIdentity,
   findUserByEmail: mockFindUserByEmail,
-  createPendingOAuthUser: mockCreatePendingOAuthUser,
+  createStudentFromOAuth: mockCreateStudentFromOAuth,
   linkOAuthIdentity: mockLinkOAuthIdentity,
   createSession: mockCreateSession,
   setSessionCookie: mockSetSessionCookie,
@@ -49,7 +49,7 @@ describe("GET /api/auth/google/callback", () => {
     mockFetchGoogleUserInfo.mockReset();
     mockFindUserByIdentity.mockReset();
     mockFindUserByEmail.mockReset();
-    mockCreatePendingOAuthUser.mockReset();
+    mockCreateStudentFromOAuth.mockReset();
     mockLinkOAuthIdentity.mockReset();
     mockCreateSession.mockReset();
     mockSetSessionCookie.mockClear();
@@ -78,7 +78,7 @@ describe("GET /api/auth/google/callback", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://discoverkeywords.co/dashboard/expand");
-    expect(mockCreatePendingOAuthUser).not.toHaveBeenCalled();
+    expect(mockCreateStudentFromOAuth).not.toHaveBeenCalled();
     expect(mockLinkOAuthIdentity).toHaveBeenCalledWith({
       userId: "user-1",
       provider: "google",
@@ -92,7 +92,7 @@ describe("GET /api/auth/google/callback", () => {
 
   test("creates a pending local student account for a new verified Google email", async () => {
     mockFindUserByEmail.mockResolvedValue(null);
-    mockCreatePendingOAuthUser.mockResolvedValue({
+    mockCreateStudentFromOAuth.mockResolvedValue({
       id: "user-new",
       email: "student@gmail.com",
       role: "student",
@@ -100,7 +100,7 @@ describe("GET /api/auth/google/callback", () => {
 
     await GET(googleRequest());
 
-    expect(mockCreatePendingOAuthUser).toHaveBeenCalledWith("Student@Gmail.com");
+    expect(mockCreateStudentFromOAuth).toHaveBeenCalledWith("Student@Gmail.com");
     expect(mockLinkOAuthIdentity).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-new",

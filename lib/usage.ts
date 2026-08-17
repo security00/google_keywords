@@ -175,7 +175,7 @@ export async function checkStudentAccess(userId: string): Promise<AccessCheckRes
     }
     return {
       allowed: false,
-      reason: `试用期已过期（到期日：${trial.expiresAt.slice(0, 10)}），请联系管理员续费`,
+      reason: `试用期已过期（到期日：${trial.expiresAt.slice(0, 10)}）。请前往设置页自助订阅后继续使用。`,
       code: "trial_expired",
     };
   }

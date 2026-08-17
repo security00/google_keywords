@@ -8,6 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { TurnstileField } from "@/components/turnstile-field";
+import { trackGaEvent } from "@/lib/analytics";
+import {
+  INVITE_SIGNUP_TRIAL_DAYS,
+  PUBLIC_SIGNUP_TRIAL_DAYS,
+  isPublicSignupEnabled,
+} from "@/lib/public-signup";
 
 export default function RegisterPage() {
   return (
@@ -22,9 +29,12 @@ function RegisterPageContent() {
   const searchParams = useSearchParams();
   const registrationToken = searchParams.get("token")?.trim() ?? "";
   const usingSharedRegistration = Boolean(registrationToken);
+  const publicSignup = isPublicSignupEnabled();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -37,16 +47,20 @@ function RegisterPageContent() {
     setError(null);
 
     try {
-      if (!email || !password || (!usingSharedRegistration && !inviteCode)) {
-        throw new Error("请填写所有字段");
+      if (!email || !password) {
+        throw new Error("Email and password are required");
+      }
+
+      if (!usingSharedRegistration && !inviteCode && !publicSignup) {
+        throw new Error("Invite code is required");
       }
 
       if (!email.includes("@")) {
-        throw new Error("邮箱格式不正确");
+        throw new Error("Enter a valid email address");
       }
 
       if (password.length < 8) {
-        throw new Error("密码至少 8 位");
+        throw new Error("Password must be at least 8 characters");
       }
 
       const response = await fetch("/api/auth/sign-up", {
@@ -58,23 +72,28 @@ function RegisterPageContent() {
           password,
           inviteCode,
           registrationToken: usingSharedRegistration ? registrationToken : undefined,
+          turnstileToken,
         }),
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload?.error || "注册失败");
+        setTurnstileReset((value) => value + 1);
+        throw new Error(payload?.error || "Unable to create account");
       }
 
       setSuccessMessage(
-        typeof payload?.message === "string" ? payload.message : "注册成功"
+        typeof payload?.message === "string" ? payload.message : "Account created"
       );
       setRequiresActivation(Boolean(payload?.requiresActivation));
+      trackGaEvent("sign_up", {
+        method: usingSharedRegistration ? "shared_token" : inviteCode ? "invite" : "public",
+      });
       setSuccess(true);
       if (!payload?.requiresActivation) {
         setTimeout(() => router.replace("/dashboard/expand"), 1500);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "注册失败");
+      setError(err instanceof Error ? err.message : "Unable to create account");
     } finally {
       setLoading(false);
     }
@@ -86,17 +105,17 @@ function RegisterPageContent() {
         <Card className="w-full max-w-md border-zinc-200 shadow-xl dark:border-zinc-800">
           <CardContent className="pt-6 text-center">
             <div className="text-4xl mb-4">🎉</div>
-            <h2 className="text-xl font-bold mb-2">注册成功！</h2>
+            <h2 className="text-xl font-bold mb-2">You&apos;re in</h2>
             <p className="text-muted-foreground">
-              {successMessage || "注册成功"}
+              {successMessage || "Account created"}
             </p>
             {requiresActivation ? (
               <div className="mt-4 text-sm text-muted-foreground">
-                请等待管理员批量开通后再登录使用。
+                An admin will activate a {INVITE_SIGNUP_TRIAL_DAYS}-day trial before you can sign in.
               </div>
             ) : (
               <div className="mt-4 text-sm text-muted-foreground">
-                免费试用 90 天，正在跳转...
+                Redirecting to the dashboard...
               </div>
             )}
           </CardContent>
@@ -109,18 +128,22 @@ function RegisterPageContent() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md border-zinc-200 shadow-xl dark:border-zinc-800">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">学员注册</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">Create your account</CardTitle>
           <CardDescription>
             {usingSharedRegistration
-              ? "完成注册后等待管理员批量开通 90 天使用期"
-              : "输入邀请码注册，免费使用 90 天"}
+              ? `Finish registration, then wait for an admin to activate a ${INVITE_SIGNUP_TRIAL_DAYS}-day trial.`
+              : publicSignup
+                ? `Start a ${PUBLIC_SIGNUP_TRIAL_DAYS}-day free trial. An invite code still unlocks ${INVITE_SIGNUP_TRIAL_DAYS} days.`
+                : `Enter your invite code to start a ${INVITE_SIGNUP_TRIAL_DAYS}-day trial.`}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!usingSharedRegistration ? (
               <div className="space-y-2">
-                <Label htmlFor="inviteCode">邀请码</Label>
+                <Label htmlFor="inviteCode">
+                  Invite code{publicSignup ? " (optional)" : ""}
+                </Label>
                 <Input
                   id="inviteCode"
                   placeholder="SK-XXXX-XXXX"
@@ -132,7 +155,7 @@ function RegisterPageContent() {
               </div>
             ) : null}
             <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -143,25 +166,26 @@ function RegisterPageContent() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="至少 8 位"
+                placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
               />
             </div>
+            <TurnstileField onToken={setTurnstileToken} resetSignal={turnstileReset} />
             {error && <div className="text-sm font-medium text-destructive animate-in fade-in">{error}</div>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              注册
+              {publicSignup ? "Start free trial" : "Create account"}
             </Button>
             <div className="text-center text-sm text-muted-foreground">
-              已有账号？{" "}
+              Already have an account?{" "}
               <Link href="/login" className="text-primary underline-offset-4 hover:underline">
-                登录
+                Log in
               </Link>
             </div>
           </form>

@@ -174,7 +174,9 @@ export async function getEffectiveEntitlement(
     planKey: stripe?.planKey ?? null,
     status: (stripe?.status as EntitlementStatus | undefined) ?? "expired",
     expiresAt: stripe?.expiresAt ?? user.trialExpiresAt,
-    reason: user.trialExpiresAt ? "Trial expired. Subscription required." : "Activation or subscription required.",
+    reason: user.trialExpiresAt
+      ? "Trial expired. Subscribe from Settings to restore access."
+      : "Activation or subscription required.",
   };
 }
 

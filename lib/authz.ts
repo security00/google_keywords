@@ -218,7 +218,11 @@ export async function requireEffectiveUser(
   const access = await checkEffectiveAccess(principal.userId);
   if (!access.allowed) {
     return NextResponse.json(
-      { error: access.reason, code: access.code },
+      {
+        error: access.reason,
+        code: access.code,
+        action: access.code === "trial_expired" ? "subscribe" : undefined,
+      },
       { status: accessDeniedStatus(access.code) },
     );
   }

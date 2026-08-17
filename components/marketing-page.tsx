@@ -10,6 +10,7 @@ import {
 import { FaqSchema, type FAQItem } from "@/components/faq-schema";
 import { MarketingFooter, MarketingHeader, solutionLinks } from "@/components/marketing-chrome";
 import { ProductEvidencePreview } from "@/components/product-evidence-preview";
+import { publicSignupCta } from "@/lib/public-signup";
 
 type MarketingPageProps = {
   eyebrow: string;
@@ -36,7 +37,7 @@ export function MarketingPage({
   eyebrow,
   title,
   description,
-  primaryCta = "Request access",
+  primaryCta = publicSignupCta(),
   secondaryCta = "Open dashboard",
   benefits,
   workflow,
@@ -196,7 +197,7 @@ export function MarketingPage({
             href="/register"
             className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-white px-5 text-sm font-semibold text-zinc-950 hover:bg-zinc-100"
           >
-            Request access
+            {publicSignupCta()}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>

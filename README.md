@@ -152,6 +152,7 @@ Common variables:
 | DataForSEO | DataForSEO login/password or configured API credentials used by the runtime |
 | OpenRouter | `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL` |
 | Auth / cron | session secrets, cron secrets, admin credentials as configured in deployment |
+| Turnstile (optional) | `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY` — both required to enforce CAPTCHA on sign-in / sign-up / password reset. Leave unset to keep current behavior. |
 | Google OAuth | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` or `NEXT_PUBLIC_APP_URL` |
 | Stripe billing | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_FOUNDING_PRICE_ID`, `NEXT_PUBLIC_APP_URL` |
 | Analytics | `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_CLARITY_PROJECT_ID` |
