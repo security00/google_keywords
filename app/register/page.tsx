@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { TurnstileField } from "@/components/turnstile-field";
+import { trackGaEvent } from "@/lib/analytics";
 import {
   INVITE_SIGNUP_TRIAL_DAYS,
   PUBLIC_SIGNUP_TRIAL_DAYS,
@@ -84,6 +85,9 @@ function RegisterPageContent() {
         typeof payload?.message === "string" ? payload.message : "Account created"
       );
       setRequiresActivation(Boolean(payload?.requiresActivation));
+      trackGaEvent("sign_up", {
+        method: usingSharedRegistration ? "shared_token" : inviteCode ? "invite" : "public",
+      });
       setSuccess(true);
       if (!payload?.requiresActivation) {
         setTimeout(() => router.replace("/dashboard/expand"), 1500);

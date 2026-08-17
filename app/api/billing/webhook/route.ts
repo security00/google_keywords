@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
+import { sendPaymentSucceededEmail } from "@/lib/lifecycle-emails";
 import { getStripe, upsertStripeSubscription, upsertSubscriptionById } from "@/lib/stripe-billing";
 import {
   claimStripeWebhookEvent,
@@ -23,6 +24,11 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const session = event.data.object as Stripe.Checkout.Session;
       if (typeof session.subscription === "string") {
         await upsertSubscriptionById(session.subscription);
+      }
+      const userId = session.metadata?.user_id;
+      const email = session.customer_details?.email || session.customer_email;
+      if (userId && email && session.payment_status === "paid") {
+        await sendPaymentSucceededEmail(userId, email, session.id);
       }
       return;
     }

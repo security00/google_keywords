@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { TurnstileField } from "@/components/turnstile-field";
+import { trackGaEvent } from "@/lib/analytics";
 
 export default function LoginPage() {
   return (
@@ -33,6 +34,7 @@ function LoginPageContent() {
 
   const continueAfterLogin = async () => {
     if (checkout === "founding") {
+      trackGaEvent("begin_checkout", { currency: "USD", value: 49, items: [{ item_name: "Founding Member" }] });
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         credentials: "include",

@@ -8,6 +8,7 @@ import {
   PUBLIC_SIGNUP_TRIAL_DAYS,
   isPublicSignupEnabled,
 } from "@/lib/public-signup";
+import { sendWelcomeEmail } from "@/lib/lifecycle-emails";
 import { validateInviteCode, consumeInviteCode } from "@/lib/usage";
 
 export const runtime = "nodejs";
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
     }
 
     const session = await createSession(user.id);
+    void sendWelcomeEmail(user.id, user.email).catch(() => undefined);
     const response = NextResponse.json({
       user,
       expiresAt: session.expiresAt.toISOString(),

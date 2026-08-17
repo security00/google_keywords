@@ -21,6 +21,10 @@ vi.mock("@/lib/stripe-webhook-events", () => ({
   failStripeWebhookEvent: mockFail,
 }));
 
+vi.mock("@/lib/lifecycle-emails", () => ({
+  sendPaymentSucceededEmail: vi.fn().mockResolvedValue("sent"),
+}));
+
 const { POST } = await import("./route");
 
 const postWebhook = (signature = "t=1,v1=sig") =>

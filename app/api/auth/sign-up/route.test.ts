@@ -27,6 +27,10 @@ vi.mock("@/lib/turnstile", () => ({
   rejectInvalidTurnstile: mockRejectInvalidTurnstile,
 }));
 
+vi.mock("@/lib/lifecycle-emails", () => ({
+  sendWelcomeEmail: vi.fn().mockResolvedValue("sent"),
+}));
+
 const { POST } = await import("./route");
 
 const postSignUp = (body: Record<string, unknown>) =>

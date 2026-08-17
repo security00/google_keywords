@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ByokSettings } from "@/components/byok-settings";
+import { trackGaEvent } from "@/lib/analytics";
 
 interface AccessInfo {
   userId: string;
@@ -100,6 +101,11 @@ function SettingsPageContent() {
     const syncCheckout = async () => {
       const sessionId = searchParams.get("session_id");
       if (searchParams.get("billing") === "success") {
+        trackGaEvent("purchase", {
+          currency: "USD",
+          value: 49,
+          transaction_id: sessionId || undefined,
+        });
         setLoading(true);
         setError(null);
         const response = await fetch("/api/billing/sync", {
