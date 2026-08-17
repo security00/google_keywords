@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { createSession, setSessionCookie, validateUser } from "@/lib/auth";
+import {
+  recordAuthRateLimitFailure,
+  rejectIfAuthRateLimited,
+} from "@/lib/auth-rate-limit";
+import { rejectInvalidTurnstile } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 
@@ -9,6 +14,18 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const email = typeof body?.email === "string" ? body.email.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";
+    const turnstileToken = body?.turnstileToken;
+
+    const limited = await rejectIfAuthRateLimited({
+      scope: "sign_in",
+      request,
+      email,
+      mode: "peek",
+    });
+    if (limited) return limited;
+
+    const turnstileError = await rejectInvalidTurnstile(turnstileToken, request);
+    if (turnstileError) return turnstileError;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -19,6 +36,7 @@ export async function POST(request: Request) {
 
     const user = await validateUser(email, password);
     if (!user) {
+      await recordAuthRateLimitFailure({ scope: "sign_in", request, email });
       return NextResponse.json({ error: "邮箱或密码不正确" }, { status: 401 });
     }
 

@@ -7,10 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft, Mail } from "lucide-react";
+import { TurnstileField } from "@/components/turnstile-field";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -25,10 +28,13 @@ export default function ForgotPasswordPage() {
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, turnstileToken }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "发送失败");
+      if (!res.ok) {
+        setTurnstileReset((value) => value + 1);
+        throw new Error(data.error || "发送失败");
+      }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "发送失败");
@@ -78,6 +84,7 @@ export default function ForgotPasswordPage() {
                   required
                 />
               </div>
+              <TurnstileField onToken={setTurnstileToken} resetSignal={turnstileReset} />
               {error && (
                 <div className="text-sm font-medium text-destructive animate-in fade-in">
                   {error}

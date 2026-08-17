@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createHash } from "crypto";
 import { createPasswordHash } from "@/lib/auth";
+import { rejectIfAuthRateLimited } from "@/lib/auth-rate-limit";
 import { d1Query } from "@/lib/d1";
+import { rejectInvalidTurnstile } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +12,16 @@ export const dynamic = "force-dynamic";
 // POST /api/auth/reset-password — 用 token 重置密码
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { token, newPassword } = body;
+  const { token, newPassword, turnstileToken } = body;
+
+  const limited = await rejectIfAuthRateLimited({
+    scope: "reset_password",
+    request: req,
+  });
+  if (limited) return limited;
+
+  const turnstileError = await rejectInvalidTurnstile(turnstileToken, req);
+  if (turnstileError) return turnstileError;
 
   if (!token || !newPassword) {
     return NextResponse.json({ error: "Token and new password are required" }, { status: 400 });
@@ -21,7 +32,6 @@ export async function POST(req: NextRequest) {
 
   const tokenHash = createHash("sha256").update(token).digest("hex");
 
-  // 查找有效 token
   const { rows: tokens } = await d1Query<{
     id: number;
     user_id: string;
@@ -41,14 +51,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Reset link has expired" }, { status: 400 });
   }
 
-  // 更新密码
   const hash = await createPasswordHash(newPassword);
   await d1Query("UPDATE auth_users_v2 SET password_hash = ? WHERE id = ?", [
     hash,
     tokenRow.user_id,
   ]);
 
-  // 标记 token 已用
   await d1Query("UPDATE password_reset_tokens SET used = 1 WHERE id = ?", [tokenRow.id]);
 
   return NextResponse.json({ success: true });

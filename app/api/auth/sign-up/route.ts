@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { createSession, createUser, setSessionCookie } from "@/lib/auth";
+import { rejectIfAuthRateLimited } from "@/lib/auth-rate-limit";
+import { rejectInvalidTurnstile } from "@/lib/turnstile";
 import { validateInviteCode, consumeInviteCode } from "@/lib/usage";
 
 export const runtime = "nodejs";
 
 const SHARED_REGISTRATION_TOKEN = process.env.SHARED_REGISTRATION_TOKEN?.trim() ?? "";
+const REGISTRATION_UNAVAILABLE_MESSAGE = "无法完成注册。请尝试登录或使用其他邮箱。";
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +18,17 @@ export async function POST(request: Request) {
     const inviteCode = typeof body?.inviteCode === "string" ? body.inviteCode.trim() : "";
     const registrationToken =
       typeof body?.registrationToken === "string" ? body.registrationToken.trim() : "";
+    const turnstileToken = body?.turnstileToken;
+
+    const limited = await rejectIfAuthRateLimited({
+      scope: "sign_up",
+      request,
+      email,
+    });
+    if (limited) return limited;
+
+    const turnstileError = await rejectInvalidTurnstile(turnstileToken, request);
+    if (turnstileError) return turnstileError;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -78,7 +92,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     if (message === "该邮箱已注册" || message.includes("UNIQUE constraint failed")) {
-      return NextResponse.json({ error: message }, { status: 409 });
+      return NextResponse.json(
+        { error: REGISTRATION_UNAVAILABLE_MESSAGE },
+        { status: 400 }
+      );
     }
     return NextResponse.json({ error: message }, { status: 500 });
   }

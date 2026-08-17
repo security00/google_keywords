@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createHash, randomBytes } from "crypto";
+import { rejectIfAuthRateLimited } from "@/lib/auth-rate-limit";
 import { d1Query } from "@/lib/d1";
+import { rejectInvalidTurnstile } from "@/lib/turnstile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const RESEND_MAX_ATTEMPTS = 2;
+const ACCEPTED_MESSAGE = { success: true as const };
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -62,27 +65,33 @@ const sendResetEmail = async (email: string, resetUrl: string) => {
 // POST /api/auth/forgot-password — 发送重置邮件
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { email } = body;
+  const email = typeof body?.email === "string" ? body.email : "";
+  const turnstileToken = body?.turnstileToken;
 
-  if (!email || typeof email !== "string") {
+  const limited = await rejectIfAuthRateLimited({
+    scope: "forgot_password",
+    request: req,
+    email,
+  });
+  if (limited) return limited;
+
+  const turnstileError = await rejectInvalidTurnstile(turnstileToken, req);
+  if (turnstileError) return turnstileError;
+
+  if (!email) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
   const normalizedEmail = normalizeEmail(email);
 
-  // 查找用户
   const { rows: users } = await d1Query<{ id: string }>(
     "SELECT id FROM auth_users_v2 WHERE email = ?",
     [normalizedEmail]
   );
   if (!users || users.length === 0) {
-    return NextResponse.json(
-      { error: "该邮箱未注册，请先注册账号" },
-      { status: 404 }
-    );
+    return NextResponse.json(ACCEPTED_MESSAGE);
   }
 
-  // 生成 token
   const token = randomBytes(32).toString("hex");
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
@@ -98,7 +107,6 @@ export async function POST(req: NextRequest) {
     [userId, tokenHash, expiresAt]
   );
 
-  // 发邮件
   const baseUrl = process.env.PUBLIC_BASE_URL || "https://discoverkeywords.co";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
@@ -112,5 +120,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to send email" }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json(ACCEPTED_MESSAGE);
 }

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { TurnstileField } from "@/components/turnstile-field";
 
 export default function ResetPasswordPage() {
   return (
@@ -23,6 +24,8 @@ function ResetPasswordContent() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -48,10 +51,13 @@ function ResetPasswordContent() {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, newPassword: password }),
+        body: JSON.stringify({ token, newPassword: password, turnstileToken }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "重置失败");
+      if (!res.ok) {
+        setTurnstileReset((value) => value + 1);
+        throw new Error(data.error || "重置失败");
+      }
       setSuccess(true);
       setTimeout(() => router.replace("/login"), 2000);
     } catch (err) {
@@ -98,6 +104,7 @@ function ResetPasswordContent() {
                   disabled={loading}
                 />
               </div>
+              <TurnstileField onToken={setTurnstileToken} resetSignal={turnstileReset} />
               {error && (
                 <div className="text-sm font-medium text-destructive animate-in fade-in">
                   {error}
