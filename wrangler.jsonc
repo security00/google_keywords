@@ -50,6 +50,7 @@
     "SERP_OS": "windows",
     "SERP_DEPTH": "10",
     "NEXT_PUBLIC_APP_URL": "https://www.discoverkeywords.co",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY": "0x4AAAAAAES0vIKvFezd0jFe",
     "APP_URL": "https://www.discoverkeywords.co",
     "D1_DATABASE_NAME": "ai-trends"
   },
