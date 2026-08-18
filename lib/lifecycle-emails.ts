@@ -177,10 +177,6 @@ const eventForDaysLeft = (daysLeft: number): LifecycleEventType | null => {
 };
 
 export async function runLifecycleEmailCron(now = new Date()) {
-  if (!process.env.RESEND_API_KEY) {
-    return { skipped: true, sent: 0, duplicate: 0, failed: 0, scanned: 0 };
-  }
-
   const windowStart = new Date(now.getTime() - dayMs).toISOString();
   const windowEnd = new Date(now.getTime() + 8 * dayMs).toISOString();
   const statusPlaceholders = ACTIVE_STRIPE_STATUSES.map(() => "?").join(", ");
