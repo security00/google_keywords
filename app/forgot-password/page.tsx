@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft, Mail } from "lucide-react";
 import { TurnstileField } from "@/components/turnstile-field";
 
+const isTurnstileEnforced = () => Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -90,7 +92,11 @@ export default function ForgotPasswordPage() {
                   {error}
                 </div>
               )}
-              <Button type="submit" className="w-full" disabled={loading || !email}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || !email || (isTurnstileEnforced() && !turnstileToken)}
+              >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 发送重置邮件
               </Button>

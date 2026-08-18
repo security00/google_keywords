@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { TurnstileField } from "@/components/turnstile-field";
 
+const isTurnstileEnforced = () => Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
 export default function ResetPasswordPage() {
   return (
     <Suspense>
@@ -110,7 +112,11 @@ function ResetPasswordContent() {
                   {error}
                 </div>
               )}
-              <Button type="submit" className="w-full" disabled={loading || !token}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || !token || (isTurnstileEnforced() && !turnstileToken)}
+              >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 重置密码
               </Button>

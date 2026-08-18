@@ -16,6 +16,8 @@ import {
   isPublicSignupEnabled,
 } from "@/lib/public-signup";
 
+const isTurnstileEnforced = () => Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
 export default function RegisterPage() {
   return (
     <Suspense fallback={null}>
@@ -178,7 +180,11 @@ function RegisterPageContent() {
             </div>
             <TurnstileField onToken={setTurnstileToken} resetSignal={turnstileReset} />
             {error && <div className="text-sm font-medium text-destructive animate-in fade-in">{error}</div>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading || (isTurnstileEnforced() && !turnstileToken)}
+            >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {publicSignup ? "Start free trial" : "Create account"}
             </Button>
