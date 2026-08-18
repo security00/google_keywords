@@ -16,12 +16,21 @@ export async function POST() {
       return NextResponse.json({ error: "No Stripe customer found" }, { status: 404 });
     }
 
-    const session = await getStripe().billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${getAppUrl()}/dashboard/settings`,
-    });
+    try {
+      const session = await getStripe().billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${getAppUrl()}/dashboard/settings`,
+      });
 
-    return NextResponse.json({ url: session.url });
+      return NextResponse.json({ url: session.url });
+    } catch (error) {
+      // A 404 means the stored customer belongs to another Stripe account/mode,
+      // so there is no live billing relationship to manage yet.
+      if ((error as { statusCode?: number })?.statusCode === 404) {
+        return NextResponse.json({ error: "No Stripe customer found" }, { status: 404 });
+      }
+      throw error;
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unexpected error";
     return NextResponse.json({ error: message }, { status: 500 });
