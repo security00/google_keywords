@@ -20,14 +20,13 @@ declare global {
   }
 }
 
-const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
-
 type TurnstileFieldProps = {
+  siteKey: string;
   onToken: (token: string) => void;
   resetSignal?: number;
 };
 
-export function TurnstileField({ onToken, resetSignal = 0 }: TurnstileFieldProps) {
+export function TurnstileField({ siteKey, onToken, resetSignal = 0 }: TurnstileFieldProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const onTokenRef = useRef(onToken);
@@ -38,11 +37,11 @@ export function TurnstileField({ onToken, resetSignal = 0 }: TurnstileFieldProps
   }, [onToken]);
 
   const renderWidget = () => {
-    if (!SITE_KEY || !containerRef.current || !window.turnstile || widgetIdRef.current) {
+    if (!siteKey || !containerRef.current || !window.turnstile || widgetIdRef.current) {
       return;
     }
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      sitekey: SITE_KEY,
+      sitekey: siteKey,
       callback: (token) => onTokenRef.current(token),
       "expired-callback": () => onTokenRef.current(""),
       "error-callback": () => onTokenRef.current(""),
@@ -51,6 +50,7 @@ export function TurnstileField({ onToken, resetSignal = 0 }: TurnstileFieldProps
 
   useEffect(() => {
     renderWidget();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function TurnstileField({ onToken, resetSignal = 0 }: TurnstileFieldProps
     onTokenRef.current("");
   }, [resetSignal]);
 
-  if (!SITE_KEY) return null;
+  if (!siteKey) return null;
 
   return (
     <>
