@@ -10,6 +10,8 @@ import { Loader2 } from "lucide-react";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGaEvent } from "@/lib/analytics";
 
+const isTurnstileEnforced = () => Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
@@ -147,7 +149,11 @@ function LoginPageContent() {
             </div>
             <TurnstileField onToken={setTurnstileToken} resetSignal={turnstileReset} />
             {error && <div className="text-sm font-medium text-destructive animate-in fade-in">{error}</div>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading || (isTurnstileEnforced() && !turnstileToken)}
+            >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               登录
             </Button>
