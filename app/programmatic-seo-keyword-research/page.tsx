@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "Programmatic SEO Keyword Research | Discover Keywords",
   description:
-    "Research programmatic SEO opportunities with reviewed signals, SERP-fit checks, trend validation, and shared-cache guarded workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/programmatic-seo-keyword-research",
-  },
-};
+    "Choose calculator, generator, template, and comparison page clusters from reviewed demand instead of guessing programmatic SEO templates.",
+  path: "/programmatic-seo-keyword-research",
+});
 
 export default function ProgrammaticSeoKeywordResearchPage() {
   return (
@@ -21,7 +19,7 @@ export default function ProgrammaticSeoKeywordResearchPage() {
       benefits={[
         "Find repeatable page patterns before committing engineering or content production time.",
         "Use SERP fit to separate tool, template, guide, comparison, and game-page intents.",
-        "Keep heavy trend, SERP, and expansion logic behind existing protected research workflows.",
+        "Get heavy trend, SERP, and expansion analysis done for you — no extra provider accounts or tooling needed.",
       ]}
       workflow={[
         {
@@ -70,9 +68,9 @@ export default function ProgrammaticSeoKeywordResearchPage() {
             "Programmatic SEO works best when you find a repeatable pattern early, before all competitors see the same query set.",
         },
         {
-          question: "Does it require direct student access to paid APIs?",
+          question: "Do students need their own data provider accounts?",
           answer:
-            "No. Student workflows stay on shared cache and protected research endpoints rather than direct paid provider calls.",
+            "No. Trend, SERP, and expansion data are included with membership, so students research inside the product without managing external providers.",
         },
         {
           question: "What should operators build first?",

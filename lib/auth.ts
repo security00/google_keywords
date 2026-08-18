@@ -280,6 +280,10 @@ export const validateUser = async (email: string, password: string): Promise<Aut
   return { id: user.id, email: user.email };
 };
 
+export const revokeUserSessions = async (userId: string) => {
+  await d1Query("DELETE FROM auth_sessions WHERE user_id = ?", [userId]);
+};
+
 export const createSession = async (userId: string) => {
   const token = createSessionToken();
   const tokenHash = hashSessionToken(token);
@@ -288,10 +292,7 @@ export const createSession = async (userId: string) => {
   const sessionId = randomUUID();
 
   // Single-session enforcement: delete all previous sessions for this user
-  await d1Query(
-    "DELETE FROM auth_sessions WHERE user_id = ?",
-    [userId]
-  );
+  await revokeUserSessions(userId);
 
   await d1Query(
     "INSERT INTO auth_sessions (id, user_id, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",

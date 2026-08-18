@@ -1,27 +1,25 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "Keyword Opportunity Platform | Discover Keywords",
   description:
-    "Find reviewed keyword opportunities from search signals, trend checks, SERP validation, and guarded discovery workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/keyword-opportunity-platform",
-  },
-};
+    "Find low-competition keyword opportunities from reviewed signals, trend checks, and SERP validation before they crowd traditional databases.",
+  path: "/keyword-opportunity-platform",
+});
 
 export default function KeywordOpportunityPlatformPage() {
   return (
     <MarketingPage
       eyebrow="Keyword opportunity platform"
-      title="Find keyword opportunities before they are obvious in traditional databases."
+      title="Find low-competition keyword opportunities before they crowd traditional databases."
       description="Discover Keywords is built for operators who need early, reviewed, and buildable opportunities instead of another spreadsheet of already-crowded keywords."
       benefits={[
         "Track demand signals before they settle into crowded keyword tools.",
         "Filter entertainment, news, brand, and short-lived noise before research spend.",
-        "Keep the working dashboard protected while explaining the opportunity workflow publicly.",
+        "Keep your research, shortlists, and working dashboard private to your membership.",
       ]}
       workflow={[
         {
@@ -54,8 +52,8 @@ export default function KeywordOpportunityPlatformPage() {
         },
         {
           label: "Operator workflow",
-          title: "Shared-cache friendly discovery",
-          text: "Students and operators use reviewed cached outputs without accidentally triggering paid research calls from the public site.",
+          title: "Reviewed results you can reuse",
+          text: "Students and operators start from already-reviewed research, so exploring new angles stays fast and never wastes research budget.",
         },
       ]}
       faqs={[
@@ -65,9 +63,9 @@ export default function KeywordOpportunityPlatformPage() {
             "No. It focuses on opportunity discovery before a term becomes widely visible, then uses validation gates before recommending action.",
         },
         {
-          question: "Does the public page trigger paid calls?",
+          question: "Is this page connected to the live product?",
           answer:
-            "No. These SEO pages are static and do not call DataForSEO, OpenRouter, SERP, D1, or any protected dashboard endpoint.",
+            "This page explains the workflow. Membership unlocks the working dashboard with live trend checks, SERP validation, and the full opportunity database.",
         },
         {
           question: "Who is it for?",

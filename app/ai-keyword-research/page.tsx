@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "AI Keyword Research | Discover Keywords",
   description:
-    "Discover reviewed AI product and workflow keyword opportunities from signals, trend checks, SERP validation, and noise-filtered research workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/ai-keyword-research",
-  },
-};
+    "Discover AI tool, agent, and workflow keywords before every database shows the same hype terms.",
+  path: "/ai-keyword-research",
+});
 
 export default function AiKeywordResearchPage() {
   return (
@@ -21,7 +19,7 @@ export default function AiKeywordResearchPage() {
       benefits={[
         "Find AI tool and workflow demand while it is still early enough to build around.",
         "Filter generic AI headlines, entertainment terms, trademark noise, and weak product-fit phrases.",
-        "Use reviewed signals as inputs for protected trend, SERP, and opportunity workflows.",
+        "Send reviewed signals straight into trend, SERP, and opportunity validation — all included with membership.",
       ]}
       workflow={[
         {
@@ -70,9 +68,9 @@ export default function AiKeywordResearchPage() {
             "Filtering and review gates block weak-fit news, generic AI language, entertainment terms, and protected brand noise before research spend.",
         },
         {
-          question: "Does this page call OpenRouter or paid providers?",
+          question: "Do I need my own AI or data provider accounts?",
           answer:
-            "No. This page is static. Heavy LLM, trend, and SERP logic remains behind protected workflows and cache rules.",
+            "No. AI analysis, trend, and SERP validation are built into the product and included with membership — no external provider setup required.",
         },
         {
           question: "What page types does it support?",
@@ -82,7 +80,7 @@ export default function AiKeywordResearchPage() {
         {
           question: "How do you discover AI product keywords safely?",
           answer:
-            "AI signals are filtered for product fit, source context, trend movement, and SERP shape before protected research workflows spend provider calls on them.",
+            "AI signals are filtered for product fit, source context, trend movement, and SERP shape before any research budget is spent validating them.",
         },
         {
           question: "What AI keyword signals are filtered out?",

@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "SEO Signal Discovery | Discover Keywords",
   description:
-    "Turn multi-source SEO signals into reviewed keyword candidates with trend checks, SERP validation, and noise filtering.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/seo-signal-discovery",
-  },
-};
+    "Turn HN, Reddit, RSS, product, and community SEO signals into reviewed keyword candidates before you spend research budget.",
+  path: "/seo-signal-discovery",
+});
 
 export default function SeoSignalDiscoveryPage() {
   return (
@@ -38,7 +36,7 @@ export default function SeoSignalDiscoveryPage() {
         },
         {
           title: "Bridge approved signals",
-          text: "Only accepted signals move toward trend checks, SERP validation, opportunity reports, and protected dashboard workflows.",
+          text: "Only accepted signals move toward trend checks, SERP validation, opportunity reports, and your member dashboard.",
         },
       ]}
       proof={[
@@ -53,9 +51,9 @@ export default function SeoSignalDiscoveryPage() {
           text: "The system is tuned to avoid turning hot shows, celebrities, and news headlines into fake SEO opportunities.",
         },
         {
-          label: "Pipeline safety",
-          title: "Approved signals remain gated",
-          text: "Signal discovery does not bypass authenticated dashboard, quota, cache, or admin review behavior.",
+          label: "Quality control",
+          title: "Only reviewed signals move forward",
+          text: "Every candidate passes the same review bar before validation, so the opportunity queue you see stays high-signal.",
         },
       ]}
       faqs={[
@@ -75,9 +73,9 @@ export default function SeoSignalDiscoveryPage() {
             "No. It surfaces candidates and review context. Page creation and business decisions stay under operator control.",
         },
         {
-          question: "Can students trigger paid discovery from this page?",
+          question: "Can students run research from this page?",
           answer:
-            "No. This page is static. Student-facing research still goes through the shared-cache and protected dashboard paths.",
+            "This page is an overview. Student research happens in the member dashboard, where reviewed results are ready to explore and new checks are included with membership.",
         },
         {
           question: "How is SEO signal discovery different from keyword research?",

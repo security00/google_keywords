@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "Game Keyword Research | Discover Keywords",
   description:
-    "Find reviewed game keyword opportunities with game relevance checks, trend validation, SERP-fit screening, and guarded research workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/game-keyword-research",
-  },
-};
+    "Find reviewed game keyword opportunities with relevance checks, trend validation, and SERP-fit screening without treating every launch spike as a target.",
+  path: "/game-keyword-research",
+});
 
 export default function GameKeywordResearchPage() {
   return (
@@ -21,12 +19,12 @@ export default function GameKeywordResearchPage() {
       benefits={[
         "Screen new game signals before they become student-facing recommendations.",
         "Require game relevance and SERP-fit evidence before prioritizing game pages.",
-        "Keep Trends, SERP, and enrichment work behind protected workflows instead of public pages.",
+        "Get Trends, SERP, and enrichment evidence included with membership instead of stitching tools together.",
       ]}
       workflow={[
         {
           title: "Watch game sources",
-          text: "Track curated game feeds, source quality signals, and reviewed opportunity data without restoring noisy legacy sitemap discovery as the main source.",
+          text: "Track curated game feeds, source quality signals, and reviewed opportunity data instead of relying on noisy scraped title lists.",
         },
         {
           title: "Reject weak-fit titles",
@@ -38,7 +36,7 @@ export default function GameKeywordResearchPage() {
         },
         {
           title: "Prioritize buildable pages",
-          text: "Route approved game opportunities toward protected reports, admin review, and operator decisions before production work.",
+          text: "Route approved game opportunities toward detailed reports, team review, and operator decisions before production work.",
         },
       ]}
       proof={[
@@ -48,21 +46,21 @@ export default function GameKeywordResearchPage() {
           text: "Use source score, review history, and relevance checks before expanding a game keyword cluster.",
         },
         {
-          label: "Fail closed",
-          title: "No default approval on missing SERP",
-          text: "When SERP or trend evidence is missing, the workflow does not treat the term as a confirmed opportunity.",
+          label: "Evidence required",
+          title: "No evidence, no recommendation",
+          text: "When SERP or trend evidence is missing, the term is not treated as a confirmed opportunity.",
         },
         {
-          label: "Protected workflow",
-          title: "Admin-only enrichment stays gated",
-          text: "Game radar, opportunity reports, and enrichment tools remain controlled behind the dashboard.",
+          label: "Member workflow",
+          title: "Everything in one dashboard",
+          text: "Game radar, opportunity reports, and enrichment tools all live in a single member dashboard.",
         },
       ]}
       faqs={[
         {
-          question: "Does this page run game discovery?",
+          question: "Where does game discovery happen?",
           answer:
-            "No. This is a static SEO page. Game discovery, enrichment, and validation continue inside protected admin and background workflows.",
+            "Inside the member dashboard. Game discovery, enrichment, and validation run continuously there, so reviewed opportunities are ready when you log in.",
         },
         {
           question: "Why not publish every new game keyword?",
@@ -70,14 +68,14 @@ export default function GameKeywordResearchPage() {
             "Many game mentions are short-lived, duplicate, or weak-fit. Reviewed relevance and SERP evidence prevent thin pages and wasted production work.",
         },
         {
-          question: "What happens when SERP data fails?",
+          question: "What if SERP data is unavailable?",
           answer:
-            "The game recommendation path fails closed instead of assuming low competition or confirmed relevance.",
+            "The term simply is not recommended. Missing evidence never becomes a false low-competition opportunity.",
         },
         {
-          question: "Can students trigger paid game checks here?",
+          question: "Do game checks cost extra for students?",
           answer:
-            "No. Public pages do not call paid providers. Student workflows stay on shared cache and guarded research endpoints.",
+            "No. Trend and SERP checks for game opportunities are part of the member workflow — students explore reviewed results without per-call costs.",
         },
         {
           question: "How do you validate game keywords before building pages?",

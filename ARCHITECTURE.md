@@ -152,7 +152,7 @@ API Key 现在使用 SHA-256 **key_hash** 验证，列表只返回 prefix/last4 
 
 前端与仓库内脚本已经使用 POST 推进任务，重复 POST 通过原子租约避免并发执行。为避免直接破坏旧集成，带副作用 GET 暂时由 **RESEARCH_STATUS_GET_EXECUTION_COMPAT=true** 保留并记录结构化遥测；关闭该开关后 GET 只返回 D1 状态快照。迁移 0018 使用独立的 **research_job_requests** 保存 owner/type 范围内的请求到 Job 映射，结果缓存不再写入 Job ID；旧共享 Job 缓存只作为限时兼容读取。提交 Provider 任务前的并发预留仍待后续批次接入。
 
-DataForSEO Webhook 当前使用来源 IP 校验并保存原始回调。后续还需增加任务级回调令牌、请求体上限和重复回调幂等；Provider 原始回调不能被当作用户可直接读取的缓存。
+DataForSEO Webhook 使用来源 IP 校验、请求体 / gunzip 上限，并保存原始回调。新提交可附带任务级回调令牌；缺少令牌的旧回调仍然接受，除非显式打开 `RESEARCH_WEBHOOK_TOKEN_REQUIRED`。同一 `task_id` 的重复回调覆盖 `postback_results`。Provider 原始回调不能被当作用户可直接读取的缓存。
 
 ## 8. D1 数据域
 
