@@ -23,7 +23,7 @@
 
 - Product：`prod_V61O710WEHQCZh`
 - Price：`price_1U5pLIGh0EBdFLJt1KqlKANp`（$49 / month，`tax_behavior=inclusive`）
-- Webhook：`we_1U5pLJGh0EBdFLJty0AkEAOX`
+- Webhook：`we_1U5sKoGh0EBdFLJt53WRQo1B`（2026-08-19 起用；原 `we_1U5pLJGh0EBdFLJty0AkEAOX` 已停用，因其签名密钥不可再取回）
 - 回调地址：`https://www.discoverkeywords.co/api/billing/webhook`
 
 测试对象（只用于本地 `.env.local`）：
