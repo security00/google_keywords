@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const mockD1Query = vi.hoisted(() => vi.fn());
 const mockRejectIfAuthRateLimited = vi.hoisted(() => vi.fn());
 const mockRejectInvalidTurnstile = vi.hoisted(() => vi.fn());
+const mockGetCloudflareContext = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/d1", () => ({
   d1Query: mockD1Query,
@@ -14,6 +15,10 @@ vi.mock("@/lib/auth-rate-limit", () => ({
 
 vi.mock("@/lib/turnstile", () => ({
   rejectInvalidTurnstile: mockRejectInvalidTurnstile,
+}));
+
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: mockGetCloudflareContext,
 }));
 
 const { POST } = await import("./route");
@@ -28,16 +33,25 @@ const postForgotPassword = (email: unknown) =>
   );
 
 describe("POST /api/auth/forgot-password", () => {
+  const mockInboxFetch = vi.fn();
+
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.stubEnv("RESEND_API_KEY", "test-resend-key");
     vi.stubEnv("PUBLIC_BASE_URL", "https://discoverkeywords.co");
     mockD1Query.mockReset();
     mockRejectIfAuthRateLimited.mockReset();
     mockRejectInvalidTurnstile.mockReset();
+    mockGetCloudflareContext.mockReset();
+    mockInboxFetch.mockReset();
     mockRejectIfAuthRateLimited.mockResolvedValue(null);
     mockRejectInvalidTurnstile.mockResolvedValue(null);
-    global.fetch = vi.fn();
+    mockGetCloudflareContext.mockResolvedValue({
+      env: {
+        INBOX: {
+          fetch: mockInboxFetch,
+        },
+      },
+    });
   });
 
   test("returns the same accepted payload for an unregistered email", async () => {
@@ -47,7 +61,7 @@ describe("POST /api/auth/forgot-password", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true });
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockInboxFetch).not.toHaveBeenCalled();
   });
 
   test("creates one active token and sends a reset email for an existing user", async () => {
@@ -55,7 +69,9 @@ describe("POST /api/auth/forgot-password", () => {
       .mockResolvedValueOnce({ rows: [{ id: "user-1" }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
-    vi.mocked(global.fetch).mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    mockInboxFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "email-1", status: "sent" }), { status: 202 })
+    );
 
     const response = await postForgotPassword(" Student@Example.COM ");
 
@@ -75,9 +91,16 @@ describe("POST /api/auth/forgot-password", () => {
       "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
       expect.arrayContaining(["user-1"])
     );
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const emailPayload = JSON.parse(String(vi.mocked(global.fetch).mock.calls[0][1]?.body));
+    expect(mockInboxFetch).toHaveBeenCalledTimes(1);
+    const [url, options] = mockInboxFetch.mock.calls[0];
+    expect(url).toBe("https://inbox.internal/api/v1/mailboxes/support@discoverkeywords.co/emails");
+    expect(options.method).toBe("POST");
+    const emailPayload = JSON.parse(String(options.body));
     expect(emailPayload.to).toBe("student@example.com");
+    expect(emailPayload.from).toEqual({
+      email: "support@discoverkeywords.co",
+      name: "DiscoverKeywords",
+    });
     expect(emailPayload.html).toContain("https://discoverkeywords.co/reset-password?token=");
   });
 
@@ -87,7 +110,7 @@ describe("POST /api/auth/forgot-password", () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
-    vi.mocked(global.fetch)
+    mockInboxFetch
       .mockResolvedValueOnce(new Response("temporary failure", { status: 503 }))
       .mockResolvedValueOnce(new Response("temporary failure", { status: 503 }));
 
@@ -95,7 +118,7 @@ describe("POST /api/auth/forgot-password", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Failed to send email" });
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(mockInboxFetch).toHaveBeenCalledTimes(2);
     expect(mockD1Query).toHaveBeenLastCalledWith(
       "DELETE FROM password_reset_tokens WHERE user_id = ? AND token_hash = ?",
       expect.arrayContaining(["user-1"])
@@ -111,6 +134,6 @@ describe("POST /api/auth/forgot-password", () => {
 
     expect(response.status).toBe(429);
     expect(mockD1Query).not.toHaveBeenCalled();
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockInboxFetch).not.toHaveBeenCalled();
   });
 });
