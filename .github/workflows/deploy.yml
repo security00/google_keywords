@@ -68,8 +68,6 @@ jobs:
 
       - name: Build with OpenNext on Linux
         run: npx opennextjs-cloudflare build
-        env:
-          NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAAAAAES0vIKvFezd0jFe"
 
       - name: Validate Worker bundle without deploying
         run: npx wrangler deploy --dry-run --config wrangler.jsonc
@@ -99,8 +97,6 @@ jobs:
 
       - name: Build with OpenNext on Linux
         run: npx opennextjs-cloudflare build
-        env:
-          NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAAAAAES0vIKvFezd0jFe"
 
       - name: Retain active production static assets
         run: npm run retain:production-assets
