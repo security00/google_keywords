@@ -95,7 +95,16 @@ export async function createStripeCustomerForUser({
   email: string;
 }) {
   const existing = await getStripeCustomerIdForUser(userId);
-  if (existing) return existing;
+  if (existing) {
+    try {
+      const customer = await getStripe().customers.retrieve(existing);
+      if (!(customer as { deleted?: boolean }).deleted) return existing;
+    } catch (error) {
+      // 404 means the stored mapping belongs to another Stripe account/mode
+      // (e.g. a test-mode customer after the live cutover) — recreate it below.
+      if ((error as { statusCode?: number })?.statusCode !== 404) throw error;
+    }
+  }
 
   const customer = await getStripe().customers.create({
     email,
