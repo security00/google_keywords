@@ -128,3 +128,144 @@ body {
     linear-gradient(180deg, rgba(15, 23, 42, 0.18) 0%, rgba(11, 17, 32, 0) 28%);
   color-scheme: dark;
 }
+
+/* ==========================================================================
+   Marketing site — light "gradient mesh" design system (mk- prefix).
+   Applied per-section via class names only; never via global element styles.
+   Palette: ink #0a2540, body #425466, muted #6b7c93, alt bg #f6f9fc,
+   accent #635bff, hairline #e6ebf1.
+   ========================================================================== */
+
+/* Signature gradient mesh — the one colorful moment per page */
+.mk-mesh {
+  background:
+    radial-gradient(at 12% 18%, rgba(0, 212, 255, 0.95) 0px, transparent 46%),
+    radial-gradient(at 88% 12%, rgba(255, 187, 0, 0.9) 0px, transparent 42%),
+    radial-gradient(at 80% 82%, rgba(255, 89, 150, 0.9) 0px, transparent 46%),
+    radial-gradient(at 22% 88%, rgba(169, 96, 238, 0.95) 0px, transparent 50%),
+    linear-gradient(120deg, #0073e6 0%, #635bff 55%, #a960ee 100%);
+}
+
+@keyframes mk-mesh-drift {
+  0%,
+  100% {
+    transform: scale(1.05) translate(0, 0);
+  }
+  33% {
+    transform: scale(1.12) translate(1.5%, -2%);
+  }
+  66% {
+    transform: scale(1.08) translate(-1.5%, 1.5%);
+  }
+}
+
+.mk-mesh-drift {
+  animation: mk-mesh-drift 18s ease-in-out infinite;
+}
+
+/* Faint blueprint grid for light section backdrops */
+.mk-grid-light {
+  background-image:
+    linear-gradient(to right, rgba(10, 37, 64, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(10, 37, 64, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* Radial mask so grids melt into the page background */
+.mk-fade-top {
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 25%, transparent 78%);
+}
+
+.mk-fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+}
+
+/* Accent text highlight — blurple to cyan */
+.mk-text-gradient {
+  background-image: linear-gradient(100deg, #635bff 0%, #0073e6 52%, #00a3c4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Stripe-style soft elevation for cards and product visuals */
+.mk-shadow-soft {
+  box-shadow:
+    0 1px 1px rgba(10, 37, 64, 0.04),
+    0 8px 24px -4px rgba(10, 37, 64, 0.1),
+    0 24px 64px -12px rgba(10, 37, 64, 0.16);
+}
+
+.mk-shadow-lift {
+  box-shadow:
+    0 2px 4px rgba(10, 37, 64, 0.06),
+    0 16px 40px -8px rgba(10, 37, 64, 0.18),
+    0 40px 96px -16px rgba(10, 37, 64, 0.22);
+}
+
+/* Scroll reveal — content is visible by default; JS arms the hidden state
+   pre-paint and IntersectionObserver adds .mk-reveal-visible on scroll. */
+.mk-reveal-armed {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+.mk-reveal-armed.mk-reveal-visible {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Gentle levitation for floating notification cards */
+@keyframes mk-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.mk-float {
+  animation: mk-float 7s ease-in-out infinite;
+}
+
+.mk-float-delayed {
+  animation: mk-float 8.5s ease-in-out 1.4s infinite;
+}
+
+/* Soft pulsing dot for "live" badges */
+@keyframes mk-signal-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  80%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+.mk-signal-ping {
+  animation: mk-signal-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-reveal-armed {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .mk-mesh-drift,
+  .mk-float,
+  .mk-float-delayed,
+  .mk-signal-ping {
+    animation: none !important;
+  }
+}

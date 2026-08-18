@@ -19,7 +19,7 @@ export default function KeywordOpportunityPlatformPage() {
       benefits={[
         "Track demand signals before they settle into crowded keyword tools.",
         "Filter entertainment, news, brand, and short-lived noise before research spend.",
-        "Keep the working dashboard protected while explaining the opportunity workflow publicly.",
+        "Keep your research, shortlists, and working dashboard private to your membership.",
       ]}
       workflow={[
         {
@@ -52,8 +52,8 @@ export default function KeywordOpportunityPlatformPage() {
         },
         {
           label: "Operator workflow",
-          title: "Shared-cache friendly discovery",
-          text: "Students and operators use reviewed cached outputs without accidentally triggering paid research calls from the public site.",
+          title: "Reviewed results you can reuse",
+          text: "Students and operators start from already-reviewed research, so exploring new angles stays fast and never wastes research budget.",
         },
       ]}
       faqs={[
@@ -63,9 +63,9 @@ export default function KeywordOpportunityPlatformPage() {
             "No. It focuses on opportunity discovery before a term becomes widely visible, then uses validation gates before recommending action.",
         },
         {
-          question: "Does the public page trigger paid calls?",
+          question: "Is this page connected to the live product?",
           answer:
-            "No. These SEO pages are static and do not call DataForSEO, OpenRouter, SERP, D1, or any protected dashboard endpoint.",
+            "This page explains the workflow. Membership unlocks the working dashboard with live trend checks, SERP validation, and the full opportunity database.",
         },
         {
           question: "Who is it for?",

@@ -41,12 +41,12 @@ export function MarketingAuthActions() {
   if (user) {
     return (
       <div className="flex items-center gap-2">
-        <span className="hidden max-w-[220px] truncate text-sm font-medium text-zinc-600 md:inline-block">
+        <span className="hidden max-w-[220px] truncate text-sm font-medium text-[#6b7c93] md:inline-block">
           {user.email}
         </span>
         <Link
           href="/dashboard"
-          className="whitespace-nowrap rounded-md bg-zinc-950 px-2.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 sm:px-3 sm:text-sm"
+          className="whitespace-nowrap rounded-full bg-[#0a2540] px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-[#0a2540]/15 transition hover:bg-[#12315a] sm:px-4 sm:text-sm"
         >
           Dashboard
         </Link>
@@ -55,18 +55,18 @@ export function MarketingAuthActions() {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       <MarketingCtaLink
         href="/login"
         location="header"
-        className="whitespace-nowrap rounded-md px-2 py-2 text-xs font-medium text-zinc-700 hover:bg-white hover:text-zinc-950 sm:px-3 sm:text-sm"
+        className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium text-[#425466] transition hover:bg-[#f6f9fc] hover:text-[#0a2540] sm:px-3.5 sm:text-sm"
       >
         Login
       </MarketingCtaLink>
       <MarketingCtaLink
         href="/register"
         location="header"
-        className="whitespace-nowrap rounded-md bg-zinc-950 px-2.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 sm:px-3 sm:text-sm"
+        className="whitespace-nowrap rounded-full bg-[#0a2540] px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-[#0a2540]/15 transition hover:bg-[#12315a] sm:px-4 sm:text-sm"
       >
         {publicSignupCta()}
       </MarketingCtaLink>
