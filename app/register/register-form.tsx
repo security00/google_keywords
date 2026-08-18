@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { AuthMarketingFrame } from "@/components/auth-marketing-frame";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGaEvent } from "@/lib/analytics";
 import {
@@ -105,7 +106,7 @@ function RegisterFormContent({ siteKey }: RegisterFormProps) {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+      <AuthMarketingFrame>
         <Card className="w-full max-w-md border-zinc-200 shadow-xl dark:border-zinc-800">
           <CardContent className="pt-6 text-center">
             <div className="text-4xl mb-4">🎉</div>
@@ -124,12 +125,12 @@ function RegisterFormContent({ siteKey }: RegisterFormProps) {
             )}
           </CardContent>
         </Card>
-      </div>
+      </AuthMarketingFrame>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <AuthMarketingFrame>
       <Card className="w-full max-w-md border-zinc-200 shadow-xl dark:border-zinc-800">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold tracking-tight">Create your account</CardTitle>
@@ -199,8 +200,6 @@ function RegisterFormContent({ siteKey }: RegisterFormProps) {
           </form>
         </CardContent>
       </Card>
-
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/50 via-background to-background dark:from-indigo-950/20" />
-    </div>
+    </AuthMarketingFrame>
   );
 }

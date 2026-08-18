@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "SEO Signal Discovery | Discover Keywords",
   description:
-    "Turn multi-source SEO signals into reviewed keyword candidates with trend checks, SERP validation, and noise filtering.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/seo-signal-discovery",
-  },
-};
+    "Turn HN, Reddit, RSS, product, and community SEO signals into reviewed keyword candidates before you spend research budget.",
+  path: "/seo-signal-discovery",
+});
 
 export default function SeoSignalDiscoveryPage() {
   return (

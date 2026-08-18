@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "Programmatic SEO Keyword Research | Discover Keywords",
   description:
-    "Research programmatic SEO opportunities with reviewed signals, SERP-fit checks, trend validation, and shared-cache guarded workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/programmatic-seo-keyword-research",
-  },
-};
+    "Choose calculator, generator, template, and comparison page clusters from reviewed demand instead of guessing programmatic SEO templates.",
+  path: "/programmatic-seo-keyword-research",
+});
 
 export default function ProgrammaticSeoKeywordResearchPage() {
   return (

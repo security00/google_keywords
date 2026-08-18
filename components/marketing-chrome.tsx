@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { MarketingAuthActions } from "@/components/marketing-auth-actions";
+import { MarketingCtaLink } from "@/components/marketing-cta-link";
 import { publicSignupCta } from "@/lib/public-signup";
 
 export const solutionLinks = [
@@ -73,8 +74,8 @@ export function MarketingFooter() {
             title="Company"
             links={[
               ...resourceLinks,
-              { href: "/login", label: "Login" },
-              { href: "/register", label: publicSignupCta() },
+              { href: "/login", label: "Login", tracked: true },
+              { href: "/register", label: publicSignupCta(), tracked: true },
             ]}
           />
         </div>
@@ -83,16 +84,33 @@ export function MarketingFooter() {
   );
 }
 
-function FooterColumn({ title, links }: { title: string; links: Array<{ href: string; label: string }> }) {
+function FooterColumn({
+  title,
+  links,
+}: {
+  title: string;
+  links: Array<{ href: string; label: string; tracked?: boolean }>;
+}) {
   return (
     <div>
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-950">{title}</h3>
       <div className="mt-3 grid gap-2.5">
-        {links.map((link) => (
-          <Link key={`${title}-${link.href}`} href={link.href} className="hover:text-slate-950">
-            {link.label}
-          </Link>
-        ))}
+        {links.map((link) =>
+          link.tracked ? (
+            <MarketingCtaLink
+              key={`${title}-${link.href}`}
+              href={link.href}
+              location="footer"
+              className="hover:text-slate-950"
+            >
+              {link.label}
+            </MarketingCtaLink>
+          ) : (
+            <Link key={`${title}-${link.href}`} href={link.href} className="hover:text-slate-950">
+              {link.label}
+            </Link>
+          )
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createHash } from "crypto";
-import { createPasswordHash } from "@/lib/auth";
+import { createPasswordHash, revokeUserSessions } from "@/lib/auth";
 import { rejectIfAuthRateLimited } from "@/lib/auth-rate-limit";
 import { d1Query } from "@/lib/d1";
 import { rejectInvalidTurnstile } from "@/lib/turnstile";
@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
   if (!token || !newPassword) {
     return NextResponse.json({ error: "Token and new password are required" }, { status: 400 });
   }
-  if (typeof newPassword !== "string" || newPassword.length < 6) {
-    return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+  if (typeof newPassword !== "string" || newPassword.length < 8) {
+    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
   }
 
   const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
   ]);
 
   await d1Query("UPDATE password_reset_tokens SET used = 1 WHERE id = ?", [tokenRow.id]);
+  await revokeUserSessions(tokenRow.user_id);
 
   return NextResponse.json({ success: true });
 }

@@ -15,17 +15,18 @@ import {
 
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
 import { PricingAutoCheckout, PricingCheckoutButton } from "@/components/pricing-cta";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 import { FOUNDING_MEMBER_PLAN } from "@/lib/pricing-copy";
 
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Pricing | Discover Keywords",
-  description:
-    "Start with the Discover Keywords Founding Member plan. Unlock the full opportunity radar, buildable keyword scores, and build brief credits.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/pricing",
-  },
+  ...marketingPageMetadata({
+    title: "Pricing | Discover Keywords",
+    description:
+      "Start with the Discover Keywords Founding Member plan. Unlock the full opportunity radar, buildable keyword scores, and build brief credits.",
+    path: "/pricing",
+  }),
 };
 
 const included = [

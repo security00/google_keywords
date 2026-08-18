@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "AI Keyword Research | Discover Keywords",
   description:
-    "Discover reviewed AI product and workflow keyword opportunities from signals, trend checks, SERP validation, and noise-filtered research workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/ai-keyword-research",
-  },
-};
+    "Discover AI tool, agent, and workflow keywords before every database shows the same hype terms.",
+  path: "/ai-keyword-research",
+});
 
 export default function AiKeywordResearchPage() {
   return (

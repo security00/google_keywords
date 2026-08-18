@@ -43,6 +43,7 @@ const postSignUp = (body: Record<string, unknown>) =>
   );
 
 describe("POST /api/auth/sign-up", () => {
+  // Stage 2 smoke: these cases never flip production wrangler flags.
   beforeEach(() => {
     mockCreateUser.mockReset();
     mockCreateSession.mockReset();

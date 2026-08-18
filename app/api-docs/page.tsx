@@ -2,18 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, KeyRound, LockKeyhole, ServerCog } from "lucide-react";
 import { FaqSchema } from "@/components/faq-schema";
+import { MarketingCtaLink } from "@/components/marketing-cta-link";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 import { publicSignupCta } from "@/lib/public-signup";
 
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "API Docs | Discover Keywords",
-  description:
-    "Authentication, quota, and endpoint reference for Discover Keywords research APIs and protected dashboard workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/api-docs",
-  },
+  ...marketingPageMetadata({
+    title: "API Docs | Discover Keywords",
+    description:
+      "Authentication, quota, and endpoint reference for Discover Keywords research APIs and protected dashboard workflows.",
+    path: "/api-docs",
+  }),
 };
 
 const authOptions = [
@@ -138,13 +140,14 @@ export default function ApiDocsPage() {
               for student and operator workflows.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
+              <MarketingCtaLink
                 href="/register"
+                location="hero"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
               >
                 {publicSignupCta()}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              </MarketingCtaLink>
               <Link
                 href="/dashboard"
                 className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"

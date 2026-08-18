@@ -70,6 +70,7 @@ function Navigation({
     { href: "/dashboard/admin/pipeline-runs", label: "成本统计", icon: ListChecks, active: pathname.includes("/admin/pipeline-runs") },
     { href: "/dashboard/admin/codes", label: "邀请码管理", icon: Key, active: pathname.includes("/admin/codes") },
     { href: "/dashboard/admin/users", label: "用户管理", icon: Users, active: pathname.includes("/admin/users") },
+    { href: "/dashboard/admin/saas-funnel", label: "SaaS 漏斗", icon: Gauge, active: pathname.includes("/admin/saas-funnel") },
     { href: "/dashboard/admin/admins", label: "管理员管理", icon: Shield, active: pathname.includes("/admin/admins") },
     { href: "/dashboard/admin/games", label: "新游发现", icon: Gamepad2, active: pathname.includes("/admin/games") },
     { href: "/dashboard/admin/game-radar", label: "新游雷达", icon: Radar, active: pathname.includes("/admin/game-radar") },
@@ -128,7 +129,7 @@ function Navigation({
       label: "账号权限",
       icon: Users,
       items: adminSteps.filter((step) =>
-        ["/dashboard/admin/codes", "/dashboard/admin/users", "/dashboard/admin/admins"].includes(step.href)
+        ["/dashboard/admin/codes", "/dashboard/admin/users", "/dashboard/admin/admins", "/dashboard/admin/saas-funnel"].includes(step.href)
       ),
     },
     {

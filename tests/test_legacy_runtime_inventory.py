@@ -17,7 +17,8 @@ class LegacyRuntimeInventoryTest(unittest.TestCase):
         inventory = (ROOT / "docs/legacy-runtime-inventory.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("Status: active; not authorized for deletion.", inventory)
+        self.assertIn("Status: UI step 1 started; tables and cron remain active.", inventory)
+        self.assertIn("Independent deletion", inventory)
         self.assertTrue((ROOT / "app/api/sitemaps/scan/route.ts").exists())
         self.assertTrue((ROOT / "app/dashboard/discovery/page.tsx").exists())
 

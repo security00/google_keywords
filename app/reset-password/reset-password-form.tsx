@@ -45,6 +45,12 @@ function ResetPasswordFormContent({ siteKey }: ResetPasswordFormProps) {
     setLoading(true);
     setError(null);
 
+    if (password.length < 8) {
+      setError("密码至少 8 位");
+      setLoading(false);
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("两次输入的密码不一致");
       setLoading(false);
@@ -91,7 +97,7 @@ function ResetPasswordFormContent({ siteKey }: ResetPasswordFormProps) {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="至少6位"
+                  placeholder="至少 8 位"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}

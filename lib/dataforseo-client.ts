@@ -27,6 +27,7 @@ import {
   OPENROUTER_BATCH_SIZE as _OPENROUTER_BATCH_SIZE,
   DEFAULT_COMPARE_BENCHMARK as _DEFAULT_BENCHMARK,
 } from "@/config/business-rules";
+import { appendResearchWebhookToken } from "@/lib/research-webhook";
 
 /* ── Polling / timeout config ───────────────────────────────── */
 
@@ -322,7 +323,8 @@ export const buildPostbackUrl = (
 
   const separator = postbackUrl.includes("?") ? "&" : "?";
   const encoded = encodeURIComponent(cacheKey);
-  return `${postbackUrl}${separator}type=${apiType}&cache_key=${encoded}`;
+  const url = `${postbackUrl}${separator}type=${apiType}&cache_key=${encoded}`;
+  return appendResearchWebhookToken(url, cacheKey, apiType);
 };
 
 export const normalizeDate = (value: string) => value.trim();

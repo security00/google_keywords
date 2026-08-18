@@ -819,6 +819,9 @@ export default function DiscoveryPage() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+        这是遗留 sitemap 扫描页，不再出现在学员导航里，也不会被搜索引擎收录。日常机会发现请使用 Opportunity Radar 与管理端新游雷达。
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>站点来源</CardTitle>

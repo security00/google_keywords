@@ -20,6 +20,7 @@
     "bootstrap:staging-d1": "node scripts/schema/bootstrap-staging-d1.mjs",
     "stage:staging-byok-keyring": "node scripts/byok/stage-staging-keyring.mjs",
     "smoke:production": "node scripts/smoke-production.mjs",
+    "smoke:public-signup": "node scripts/smoke-public-signup.mjs && vitest run app/api/auth/sign-up/route.test.ts",
     "retain:production-assets": "node scripts/retain-production-static-assets.mjs",
     "test": "vitest run",
     "test:python": "node scripts/run-python.mjs -m unittest discover tests",

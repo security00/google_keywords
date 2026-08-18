@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { AuthMarketingFrame } from "@/components/auth-marketing-frame";
 import { TurnstileField } from "@/components/turnstile-field";
 import { trackGaEvent } from "@/lib/analytics";
 
@@ -104,7 +105,7 @@ function LoginFormContent({ siteKey }: LoginFormProps) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <AuthMarketingFrame>
       <Card className="w-full max-w-md border-zinc-200 shadow-xl dark:border-zinc-800">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold tracking-tight">登录账号</CardTitle>
@@ -173,8 +174,6 @@ function LoginFormContent({ siteKey }: LoginFormProps) {
           </form>
         </CardContent>
       </Card>
-
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/50 via-background to-background dark:from-indigo-950/20" />
-    </div>
+    </AuthMarketingFrame>
   );
 }

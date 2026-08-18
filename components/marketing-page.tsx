@@ -8,6 +8,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { FaqSchema, type FAQItem } from "@/components/faq-schema";
+import { MarketingCtaLink } from "@/components/marketing-cta-link";
 import { MarketingFooter, MarketingHeader, solutionLinks } from "@/components/marketing-chrome";
 import { ProductEvidencePreview } from "@/components/product-evidence-preview";
 import { publicSignupCta } from "@/lib/public-signup";
@@ -58,13 +59,14 @@ export function MarketingPage({
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-600">{description}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
+              <MarketingCtaLink
                 href="/register"
+                location="solution"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
               >
                 {primaryCta}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              </MarketingCtaLink>
               <Link
                 href="/dashboard"
                 className="inline-flex h-11 items-center justify-center rounded-md border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-900 hover:border-zinc-400"

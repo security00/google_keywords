@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { trackGaEvent } from "@/lib/analytics";
 
 type AccessPayload = {
   entitlement?: { source?: string };
@@ -28,6 +29,9 @@ export function TrialBanner() {
           Number.isFinite(remaining)
         ) {
           setDaysLeft(remaining);
+          if (remaining <= 7) {
+            trackGaEvent("trial_expiring_view", { days_left: remaining });
+          }
         }
       } catch {
         // Banner is optional; a failed access check should not block the dashboard.

@@ -1,22 +1,20 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "Keyword Opportunity Platform | Discover Keywords",
   description:
-    "Find reviewed keyword opportunities from search signals, trend checks, SERP validation, and guarded discovery workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/keyword-opportunity-platform",
-  },
-};
+    "Find low-competition keyword opportunities from reviewed signals, trend checks, and SERP validation before they crowd traditional databases.",
+  path: "/keyword-opportunity-platform",
+});
 
 export default function KeywordOpportunityPlatformPage() {
   return (
     <MarketingPage
       eyebrow="Keyword opportunity platform"
-      title="Find keyword opportunities before they are obvious in traditional databases."
+      title="Find low-competition keyword opportunities before they crowd traditional databases."
       description="Discover Keywords is built for operators who need early, reviewed, and buildable opportunities instead of another spreadsheet of already-crowded keywords."
       benefits={[
         "Track demand signals before they settle into crowded keyword tools.",

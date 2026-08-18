@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { FaqSchema } from "@/components/faq-schema";
+import { MarketingCtaLink } from "@/components/marketing-cta-link";
 import { MarketingFooter, MarketingHeader } from "@/components/marketing-chrome";
 import { FOUNDING_MEMBER_PLAN } from "@/lib/pricing-copy";
 import { publicSignupCta } from "@/lib/public-signup";
@@ -195,13 +196,14 @@ export default function Home() {
               for tool sites, AI products, game sites, and SEO operators.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
+              <MarketingCtaLink
                 href="/register"
+                location="hero"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-6 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800"
               >
                 {publicSignupCta()}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              </MarketingCtaLink>
               <Link
                 href="/pricing"
                 className="inline-flex h-12 items-center justify-center rounded-md border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400"

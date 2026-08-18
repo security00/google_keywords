@@ -1,14 +1,14 @@
 /**
  * Webhook endpoint for DataForSEO postback notifications.
- * 
+ *
  * DataForSEO sends gzip-compressed JSON with task results when tasks complete.
  * For SERP tasks, the `$tag` variable in postback_url carries our cache_key.
  * For Trends tasks, cache_key is embedded directly in the postback URL query.
  * The `$id` variable carries the DataForSEO task_id.
- * 
+ *
  * We store raw results in postback_results table so status route can
  * use them without calling DataForSEO again (avoids Worker CPU timeout).
- * 
+ *
  * DataForSEO postback IPs (V3):
  * 144.76.154.130, 144.76.153.113, 144.76.153.106,
  * 94.130.155.89, 178.63.193.217, 94.130.93.29
@@ -17,6 +17,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setCache } from "@/lib/cache";
 import { d1Query } from "@/lib/d1";
+import {
+  RESEARCH_WEBHOOK_TOKEN_PARAM,
+  ResearchWebhookLimitError,
+  ResearchWebhookTokenError,
+  assertResearchWebhookToken,
+  decodeResearchWebhookBody,
+} from "@/lib/research-webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,17 +65,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const arrayBuffer = await request.arrayBuffer();
-    const rawBuffer = Buffer.from(arrayBuffer);
-    const { gunzipSync } = await import("zlib");
-
-    let payloadBuffer = rawBuffer;
-    try {
-      payloadBuffer = gunzipSync(rawBuffer);
-    } catch {
-      payloadBuffer = rawBuffer;
-    }
-
+    const rawBuffer = Buffer.from(await request.arrayBuffer());
+    const payloadBuffer = decodeResearchWebhookBody(rawBuffer);
     const resultJson = payloadBuffer.toString("utf-8");
     const parsed =
       resultJson.trim().length > 0
@@ -82,6 +80,15 @@ export async function POST(request: NextRequest) {
       request.nextUrl.searchParams.get("tag");
     let apiType = request.nextUrl.searchParams.get("type") || "unknown";
     let dfsTaskId = request.nextUrl.searchParams.get("task_id") || "";
+
+    assertResearchWebhookToken({
+      cacheKey:
+        request.nextUrl.searchParams.get("cache_key") ||
+        request.nextUrl.searchParams.get("tag") ||
+        "",
+      apiType: request.nextUrl.searchParams.get("type") || "unknown",
+      token: request.nextUrl.searchParams.get(RESEARCH_WEBHOOK_TOKEN_PARAM),
+    });
 
     if (parsedRecord) {
       const body = parsedRecord;
@@ -135,6 +142,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof ResearchWebhookLimitError || error instanceof ResearchWebhookTokenError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("[webhook] error", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }

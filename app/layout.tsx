@@ -30,12 +30,14 @@ export const metadata: Metadata = {
     title: "Discover Keywords | Reviewed Keyword Opportunity Platform",
     description:
       "Find reviewed keyword opportunities from multi-source signals, trends, SERP checks, and guarded discovery workflows.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Discover Keywords | Reviewed Keyword Opportunity Platform",
     description:
       "Find reviewed keyword opportunities from multi-source signals, trends, SERP checks, and guarded discovery workflows.",
+    images: ["/opengraph-image"],
   },
 };
 

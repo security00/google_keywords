@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { MarketingCtaLink } from "@/components/marketing-cta-link";
 import { publicSignupCta } from "@/lib/public-signup";
 
 type SessionUser = {
@@ -55,18 +56,20 @@ export function MarketingAuthActions() {
 
   return (
     <div className="flex items-center gap-2">
-      <Link
+      <MarketingCtaLink
         href="/login"
+        location="header"
         className="whitespace-nowrap rounded-md px-2 py-2 text-xs font-medium text-zinc-700 hover:bg-white hover:text-zinc-950 sm:px-3 sm:text-sm"
       >
         Login
-      </Link>
-      <Link
+      </MarketingCtaLink>
+      <MarketingCtaLink
         href="/register"
+        location="header"
         className="whitespace-nowrap rounded-md bg-zinc-950 px-2.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 sm:px-3 sm:text-sm"
       >
         {publicSignupCta()}
-      </Link>
+      </MarketingCtaLink>
     </div>
   );
 }

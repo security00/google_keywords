@@ -1,16 +1,14 @@
-import type { Metadata } from "next";
 import { MarketingPage } from "@/components/marketing-page";
+import { marketingPageMetadata } from "@/lib/marketing-metadata";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
+export const metadata = marketingPageMetadata({
   title: "Game Keyword Research | Discover Keywords",
   description:
-    "Find reviewed game keyword opportunities with game relevance checks, trend validation, SERP-fit screening, and guarded research workflows.",
-  alternates: {
-    canonical: "https://discoverkeywords.co/game-keyword-research",
-  },
-};
+    "Find reviewed game keyword opportunities with relevance checks, trend validation, and SERP-fit screening without treating every launch spike as a target.",
+  path: "/game-keyword-research",
+});
 
 export default function GameKeywordResearchPage() {
   return (

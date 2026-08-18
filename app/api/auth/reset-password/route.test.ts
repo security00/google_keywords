@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mockD1Query = vi.hoisted(() => vi.fn());
 const mockCreatePasswordHash = vi.hoisted(() => vi.fn());
+const mockRevokeUserSessions = vi.hoisted(() => vi.fn());
 const mockRejectIfAuthRateLimited = vi.hoisted(() => vi.fn());
 const mockRejectInvalidTurnstile = vi.hoisted(() => vi.fn());
 
@@ -11,6 +12,7 @@ vi.mock("@/lib/d1", () => ({
 
 vi.mock("@/lib/auth", () => ({
   createPasswordHash: mockCreatePasswordHash,
+  revokeUserSessions: mockRevokeUserSessions,
 }));
 
 vi.mock("@/lib/auth-rate-limit", () => ({
@@ -36,6 +38,7 @@ describe("POST /api/auth/reset-password", () => {
   beforeEach(() => {
     mockD1Query.mockReset();
     mockCreatePasswordHash.mockReset();
+    mockRevokeUserSessions.mockReset();
     mockRejectIfAuthRateLimited.mockReset();
     mockRejectInvalidTurnstile.mockReset();
     mockRejectIfAuthRateLimited.mockResolvedValue(null);
@@ -54,5 +57,43 @@ describe("POST /api/auth/reset-password", () => {
 
     expect(response.status).toBe(429);
     expect(mockD1Query).not.toHaveBeenCalled();
+  });
+
+  test("rejects passwords shorter than 8 characters", async () => {
+    const response = await postResetPassword({
+      token: "reset-token",
+      newPassword: "short7",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Password must be at least 8 characters",
+    });
+    expect(mockD1Query).not.toHaveBeenCalled();
+    expect(mockRevokeUserSessions).not.toHaveBeenCalled();
+  });
+
+  test("revokes existing sessions after a successful reset", async () => {
+    mockD1Query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 11,
+            user_id: "user-1",
+            expires_at: new Date(Date.now() + 60_000).toISOString(),
+            used: 0,
+          },
+        ],
+      })
+      .mockResolvedValue({ rows: [] });
+    mockCreatePasswordHash.mockResolvedValueOnce("hashed-password");
+
+    const response = await postResetPassword({
+      token: "reset-token",
+      newPassword: "new-password",
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockRevokeUserSessions).toHaveBeenCalledWith("user-1");
   });
 });
