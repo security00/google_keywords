@@ -737,7 +737,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         operation: "expand" | "compare",
         body: Record<string, unknown>,
         onProgress: (progress: { completed: number; total: number }) => void,
-    ): Promise<T> => {
+    ): Promise<{ result: T; partial: boolean }> => {
         type PipelineQuote = {
             quoteId: string; requestHash: string; estimatedCostUsd: number;
             expiresAt: string; batchCount: number;
