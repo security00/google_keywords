@@ -4,7 +4,12 @@ import { d1Batch, d1Query } from "@/lib/d1";
 import { quoteByokCompare, quoteByokCompareIntentRetry } from "@/lib/byok/compare";
 import { loadPipelineConnections } from "@/lib/byok/pipeline-access";
 import { getByokSpendControls } from "@/lib/byok/spend-controls";
-import { quotePipelineCompare, quotePipelineRetry, startPipelineExecution } from "./pipeline";
+
+vi.mock("@opennextjs/cloudflare", () => ({
+  getCloudflareContext: vi.fn(async () => ({ env: {}, ctx: { waitUntil: vi.fn() } })),
+}));
+
+import { nextPendingStepIndex, quotePipelineCompare, quotePipelineRetry, startPipelineExecution } from "./pipeline";
 
 vi.mock("@/lib/d1", () => ({ d1Batch: vi.fn(), d1Query: vi.fn() }));
 vi.mock("@/lib/byok/pipeline-access", () => ({ loadPipelineConnections: vi.fn() }));
@@ -34,6 +39,24 @@ const mockConnections = vi.mocked(loadPipelineConnections);
 const mockQuoteCompare = vi.mocked(quoteByokCompare);
 const mockQuoteIntent = vi.mocked(quoteByokCompareIntentRetry);
 const mockSpendControls = vi.mocked(getByokSpendControls);
+
+describe("nextPendingStepIndex", () => {
+  test("resumes the first missing or still-processing compare batch", () => {
+    expect(nextPendingStepIndex(5, [
+      { stepKey: "compare:0", status: "failed" },
+      { stepKey: "compare:1", status: "failed" },
+      { stepKey: "compare:2", status: "complete" },
+      { stepKey: "compare:3", status: "processing" },
+    ], "compare")).toBe(3);
+  });
+
+  test("returns -1 when every batch already finished", () => {
+    expect(nextPendingStepIndex(2, [
+      { stepKey: "compare:0", status: "complete" },
+      { stepKey: "compare:1", status: "failed" },
+    ], "compare")).toBe(-1);
+  });
+});
 
 describe("BYOK batch pipeline quoting", () => {
   beforeEach(() => {

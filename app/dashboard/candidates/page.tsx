@@ -141,6 +141,7 @@ export default function CandidatesPage() {
     executionMode,
     compareProgress,
     expandProgress,
+    error,
   } = useResearch();
 
   const [showSlow, setShowSlow] = useState(false);
@@ -355,6 +356,11 @@ export default function CandidatesPage() {
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-4 py-4 sm:px-6">
+          {error && (
+            <div className="w-full rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
               已选 <span className="font-medium text-foreground">{selected.size}</span> 个词，

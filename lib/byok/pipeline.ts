@@ -2,6 +2,8 @@ import "server-only";
 
 import { createHash, randomUUID } from "crypto";
 
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 import { getCached, setCache } from "@/lib/cache";
 import { d1Batch, d1Query } from "@/lib/d1";
 import {
@@ -32,9 +34,11 @@ import { loadProviderCredentialDecryptionKeys } from "@/lib/provider-connections
 import type { Candidate, CompareResponse, ExpandResponse } from "@/lib/types";
 
 const QUOTE_TTL_MS = 10 * 60 * 1000;
+const PIPELINE_STALE_MS = 90 * 1000;
 const MAX_SEEDS = 20;
 const MAX_COMPARE_KEYWORDS = 50;
 const COMPARE_CHUNK_SIZE = 4;
+const CONTINUE_HEADER = "x-byok-pipeline-continue";
 const SEMANTIC_CHUNK_SIZE = 20;
 const MAX_CANDIDATES_PER_SEED = 100;
 
@@ -147,6 +151,27 @@ export class ByokPipelineError extends Error {
     this.status = status;
   }
 }
+export const nextPendingStepIndex = (
+  childCount: number,
+  steps: ReadonlyArray<{ stepKey: string; status: string }>,
+  prefix: string,
+) => {
+  const byKey = new Map(steps.map((step) => [step.stepKey, step.status]));
+  for (let index = 0; index < childCount; index += 1) {
+    const status = byKey.get(`${prefix}:${index}`);
+    if (!status || status === "processing") return index;
+  }
+  return -1;
+};
+
+export const pipelineContinueToken = (
+  ownerId: string,
+  jobId: string,
+  secret: string,
+) => createHash("sha256").update(`${secret}:${ownerId}:${jobId}`).digest("hex");
+
+export const pipelineContinueHeaderName = () => CONTINUE_HEADER;
+
 const fail = (code: string, status = 400): never => {
   throw new ByokPipelineError(code, status);
 };
@@ -470,6 +495,57 @@ export const quotePipelineRetry = async (
   });
 };
 
+export const failStaleProcessingPipelineRuns = async (
+  ownerId: string,
+  now = new Date(),
+  maxAgeMs = PIPELINE_STALE_MS,
+) => {
+  const staleBefore = new Date(now.getTime() - maxAgeMs).toISOString();
+  const nowIso = now.toISOString();
+  await d1Query(
+    `UPDATE byok_pipeline_steps SET status = 'failed', error_code = 'WORKER_TIMEOUT', updated_at = ?
+     WHERE status = 'processing' AND parent_job_id IN (
+       SELECT job_id FROM byok_pipeline_runs
+       WHERE owner_id = ? AND status = 'processing' AND updated_at < ?
+     )`,
+    [nowIso, ownerId, staleBefore],
+  );
+  await d1Query(
+    `UPDATE byok_pipeline_runs
+     SET status = 'failed', error_code = 'WORKER_TIMEOUT', updated_at = ?
+     WHERE owner_id = ? AND status = 'processing' AND updated_at < ?`,
+    [nowIso, ownerId, staleBefore],
+  );
+  await d1Query(
+    `UPDATE byok_pipeline_quotes SET status = 'failed', updated_at = ?
+     WHERE owner_id = ? AND status = 'executing' AND parent_job_id IN (
+       SELECT job_id FROM byok_pipeline_runs
+       WHERE owner_id = ? AND error_code = 'WORKER_TIMEOUT' AND updated_at = ?
+     )`,
+    [nowIso, ownerId, ownerId, nowIso],
+  );
+};
+
+export const schedulePipelineContinue = async (ownerId: string, jobId: string) => {
+  const { env } = await getCloudflareContext({ async: true });
+  const envRecord = env as unknown as Record<string, string | undefined>;
+  const secret = envRecord.BYOK_KEK_V1 ?? process.env.BYOK_KEK_V1;
+  const self = env.WORKER_SELF_REFERENCE as { fetch?: typeof fetch } | undefined;
+  if (!secret || !self?.fetch) return;
+  const token = pipelineContinueToken(ownerId, jobId, secret);
+  await self.fetch(
+    `https://internal/api/research/byok/pipeline/jobs/${encodeURIComponent(jobId)}/continue`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        [CONTINUE_HEADER]: token,
+      },
+      body: JSON.stringify({ ownerId }),
+    },
+  );
+};
+
 const preflightAggregateSpend = async (ownerId: string, amount: number) => {
   const [controls, usage] = await Promise.all([
     getByokSpendControls(ownerId),
@@ -526,6 +602,7 @@ export const startPipelineExecution = async (input: Readonly<{
   }
   if (quote.expires_at <= new Date().toISOString()) return fail("QUOTE_EXPIRED", 409);
   if (quote.parent_job_id) return getPipelineJob(input.ownerId, quote.parent_job_id, false);
+  await failStaleProcessingPipelineRuns(input.ownerId);
   await preflightAggregateSpend(input.ownerId, input.confirmedEstimatedCostUsd);
   const jobId = randomUUID();
   const children = JSON.parse(quote.child_quotes_json) as ChildQuote[];
@@ -721,65 +798,40 @@ const runExpand = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
   await finishRun(run, failed ? "partial" : "complete", result, failed ? "PARTIAL_SUCCESS" : undefined);
 };
 
-const runCompare = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
-  const connections = await loadPipelineConnections(run.owner_id);
-  const keys = await loadProviderCredentialDecryptionKeys();
-  const children = JSON.parse(quote.child_quotes_json) as Array<CompareChildQuote | CompareIntentChildQuote>;
+const loadCompareSteps = async (jobId: string) => {
+  const { rows } = await d1Query<PipelineStepRow>(
+    `SELECT parent_job_id, step_key, stage, status, child_job_id, error_code
+     FROM byok_pipeline_steps WHERE parent_job_id = ? ORDER BY step_key`,
+    [jobId],
+  );
+  return rows;
+};
+
+const finishCompareRun = async (
+  run: PipelineRunRow,
+  quote: PipelineQuoteRow,
+  children: Array<CompareChildQuote | CompareIntentChildQuote>,
+) => {
+  const steps = await loadCompareSteps(run.job_id);
   const results: CompareResponse["results"] = [];
   let failed = 0;
   let partial = 0;
   let resultDateFrom = "";
   let resultDateTo = "";
-  for (let index = 0; index < children.length; index += 1) {
-    const child = children[index];
-    const stepKey = `compare:${index}`;
-    await markStep(run.job_id, stepKey, "compare", "processing");
-    try {
-      const response = child.checkpointJobId
-        ? await getOwnedByokCompareResult(run.owner_id, child.checkpointJobId)
-        : child.kind === "compare-intent"
-        ? await executeByokCompareIntentRetry({
-          ownerId: run.owner_id,
-          openRouterConnectionId: connections.openrouter.connectionId,
-          openRouterConnectionVersion: child.openRouterConnectionVersion,
-          request: child.request,
-          quoteId: child.quoteId,
-          requestHash: child.requestHash,
-          confirmedEstimatedCostUsd: child.estimatedCostUsd,
-          confirmation: "CONFIRM",
-          decryptionKeys: keys,
-        })
-        : await executeByokCompare({
-          ownerId: run.owner_id,
-          dataForSeoConnectionId: connections.dataforseo.connectionId,
-          dataForSeoConnectionVersion: child.dataForSeoConnectionVersion,
-          openRouterConnectionId: connections.openrouter.connectionId,
-          openRouterConnectionVersion: child.openRouterConnectionVersion,
-          request: child.request,
-          quoteId: child.quoteId,
-          requestHash: child.requestHash,
-          confirmedEstimatedCostUsd: child.estimatedCostUsd,
-          confirmation: "CONFIRM",
-          decryptionKeys: keys,
-          retryAttempt: child.retryAttempt,
-        });
-      if (response.status !== "complete" || !response.data) {
-        throw new Error(response.errorCode ?? "PROVIDER_FAILED");
-      }
-      const data = response.data as ByokCompareData | undefined;
-      results.push(...(data?.comparison.results ?? []));
-      resultDateFrom ||= data?.comparison.dateFrom ?? "";
-      resultDateTo ||= data?.comparison.dateTo ?? "";
-      if (data?.partialSuccess) {
-        partial += 1;
-        await markStep(run.job_id, stepKey, "compare", "failed", response.jobId, "PARTIAL_INTENT");
-      } else {
-        await markStep(run.job_id, stepKey, "compare", "complete", response.jobId);
-      }
-    } catch (error) {
+  for (const [index, child] of children.entries()) {
+    const step = steps.find((item) => item.step_key === `compare:${index}`);
+    if (step?.status === "failed" && step.error_code !== "PARTIAL_INTENT") {
       failed += 1;
-      await markStep(run.job_id, stepKey, "compare", "failed", undefined, error instanceof Error ? error.message : "PROVIDER_FAILED");
     }
+    const checkpointId = step?.child_job_id ?? child.checkpointJobId;
+    if (!checkpointId) continue;
+    const checkpoint = await getOwnedByokCompareResult(run.owner_id, checkpointId);
+    if (checkpoint.status !== "complete" || !checkpoint.data) continue;
+    const data = checkpoint.data as ByokCompareData | undefined;
+    results.push(...(data?.comparison.results ?? []));
+    resultDateFrom ||= data?.comparison.dateFrom ?? "";
+    resultDateTo ||= data?.comparison.dateTo ?? "";
+    if (data?.partialSuccess || step?.error_code === "PARTIAL_INTENT") partial += 1;
   }
   const request = JSON.parse(quote.request_json) as PipelineCompareInput;
   if (!results.length) return finishRun(run, "failed", null, "PROVIDER_FAILED");
@@ -794,20 +846,98 @@ const runCompare = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
   await finishRun(run, isPartial ? "partial" : "complete", result, isPartial ? "PARTIAL_SUCCESS" : undefined);
 };
 
+const runCompare = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
+  const children = JSON.parse(quote.child_quotes_json) as Array<CompareChildQuote | CompareIntentChildQuote>;
+  const steps = await loadCompareSteps(run.job_id);
+  const nextIndex = nextPendingStepIndex(
+    children.length,
+    steps.map((step) => ({ stepKey: step.step_key, status: step.status })),
+    "compare",
+  );
+  if (nextIndex < 0) {
+    await finishCompareRun(run, quote, children);
+    return "done" as const;
+  }
+
+  const connections = await loadPipelineConnections(run.owner_id);
+  const keys = await loadProviderCredentialDecryptionKeys();
+  const child = children[nextIndex];
+  const stepKey = `compare:${nextIndex}`;
+  await markStep(run.job_id, stepKey, "compare", "processing");
+  try {
+    const response = child.checkpointJobId
+      ? await getOwnedByokCompareResult(run.owner_id, child.checkpointJobId)
+      : child.kind === "compare-intent"
+      ? await executeByokCompareIntentRetry({
+        ownerId: run.owner_id,
+        openRouterConnectionId: connections.openrouter.connectionId,
+        openRouterConnectionVersion: child.openRouterConnectionVersion,
+        request: child.request,
+        quoteId: child.quoteId,
+        requestHash: child.requestHash,
+        confirmedEstimatedCostUsd: child.estimatedCostUsd,
+        confirmation: "CONFIRM",
+        decryptionKeys: keys,
+      })
+      : await executeByokCompare({
+        ownerId: run.owner_id,
+        dataForSeoConnectionId: connections.dataforseo.connectionId,
+        dataForSeoConnectionVersion: child.dataForSeoConnectionVersion,
+        openRouterConnectionId: connections.openrouter.connectionId,
+        openRouterConnectionVersion: child.openRouterConnectionVersion,
+        request: child.request,
+        quoteId: child.quoteId,
+        requestHash: child.requestHash,
+        confirmedEstimatedCostUsd: child.estimatedCostUsd,
+        confirmation: "CONFIRM",
+        decryptionKeys: keys,
+        retryAttempt: child.retryAttempt,
+      });
+    if (response.status !== "complete" || !response.data) {
+      throw new Error(response.errorCode ?? "PROVIDER_FAILED");
+    }
+    const data = response.data as ByokCompareData | undefined;
+    if (data?.partialSuccess) {
+      await markStep(run.job_id, stepKey, "compare", "failed", response.jobId, "PARTIAL_INTENT");
+    } else {
+      await markStep(run.job_id, stepKey, "compare", "complete", response.jobId);
+    }
+  } catch (error) {
+    await markStep(
+      run.job_id,
+      stepKey,
+      "compare",
+      "failed",
+      undefined,
+      error instanceof Error ? error.message : "PROVIDER_FAILED",
+    );
+  }
+  if (nextIndex + 1 < children.length) return "continue" as const;
+  await finishCompareRun(run, quote, children);
+  return "done" as const;
+};
+
 export const executePipelineJob = async (ownerId: string, jobId: string) => {
   const { rows } = await d1Query<PipelineRunRow>(
     `SELECT * FROM byok_pipeline_runs WHERE job_id = ? AND owner_id = ? LIMIT 1`,
     [jobId, ownerId],
   );
   const run = rows[0];
-  if (!run || run.status !== "processing") return;
+  if (!run || run.status !== "processing") return "done" as const;
   const quote = await loadQuote(ownerId, run.quote_id);
-  if (!quote) return finishRun(run, "failed", null, "QUOTE_NOT_FOUND");
+  if (!quote) {
+    await finishRun(run, "failed", null, "QUOTE_NOT_FOUND");
+    return "done" as const;
+  }
   try {
-    if (run.operation === "expand") await runExpand(run, quote);
-    else await runCompare(run, quote);
+    if (run.operation === "expand") {
+      await runExpand(run, quote);
+      return "done" as const;
+    }
+    return await runCompare(run, quote);
   } catch (error) {
     await finishRun(run, "failed", null, error instanceof Error ? error.message.slice(0, 64) : "PIPELINE_FAILED");
+    return "done" as const;
   }
 };
 
