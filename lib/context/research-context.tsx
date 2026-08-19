@@ -58,6 +58,15 @@ export const TASK_COST_USD = 0.05;
 const CLIENT_MAX_WAIT_MS = Number(process.env.NEXT_PUBLIC_TASK_MAX_WAIT_MS) || 600000;
 const CLIENT_POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_TASK_POLL_INTERVAL_MS) || 5000;
 import { RECOMMENDED_COMPARE_LIMIT } from "@/config/business-rules";
+const byokUserError = (code?: string, fallback = "实时请求失败") => {
+    if (code === "CONCURRENCY_LIMIT_REACHED") {
+        return "上一个实时任务还在占用并发槽，请稍等几秒后重试。";
+    }
+    if (code === "DAILY_BUDGET_EXCEEDED") {
+        return "今日 BYOK 预算已用完。";
+    }
+    return code || fallback;
+};
 const RECOMMENDED_MIN_SCORE = 20;
 const RECOMMENDED_HIGH_CONFIDENCE_SCORE = 60;
 const RECOMMENDED_SECTION_QUOTAS = {
@@ -735,7 +744,9 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 }),
             });
             const job = await response.json().catch(() => ({})) as PipelineJobResult<T>;
-            if (!response.ok) throw new Error((job as { code?: string }).code || "实时请求启动失败");
+            if (!response.ok) {
+                throw new Error(byokUserError((job as { code?: string }).code, "实时请求启动失败"));
+            }
             return job;
         };
         const pollJob = (initial: PipelineJobResult<T>) =>
@@ -752,7 +763,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
             body: JSON.stringify(body),
         });
         const quoted = await quoteResponse.json().catch(() => ({}));
-        if (!quoteResponse.ok) throw new Error(quoted?.code || quoted?.error || "无法生成实时费用报价");
+        if (!quoteResponse.ok) throw new Error(byokUserError(quoted?.code, quoted?.error || "无法生成实时费用报价"));
         const quote = quoted.quote as PipelineQuote;
         const confirmed = window.confirm(
             `本次实时${operation === "expand" ? "扩词" : "对比"}将使用你的 Provider 额度。\n`
