@@ -1,17 +1,55 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useResearch } from "@/lib/context/research-context";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ComparisonResultsCard } from "@/components/comparison-results";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 export default function AnalysisPage() {
-    const { compareData, debugLogs, logToConsole, setLogToConsole, setDebugLogs } = useResearch();
+    const {
+        compareData,
+        debugLogs,
+        logToConsole,
+        setLogToConsole,
+        setDebugLogs,
+        loadingCompare,
+        compareProgress,
+    } = useResearch();
+    const comparePercent =
+        compareProgress && compareProgress.total > 0
+            ? Math.min(100, Math.round((compareProgress.ready / compareProgress.total) * 100))
+            : 0;
 
     if (!compareData) {
+        if (loadingCompare) {
+            return (
+                <div className="flex flex-col items-center justify-center p-12 text-center animate-in fade-in">
+                    <Loader2 className="mb-4 h-10 w-10 animate-spin text-primary" />
+                    <h3 className="text-lg font-semibold">对比仍在后台进行</h3>
+                    <p className="mb-6 max-w-md text-muted-foreground">
+                        关闭页面不会中断任务。重新打开后会自动接上进度，完成后结果会出现在这里。
+                    </p>
+                    <div className="w-full max-w-md space-y-2">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>任务进度</span>
+                            {compareProgress?.total ? (
+                                <span>
+                                    {compareProgress.ready}/{compareProgress.total} · {comparePercent}%
+                                </span>
+                            ) : (
+                                <span>接上任务中...</span>
+                            )}
+                        </div>
+                        <Progress value={comparePercent} />
+                    </div>
+                </div>
+            );
+        }
         return (
             <div className="flex flex-col items-center justify-center p-12 text-center animate-in fade-in">
                 <div className="mb-4 h-12 w-12 text-muted-foreground/30">

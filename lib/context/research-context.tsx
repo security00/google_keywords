@@ -1,7 +1,14 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+    fetchByokPipelineJob,
+    pickResumablePipelineJobs,
+    pollByokPipelineJob,
+    type ByokPipelineHistoryItem,
+    type ByokPipelineJob,
+} from "@/lib/client/byok-pipeline-resume";
 import { pollTaskUntilComplete } from "@/lib/client/task-poller";
 import {
     ExpandResponse,
@@ -38,13 +45,7 @@ type SessionSummary = {
 };
 
 type ResearchExecutionMode = "shared" | "byok";
-type PipelineJobResult<T> = {
-    jobId: string;
-    status: "processing" | "complete" | "partial" | "failed";
-    progress: { completed: number; total: number };
-    errorCode?: string | null;
-    result?: T | null;
-};
+type PipelineJobResult<T> = ByokPipelineJob<T>;
 
 // --- Constants ---
 export const DEFAULT_KEYWORDS = [
@@ -381,6 +382,11 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     const [comparisonId, setComparisonId] = useState<string | null>(null);
     const [executionMode, setExecutionModeState] = useState<ResearchExecutionMode>("shared");
     const [byokReady, setByokReady] = useState(false);
+    const pipelineWatchGeneration = useRef(0);
+    const expandDataRef = useRef<ExpandResponse | null>(null);
+    const compareDataRef = useRef<CompareResponse | null>(null);
+    const loadingExpandRef = useRef(false);
+    const loadingCompareRef = useRef(false);
 
     // --- Computed ---
     const parsedKeywords = useMemo(() => parseKeywords(keywordsText), [keywordsText]);
@@ -388,6 +394,19 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         filterTermsText.split(/[,;\n]+/).map(i => i.trim()).filter(Boolean),
         [filterTermsText]);
     const effectiveKeywords = parsedKeywords.length > 0 ? parsedKeywords : DEFAULT_KEYWORDS;
+
+    useEffect(() => {
+        expandDataRef.current = expandData;
+    }, [expandData]);
+    useEffect(() => {
+        compareDataRef.current = compareData;
+    }, [compareData]);
+    useEffect(() => {
+        loadingExpandRef.current = loadingExpand;
+    }, [loadingExpand]);
+    useEffect(() => {
+        loadingCompareRef.current = loadingCompare;
+    }, [loadingCompare]);
 
     const checkSession = useCallback(async () => {
         try {
@@ -719,22 +738,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
             if (!response.ok) throw new Error((job as { code?: string }).code || "实时请求启动失败");
             return job;
         };
-        const pollJob = async (initial: PipelineJobResult<T>) => {
-            let job = initial;
-            const deadline = Date.now() + CLIENT_MAX_WAIT_MS;
-            while (job.status === "processing" && Date.now() < deadline) {
-                onProgress(job.progress);
-                await new Promise((resolve) => window.setTimeout(resolve, CLIENT_POLL_INTERVAL_MS));
-                const statusResponse = await fetch(`/api/research/byok/pipeline/jobs/${encodeURIComponent(job.jobId)}`, {
-                    credentials: "include",
-                    cache: "no-store",
-                });
-                job = await statusResponse.json().catch(() => ({})) as PipelineJobResult<T>;
-                if (!statusResponse.ok) throw new Error((job as { code?: string }).code || "实时任务状态不可用");
-            }
-            onProgress(job.progress);
-            return job;
-        };
+        const pollJob = (initial: PipelineJobResult<T>) =>
+            pollByokPipelineJob(initial, {
+                onProgress,
+                maxWaitMs: CLIENT_MAX_WAIT_MS,
+                pollIntervalMs: CLIENT_POLL_INTERVAL_MS,
+            });
         const quoteKey = `${operation}-${crypto.randomUUID()}`;
         const quoteResponse = await fetch(`/api/research/byok/pipeline/${operation}/quote`, {
             method: "POST",
@@ -784,7 +793,114 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         return job.result as T;
     }, []);
 
+    useEffect(() => {
+        if (!user || !byokReady) return;
+        const generation = pipelineWatchGeneration.current;
+        let cancelled = false;
+        const stillCurrent = () => !cancelled && generation === pipelineWatchGeneration.current;
+
+        const applyExpand = (payload: ExpandResponse) => {
+            setExpandData(payload);
+            setSelected(new Set(buildRecommendedSelection(payload)));
+            setSessionId(payload.sessionId ?? null);
+            if (payload.keywords.length > 0) {
+                setKeywordsText(payload.keywords.join("\n"));
+            }
+        };
+        const applyCompare = (payload: CompareResponse) => {
+            setCompareData(payload);
+            setComparisonId(payload.comparisonId ?? null);
+        };
+
+        const resume = async () => {
+            const historyResponse = await fetch("/api/research/byok/pipeline/history?limit=20", {
+                credentials: "include",
+                cache: "no-store",
+            });
+            if (!historyResponse.ok || !stillCurrent()) return;
+            const history = await historyResponse.json().catch(() => ({}));
+            const picked = pickResumablePipelineJobs(
+                (history.items ?? []) as ByokPipelineHistoryItem[],
+            );
+
+            if (picked.expand && !expandDataRef.current && !loadingExpandRef.current && stillCurrent()) {
+                const job = await fetchByokPipelineJob<ExpandResponse>(picked.expand.jobId);
+                if (!stillCurrent()) return;
+                if (job.status === "processing") {
+                    setLoadingExpand(true);
+                    setExpandProgress({ ready: job.progress.completed, total: job.progress.total });
+                    pushLog("info", "已接上后台扩词任务", `${job.progress.completed}/${job.progress.total}`);
+                    const done = await pollByokPipelineJob(job, {
+                        onProgress: (progress) => {
+                            if (stillCurrent()) {
+                                setExpandProgress({ ready: progress.completed, total: progress.total });
+                            }
+                        },
+                        shouldStop: () => !stillCurrent(),
+                        maxWaitMs: CLIENT_MAX_WAIT_MS,
+                        pollIntervalMs: CLIENT_POLL_INTERVAL_MS,
+                    });
+                    if (!stillCurrent()) return;
+                    if (done.result) {
+                        applyExpand(done.result);
+                        pushLog("success", "已恢复后台扩词结果", done.jobId);
+                    } else if (done.status === "failed") {
+                        setError(done.errorCode || "后台扩词失败");
+                    }
+                    setLoadingExpand(false);
+                    setExpandProgress(null);
+                } else if (job.result) {
+                    applyExpand(job.result);
+                    pushLog("success", "已恢复上次扩词结果", job.jobId);
+                }
+            }
+
+            if (picked.compare && !compareDataRef.current && !loadingCompareRef.current && stillCurrent()) {
+                const job = await fetchByokPipelineJob<CompareResponse>(picked.compare.jobId);
+                if (!stillCurrent()) return;
+                if (job.status === "processing") {
+                    setLoadingCompare(true);
+                    setCompareProgress({ ready: job.progress.completed, total: job.progress.total });
+                    pushLog("info", "已接上后台对比任务", `${job.progress.completed}/${job.progress.total}`);
+                    const done = await pollByokPipelineJob(job, {
+                        onProgress: (progress) => {
+                            if (stillCurrent()) {
+                                setCompareProgress({ ready: progress.completed, total: progress.total });
+                            }
+                        },
+                        shouldStop: () => !stillCurrent(),
+                        maxWaitMs: CLIENT_MAX_WAIT_MS,
+                        pollIntervalMs: CLIENT_POLL_INTERVAL_MS,
+                    });
+                    if (!stillCurrent()) return;
+                    if (done.result) {
+                        applyCompare(done.result);
+                        pushLog("success", "已恢复后台对比结果", done.jobId);
+                    } else if (done.status === "failed") {
+                        setError(done.errorCode || "后台对比失败");
+                    }
+                    setLoadingCompare(false);
+                    setCompareProgress(null);
+                } else if (job.result) {
+                    applyCompare(job.result);
+                    pushLog("success", "已恢复上次对比结果", job.jobId);
+                }
+            }
+        };
+
+        void resume().catch((error) => {
+            if (stillCurrent()) {
+                pushLog("error", "无法接上后台任务", error instanceof Error ? error.message : "未知错误");
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user, byokReady, pushLog]);
+
     const handleExpand = async () => {
+        pipelineWatchGeneration.current += 1;
         setLoadingExpand(true);
         setError(null);
         setCompareData(null);
@@ -882,6 +998,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
 
     const handleCompare = async () => {
         if (selected.size === 0) return;
+        pipelineWatchGeneration.current += 1;
         setLoadingCompare(true);
         setError(null);
         setCompareProgress({ ready: 0, total: 0 });

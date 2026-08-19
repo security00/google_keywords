@@ -7,9 +7,12 @@ import { requireByokLiveOwner } from "@/lib/byok/api";
 import {
   ByokPipelineError,
   executePipelineJob,
+  pipelineContinueHeaderName,
+  pipelineContinueToken,
   quotePipelineCompare,
   quotePipelineExpand,
   quotePipelineRetry,
+  schedulePipelineContinue,
   startPipelineExecution,
   type PipelineCompareInput,
   type PipelineExpandInput,
@@ -105,9 +108,36 @@ export const handlePipelineExecute = async (request: Request, operation: Pipelin
     });
     if (job.status === "processing") {
       const { ctx } = await getCloudflareContext({ async: true });
-      ctx.waitUntil(executePipelineJob(owner.ownerId, job.jobId));
+      ctx.waitUntil((async () => {
+        const outcome = await executePipelineJob(owner.ownerId, job.jobId);
+        if (outcome === "continue") await schedulePipelineContinue(owner.ownerId, job.jobId);
+      })());
     }
     return noStore(job, { status: job.status === "processing" ? 202 : 200 });
+  } catch (error) {
+    return errorResponse(error);
+  }
+};
+
+export const handlePipelineContinue = async (request: Request, jobId: string) => {
+  try {
+    const token = request.headers.get(pipelineContinueHeaderName())?.trim() ?? "";
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const ownerId = typeof body.ownerId === "string" ? body.ownerId.trim() : "";
+    const secret = process.env.BYOK_KEK_V1?.trim() ?? "";
+    if (!jobId || !ownerId || !token || !secret) {
+      throw new ByokPipelineError("INVALID_REQUEST", 400);
+    }
+    const expected = pipelineContinueToken(ownerId, jobId, secret);
+    if (expected.length !== token.length || expected !== token) {
+      throw new ByokPipelineError("INVALID_REQUEST", 403);
+    }
+    const outcome = await executePipelineJob(ownerId, jobId);
+    if (outcome === "continue") {
+      const { ctx } = await getCloudflareContext({ async: true });
+      ctx.waitUntil(schedulePipelineContinue(ownerId, jobId));
+    }
+    return noStore({ ok: true, jobId, outcome }, { status: 202 });
   } catch (error) {
     return errorResponse(error);
   }

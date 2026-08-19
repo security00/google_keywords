@@ -178,6 +178,7 @@ export default function ExpandPage() {
 
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
         点击“获取候选词”后，系统会完成扩词并自动进入下一步筛选。
+        {executionMode === "byok" && " 实时任务在后台继续，关闭页面不会中断，重新打开后会自动接上进度和结果。"}
       </div>
 
       {debugLogs.length > 0 && (
