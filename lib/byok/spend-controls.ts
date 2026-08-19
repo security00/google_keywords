@@ -296,6 +296,26 @@ export const createByokCostQuote = async (input: Readonly<{
   }
 };
 
+const STALE_JOB_MS = 90 * 1000;
+
+export const failStaleByokConcurrencySlots = async (
+  ownerId: string,
+  now = new Date(),
+  maxAgeMs = STALE_JOB_MS,
+) => {
+  assertOwnerId(ownerId);
+  const staleBefore = new Date(now.getTime() - maxAgeMs).toISOString();
+  const nowIso = now.toISOString();
+  await d1Query(
+    `UPDATE research_jobs
+     SET status = 'failed', error = 'WORKER_TIMEOUT', provider_request_state = 'failed',
+         claim_token = NULL, lease_expires_at = NULL, updated_at = ?
+     WHERE user_id = ? AND execution_mode = 'byok' AND credential_source = 'user'
+       AND status IN ('pending', 'processing') AND updated_at < ?`,
+    [nowIso, ownerId, staleBefore],
+  );
+};
+
 export const reserveConfirmedByokCostQuote = async (input: Readonly<{
   ownerId: string;
   quoteId: string;
@@ -313,9 +333,10 @@ export const reserveConfirmedByokCostQuote = async (input: Readonly<{
   ) {
     return fail("INVALID_INPUT");
   }
+  const now = input.now ?? new Date();
+  await failStaleByokConcurrencySlots(input.ownerId, now);
   const controls = await getByokSpendControls(input.ownerId);
   const confirmedMicroUsd = usdToMicro(input.confirmedEstimatedCostUsd);
-  const now = input.now ?? new Date();
   const nowIso = now.toISOString();
   const dayStart = new Date(Date.UTC(
     now.getUTCFullYear(),

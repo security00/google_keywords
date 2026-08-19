@@ -26,7 +26,7 @@ import {
   executeByokSemanticFilter,
   getOwnedByokSemanticFilterResult,
 } from "@/lib/byok/semantic-filter";
-import { getByokSpendControls } from "@/lib/byok/spend-controls";
+import { failStaleByokConcurrencySlots, getByokSpendControls } from "@/lib/byok/spend-controls";
 import { loadPipelineConnections } from "@/lib/byok/pipeline-access";
 import { summarizeResults } from "@/lib/compare";
 import { flattenOrganizedCandidates, organizeCandidates } from "@/lib/expand";
@@ -524,6 +524,7 @@ export const failStaleProcessingPipelineRuns = async (
      )`,
     [nowIso, ownerId, ownerId, nowIso],
   );
+  await failStaleByokConcurrencySlots(ownerId, now, maxAgeMs);
 };
 
 export const schedulePipelineContinue = async (ownerId: string, jobId: string) => {

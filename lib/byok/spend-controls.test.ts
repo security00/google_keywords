@@ -118,6 +118,7 @@ describe("BYOK spend controls", () => {
 
   test("atomically reserves only an exact, explicitly confirmed quote", async () => {
     mockQuery
+      .mockResolvedValueOnce(result())
       .mockResolvedValueOnce(result([{
         daily_budget_micro_usd: 1_000_000,
         max_concurrent_jobs: 1,
@@ -138,16 +139,18 @@ describe("BYOK spend controls", () => {
     });
 
     expect(reserved.status).toBe("reserved");
-    expect(mockQuery.mock.calls[1][0]).toContain("status = 'quoted'");
-    expect(mockQuery.mock.calls[1][0]).toContain("status = 'committed'");
-    expect(mockQuery.mock.calls[1][0]).toContain("updated_at >= ?");
-    expect(mockQuery.mock.calls[1][0]).not.toContain("created_at >= ?");
-    expect(mockQuery.mock.calls[1][0]).toContain("LEFT JOIN research_jobs active_job");
-    expect(mockQuery.mock.calls[1][0]).toContain("active_job.status IN ('pending', 'processing')");
+    expect(mockQuery.mock.calls[0][0]).toContain("UPDATE research_jobs");
+    expect(mockQuery.mock.calls[2][0]).toContain("status = 'quoted'");
+    expect(mockQuery.mock.calls[2][0]).toContain("status = 'committed'");
+    expect(mockQuery.mock.calls[2][0]).toContain("updated_at >= ?");
+    expect(mockQuery.mock.calls[2][0]).not.toContain("created_at >= ?");
+    expect(mockQuery.mock.calls[2][0]).toContain("LEFT JOIN research_jobs active_job");
+    expect(mockQuery.mock.calls[2][0]).toContain("active_job.status IN ('pending', 'processing')");
   });
 
   test("returns an existing exact reservation instead of reserving or charging twice", async () => {
     mockQuery
+      .mockResolvedValueOnce(result())
       .mockResolvedValueOnce(result([{
         daily_budget_micro_usd: 1_000_000,
         max_concurrent_jobs: 1,
@@ -169,11 +172,12 @@ describe("BYOK spend controls", () => {
     });
 
     expect(existing.status).toBe("reserved");
-    expect(mockQuery).toHaveBeenCalledTimes(3);
+    expect(mockQuery).toHaveBeenCalledTimes(4);
   });
 
   test("rejects an expired reservation instead of reviving it", async () => {
     mockQuery
+      .mockResolvedValueOnce(result())
       .mockResolvedValueOnce(result([{
         daily_budget_micro_usd: 1_000_000,
         max_concurrent_jobs: 1,
@@ -208,6 +212,7 @@ describe("BYOK spend controls", () => {
 
   test("distinguishes concurrency and daily-budget denials after an atomic miss", async () => {
     mockQuery
+      .mockResolvedValueOnce(result())
       .mockResolvedValueOnce(result([{
         daily_budget_micro_usd: 1_000_000,
         max_concurrent_jobs: 1,
@@ -227,11 +232,12 @@ describe("BYOK spend controls", () => {
       confirmation: "CONFIRM",
       now,
     })).rejects.toSatisfy(expectCode("CONCURRENCY_LIMIT_REACHED"));
-    expect(mockQuery.mock.calls[3][0]).toContain("updated_at >= ?");
-    expect(mockQuery.mock.calls[3][0]).toContain("LEFT JOIN research_jobs active_job");
+    expect(mockQuery.mock.calls[4][0]).toContain("updated_at >= ?");
+    expect(mockQuery.mock.calls[4][0]).toContain("LEFT JOIN research_jobs active_job");
 
     vi.clearAllMocks();
     mockQuery
+      .mockResolvedValueOnce(result())
       .mockResolvedValueOnce(result([{
         daily_budget_micro_usd: 1000,
         max_concurrent_jobs: 2,
