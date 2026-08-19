@@ -136,15 +136,48 @@ export default function CandidatesPage() {
     selectRecommended,
     clearSelection,
     loadingCompare,
+    loadingExpand,
     handleCompare,
     executionMode,
     compareProgress,
+    expandProgress,
   } = useResearch();
 
   const [showSlow, setShowSlow] = useState(false);
   const [showFilteredOut, setShowFilteredOut] = useState(false);
 
   if (!expandData) {
+    if (loadingExpand || loadingCompare) {
+      const progress = loadingExpand ? expandProgress : compareProgress;
+      const percent =
+        progress && progress.total > 0
+          ? Math.min(100, Math.round((progress.ready / progress.total) * 100))
+          : 0;
+      return (
+        <div className="flex flex-col items-center justify-center p-12 text-center animate-in fade-in">
+          <Loader2 className="mb-4 h-10 w-10 animate-spin text-primary" />
+          <h3 className="text-lg font-semibold">
+            {loadingExpand ? "扩词仍在后台进行" : "对比仍在后台进行"}
+          </h3>
+          <p className="mb-6 max-w-md text-muted-foreground">
+            关闭页面不会中断任务。重新打开后会自动接上进度和已完成的结果。
+          </p>
+          <div className="w-full max-w-md space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>任务进度</span>
+              {progress?.total ? (
+                <span>
+                  {progress.ready}/{progress.total} · {percent}%
+                </span>
+              ) : (
+                <span>接上任务中...</span>
+              )}
+            </div>
+            <Progress value={percent} />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center animate-in fade-in">
         <div className="mb-4 h-12 w-12 text-muted-foreground/30">
@@ -333,7 +366,7 @@ export default function CandidatesPage() {
               </Link>
               {executionMode === "byok" && (
                 <span className="text-xs text-amber-700 dark:text-amber-300">
-                  将使用你的 Provider Key，点击后先显示汇总费用
+                  将使用你的 Provider Key。关闭页面不会中断任务，重新打开后会自动接上进度。
                 </span>
               )}
               <Button onClick={handleCompare} disabled={loadingCompare || selected.size === 0}>
