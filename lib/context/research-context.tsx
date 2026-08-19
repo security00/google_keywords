@@ -57,6 +57,7 @@ export const DEFAULT_FILTER_TERMS = process.env.NEXT_PUBLIC_FILTER_TERMS ??
 export const TASK_COST_USD = 0.05;
 const CLIENT_MAX_WAIT_MS = Number(process.env.NEXT_PUBLIC_TASK_MAX_WAIT_MS) || 600000;
 const CLIENT_POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_TASK_POLL_INTERVAL_MS) || 5000;
+import { RECOMMENDED_COMPARE_LIMIT } from "@/config/business-rules";
 const byokUserError = (code?: string, fallback = "实时请求失败") => {
     if (code === "CONCURRENCY_LIMIT_REACHED") {
         return "上一个实时任务还在占用并发槽，请稍等几秒后重试。";
@@ -66,7 +67,6 @@ const byokUserError = (code?: string, fallback = "实时请求失败") => {
     }
     return code || fallback;
 };
-import { RECOMMENDED_COMPARE_LIMIT } from "@/config/business-rules";
 const RECOMMENDED_MIN_SCORE = 20;
 const RECOMMENDED_HIGH_CONFIDENCE_SCORE = 60;
 const RECOMMENDED_SECTION_QUOTAS = {

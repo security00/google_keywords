@@ -5,6 +5,7 @@ import {
   ByokSpendControlError,
   commitByokCostReservation,
   createByokCostQuote,
+  failStaleByokConcurrencySlots,
   getByokSpendControls,
   reserveConfirmedByokCostQuote,
   updateByokSpendControls,
@@ -114,6 +115,20 @@ describe("BYOK spend controls", () => {
       estimatedCostUsd: 0.001,
       now,
     })).rejects.toSatisfy(expectCode("QUOTE_CONFLICT"));
+  });
+
+  test("fails owner BYOK jobs that have been pending or processing for over 90s", async () => {
+    mockQuery.mockResolvedValueOnce(result([], 1));
+    await failStaleByokConcurrencySlots("owner-1", now);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("UPDATE research_jobs");
+    expect(sql).toContain("status IN ('pending', 'processing')");
+    expect(sql).toContain("execution_mode = 'byok'");
+    expect(params).toEqual([
+      now.toISOString(),
+      "owner-1",
+      "2026-07-21T07:58:30.000Z",
+    ]);
   });
 
   test("atomically reserves only an exact, explicitly confirmed quote", async () => {
