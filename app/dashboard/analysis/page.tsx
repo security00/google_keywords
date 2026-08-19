@@ -19,6 +19,9 @@ export default function AnalysisPage() {
         setDebugLogs,
         loadingCompare,
         compareProgress,
+        error,
+        partialRetry,
+        retryByokPartial,
     } = useResearch();
     const comparePercent =
         compareProgress && compareProgress.total > 0
@@ -68,6 +71,22 @@ export default function AnalysisPage() {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {error && (
+                <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <div>{error}</div>
+                    {partialRetry?.operation === "compare" && (
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => { void retryByokPartial(); }}
+                            disabled={loadingCompare}
+                        >
+                            {loadingCompare && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            只重试失败项（约 ${partialRetry.estimatedCostUsd.toFixed(3)}）
+                        </Button>
+                    )}
+                </div>
+            )}
             <ComparisonResultsCard
                 compareData={compareData}
                 showDetails

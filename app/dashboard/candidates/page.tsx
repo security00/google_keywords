@@ -142,6 +142,8 @@ export default function CandidatesPage() {
     compareProgress,
     expandProgress,
     error,
+    partialRetry,
+    retryByokPartial,
   } = useResearch();
 
   const [showSlow, setShowSlow] = useState(false);
@@ -357,8 +359,19 @@ export default function CandidatesPage() {
 
         <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-4 py-4 sm:px-6">
           {error && (
-            <div className="w-full rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {error}
+            <div className="w-full space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <div>{error}</div>
+              {partialRetry && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { void retryByokPartial(); }}
+                  disabled={loadingCompare || loadingExpand}
+                >
+                  {(loadingCompare || loadingExpand) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  只重试失败项（约 ${partialRetry.estimatedCostUsd.toFixed(3)}）
+                </Button>
+              )}
             </div>
           )}
           <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

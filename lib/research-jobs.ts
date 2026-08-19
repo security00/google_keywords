@@ -256,6 +256,25 @@ export const completeOwnedByokJob = async (input: Readonly<{
   return (meta?.changes ?? 0) === 1;
 };
 
+export const reclaimTimedOutOwnedByokJob = async (input: Readonly<{
+  id: string;
+  userId: string;
+  jobType: ByokJobType;
+}>): Promise<ResearchJob | null> => {
+  const now = new Date().toISOString();
+  const { rows } = await d1Query<JobRow>(
+    `UPDATE research_jobs
+     SET status = 'pending', provider_request_state = 'not_started', error = NULL,
+         claim_token = NULL, lease_expires_at = NULL, updated_at = ?
+     WHERE id = ? AND user_id = ? AND job_type = ?
+       AND execution_mode = 'byok' AND credential_source = 'user'
+       AND status = 'failed' AND error = 'WORKER_TIMEOUT'
+     RETURNING *`,
+    [now, input.id, input.userId, input.jobType],
+  );
+  return rows[0] ? toJob(rows[0]) : null;
+};
+
 export const failOwnedByokJob = async (input: Readonly<{
   id: string;
   userId: string;

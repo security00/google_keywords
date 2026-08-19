@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireByokLiveOwner } from "@/lib/byok/api";
-import { ByokPipelineError, getPipelineJob } from "@/lib/byok/pipeline";
+import { ByokPipelineError, getPipelineJob, nudgeProcessingPipelineJob } from "@/lib/byok/pipeline";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,11 @@ export async function GET(
   if (owner instanceof NextResponse) return owner;
   try {
     const { jobId } = await context.params;
-    const response = NextResponse.json(await getPipelineJob(owner.ownerId, jobId));
+    const job = await getPipelineJob(owner.ownerId, jobId);
+    if (job.status === "processing") {
+      await nudgeProcessingPipelineJob(owner.ownerId, jobId);
+    }
+    const response = NextResponse.json(job);
     response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (error) {

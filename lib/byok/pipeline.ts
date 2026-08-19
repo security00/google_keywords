@@ -35,6 +35,7 @@ import type { Candidate, CompareResponse, ExpandResponse } from "@/lib/types";
 
 const QUOTE_TTL_MS = 10 * 60 * 1000;
 const PIPELINE_STALE_MS = 90 * 1000;
+const FRESH_PROCESSING_MS = 20 * 1000;
 const MAX_SEEDS = 20;
 const MAX_COMPARE_KEYWORDS = 50;
 const COMPARE_CHUNK_SIZE = 4;
@@ -139,6 +140,7 @@ type PipelineStepRow = {
   status: "pending" | "processing" | "complete" | "failed";
   child_job_id: string | null;
   error_code: string | null;
+  updated_at?: string;
 };
 
 export class ByokPipelineError extends Error {
@@ -151,18 +153,35 @@ export class ByokPipelineError extends Error {
     this.status = status;
   }
 }
+export const nextRunnableStepIndex = (
+  childCount: number,
+  steps: ReadonlyArray<{ stepKey: string; status: string; updatedAt?: string }>,
+  prefix: string,
+  options?: Readonly<{ now?: Date; skipFreshProcessingMs?: number }>,
+) => {
+  const skipMs = options?.skipFreshProcessingMs ?? 0;
+  const nowMs = (options?.now ?? new Date()).getTime();
+  const byKey = new Map(steps.map((step) => [step.stepKey, step]));
+  for (let index = 0; index < childCount; index += 1) {
+    const step = byKey.get(`${prefix}:${index}`);
+    if (!step?.status) return index;
+    if (step.status === "complete" || step.status === "failed") continue;
+    if (step.status === "processing") {
+      if (skipMs > 0 && step.updatedAt) {
+        const age = nowMs - Date.parse(step.updatedAt);
+        if (Number.isFinite(age) && age < skipMs) return -1;
+      }
+      return index;
+    }
+  }
+  return -1;
+};
+
 export const nextPendingStepIndex = (
   childCount: number,
   steps: ReadonlyArray<{ stepKey: string; status: string }>,
   prefix: string,
-) => {
-  const byKey = new Map(steps.map((step) => [step.stepKey, step.status]));
-  for (let index = 0; index < childCount; index += 1) {
-    const status = byKey.get(`${prefix}:${index}`);
-    if (!status || status === "processing") return index;
-  }
-  return -1;
-};
+) => nextRunnableStepIndex(childCount, steps, prefix);
 
 export const pipelineContinueToken = (
   ownerId: string,
@@ -527,6 +546,20 @@ export const failStaleProcessingPipelineRuns = async (
   await failStaleByokConcurrencySlots(ownerId, now, maxAgeMs);
 };
 
+export const nudgeProcessingPipelineJob = async (ownerId: string, jobId: string) => {
+  try {
+    const { ctx } = await getCloudflareContext({ async: true });
+    ctx.waitUntil((async () => {
+      const outcome = await executePipelineJob(ownerId, jobId, {
+        skipFreshProcessingMs: FRESH_PROCESSING_MS,
+      });
+      if (outcome === "continue") await schedulePipelineContinue(ownerId, jobId);
+    })());
+  } catch {
+    // Polling can still wait for the next GET if the isolate cannot schedule work.
+  }
+};
+
 export const schedulePipelineContinue = async (ownerId: string, jobId: string) => {
   const { env } = await getCloudflareContext({ async: true });
   const envRecord = env as unknown as Record<string, string | undefined>;
@@ -801,7 +834,7 @@ const runExpand = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
 
 const loadCompareSteps = async (jobId: string) => {
   const { rows } = await d1Query<PipelineStepRow>(
-    `SELECT parent_job_id, step_key, stage, status, child_job_id, error_code
+    `SELECT parent_job_id, step_key, stage, status, child_job_id, error_code, updated_at
      FROM byok_pipeline_steps WHERE parent_job_id = ? ORDER BY step_key`,
     [jobId],
   );
@@ -847,16 +880,23 @@ const finishCompareRun = async (
   await finishRun(run, isPartial ? "partial" : "complete", result, isPartial ? "PARTIAL_SUCCESS" : undefined);
 };
 
-const runCompare = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
+const runCompare = async (
+  run: PipelineRunRow,
+  quote: PipelineQuoteRow,
+  options?: Readonly<{ skipFreshProcessingMs?: number }>,
+) => {
   const children = JSON.parse(quote.child_quotes_json) as Array<CompareChildQuote | CompareIntentChildQuote>;
   const steps = await loadCompareSteps(run.job_id);
-  const nextIndex = nextPendingStepIndex(
-    children.length,
-    steps.map((step) => ({ stepKey: step.step_key, status: step.status })),
-    "compare",
-  );
+  const stepViews = steps.map((step) => ({
+    stepKey: step.step_key, status: step.status, updatedAt: step.updated_at,
+  }));
+  const nextIndex = nextRunnableStepIndex(children.length, stepViews, "compare", {
+    skipFreshProcessingMs: options?.skipFreshProcessingMs,
+  });
   if (nextIndex < 0) {
-    await finishCompareRun(run, quote, children);
+    if (nextPendingStepIndex(children.length, stepViews, "compare") < 0) {
+      await finishCompareRun(run, quote, children);
+    }
     return "done" as const;
   }
 
@@ -866,8 +906,11 @@ const runCompare = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
   const stepKey = `compare:${nextIndex}`;
   await markStep(run.job_id, stepKey, "compare", "processing");
   try {
-    const response = child.checkpointJobId
-      ? await getOwnedByokCompareResult(run.owner_id, child.checkpointJobId)
+    const checkpoint = child.checkpointJobId
+      ? await getOwnedByokCompareResult(run.owner_id, child.checkpointJobId).catch(() => null)
+      : null;
+    const response = checkpoint?.status === "complete" && checkpoint.data
+      ? checkpoint
       : child.kind === "compare-intent"
       ? await executeByokCompareIntentRetry({
         ownerId: run.owner_id,
@@ -918,7 +961,11 @@ const runCompare = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
   return "done" as const;
 };
 
-export const executePipelineJob = async (ownerId: string, jobId: string) => {
+export const executePipelineJob = async (
+  ownerId: string,
+  jobId: string,
+  options?: Readonly<{ skipFreshProcessingMs?: number }>,
+) => {
   const { rows } = await d1Query<PipelineRunRow>(
     `SELECT * FROM byok_pipeline_runs WHERE job_id = ? AND owner_id = ? LIMIT 1`,
     [jobId, ownerId],
@@ -935,7 +982,7 @@ export const executePipelineJob = async (ownerId: string, jobId: string) => {
       await runExpand(run, quote);
       return "done" as const;
     }
-    return await runCompare(run, quote);
+    return await runCompare(run, quote, options);
   } catch (error) {
     await finishRun(run, "failed", null, error instanceof Error ? error.message.slice(0, 64) : "PIPELINE_FAILED");
     return "done" as const;

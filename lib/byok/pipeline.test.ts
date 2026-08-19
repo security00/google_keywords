@@ -9,7 +9,7 @@ vi.mock("@opennextjs/cloudflare", () => ({
   getCloudflareContext: vi.fn(async () => ({ env: {}, ctx: { waitUntil: vi.fn() } })),
 }));
 
-import { nextPendingStepIndex, quotePipelineCompare, quotePipelineRetry, startPipelineExecution } from "./pipeline";
+import { nextPendingStepIndex, nextRunnableStepIndex, quotePipelineCompare, quotePipelineRetry, startPipelineExecution } from "./pipeline";
 
 vi.mock("@/lib/d1", () => ({ d1Batch: vi.fn(), d1Query: vi.fn() }));
 vi.mock("@/lib/byok/pipeline-access", () => ({ loadPipelineConnections: vi.fn() }));
@@ -55,6 +55,26 @@ describe("nextPendingStepIndex", () => {
       { stepKey: "compare:0", status: "complete" },
       { stepKey: "compare:1", status: "failed" },
     ], "compare")).toBe(-1);
+  });
+
+  test("does not steal a compare batch that was marked processing less than 20s ago", () => {
+    expect(nextRunnableStepIndex(5, [
+      { stepKey: "compare:0", status: "complete" },
+      { stepKey: "compare:1", status: "processing", updatedAt: "2026-08-19T14:27:28.000Z" },
+    ], "compare", {
+      now: new Date("2026-08-19T14:27:40.000Z"),
+      skipFreshProcessingMs: 20_000,
+    })).toBe(-1);
+  });
+
+  test("retries a compare batch left processing after the isolate died", () => {
+    expect(nextRunnableStepIndex(5, [
+      { stepKey: "compare:0", status: "complete" },
+      { stepKey: "compare:1", status: "processing", updatedAt: "2026-08-19T14:27:00.000Z" },
+    ], "compare", {
+      now: new Date("2026-08-19T14:27:40.000Z"),
+      skipFreshProcessingMs: 20_000,
+    })).toBe(1);
   });
 });
 

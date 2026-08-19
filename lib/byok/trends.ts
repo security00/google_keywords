@@ -34,6 +34,7 @@ import {
   failOwnedByokJob,
   getOwnedByokJobByIdempotency,
   getOwnedJob,
+  reclaimTimedOutOwnedByokJob,
   type ResearchJob,
 } from "@/lib/research-jobs";
 
@@ -310,7 +311,12 @@ export const executeByokTrends = async (input: Readonly<{
     jobType: "trends",
     idempotencyKey: expectedHash,
   }).catch(() => fail("JOB_PERSISTENCE_ERROR"));
-  if (existing && existing.status !== "pending") return publicResult(input.ownerId, existing);
+  const reusable = existing?.status === "failed" && existing.error === "WORKER_TIMEOUT"
+    ? await reclaimTimedOutOwnedByokJob({
+      id: existing.id, userId: input.ownerId, jobType: "trends",
+    }).catch(() => null)
+    : existing;
+  if (reusable && reusable.status !== "pending") return publicResult(input.ownerId, reusable);
 
   try {
     await reserveConfirmedByokCostQuote({

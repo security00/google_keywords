@@ -36,6 +36,7 @@ import {
   failOwnedByokJob,
   getOwnedByokJobByIdempotency,
   getOwnedJob,
+  reclaimTimedOutOwnedByokJob,
   type ResearchJob,
 } from "@/lib/research-jobs";
 import type { CompareResponse, ComparisonIntent, ComparisonResult } from "@/lib/types";
@@ -309,23 +310,43 @@ const enrichIntent = (response: unknown, results: readonly ComparisonResult[]): 
   for (const item of items) {
     const keyword = typeof item?.keyword === "string" ? item.keyword.trim() : "";
     const key = keyword.toLocaleLowerCase("en-US");
-    const label = typeof item?.label === "string" ? item.label.trim() : "";
+    if (!expected.has(key) || intents.has(key)) continue;
+    const rawLabel = typeof item?.label === "string" ? item.label.trim() : "";
+    const label = INTENT_LABELS.includes(rawLabel as (typeof INTENT_LABELS)[number])
+      ? rawLabel
+      : "Other";
     const demand = typeof item?.demand === "string" ? item.demand.trim() : "";
     const reason = typeof item?.reason === "string" ? item.reason.trim() : "";
-    if (!expected.has(key) || intents.has(key) || !INTENT_LABELS.includes(label as never)
-      || !demand || demand.length > 240 || !reason || reason.length > 240) {
-      return fail("PROVIDER_RESPONSE_INVALID");
-    }
+    if (!demand || demand.length > 240 || !reason || reason.length > 240) continue;
     const confidence = typeof item?.confidence === "number"
       ? Math.min(1, Math.max(0, item.confidence))
       : undefined;
     intents.set(key, { label, demand, reason, confidence });
   }
-  if (intents.size !== expected.size) return fail("PROVIDER_RESPONSE_INVALID");
+  if (intents.size === 0) return fail("PROVIDER_RESPONSE_INVALID");
   return results.map((item) => ({
     ...item,
     intent: intents.get(item.keyword.toLocaleLowerCase("en-US")),
   }));
+};
+
+const completeIntent = async (
+  complete: ChatCompletionClient["complete"],
+  results: readonly ComparisonResult[],
+) => {
+  const attempt = async () => {
+    const response = await complete(intentPrompt(results), { maxRetries: 0, timeoutMs: 15_000 });
+    try {
+      return { response, results: enrichIntent(response, results) };
+    } catch {
+      return { response, results: null };
+    }
+  };
+  const first = await attempt();
+  if (first.results) return first;
+  const retry = await attempt();
+  if (retry.results) return retry;
+  return first;
 };
 
 const recordEvent = (input: Readonly<{
@@ -410,7 +431,12 @@ export const executeByokCompare = async (input: Readonly<{
   const existing = await getOwnedByokJobByIdempotency({
     userId: input.ownerId, jobType: "compare", idempotencyKey: expectedHash,
   }).catch(() => fail("JOB_PERSISTENCE_ERROR"));
-  if (existing && existing.status !== "pending") return publicResult(input.ownerId, existing);
+  const reusable = existing?.status === "failed" && existing.error === "WORKER_TIMEOUT"
+    ? await reclaimTimedOutOwnedByokJob({
+      id: existing.id, userId: input.ownerId, jobType: "compare",
+    }).catch(() => null)
+    : existing;
+  if (reusable && reusable.status !== "pending") return publicResult(input.ownerId, reusable);
   try {
     await reserveConfirmedByokCostQuote({
       ownerId: input.ownerId, quoteId: input.quoteId, requestHash: expectedHash,
@@ -546,14 +572,13 @@ export const executeByokCompare = async (input: Readonly<{
   let intentError: "PROVIDER_FAILED" | "PROVIDER_RESPONSE_INVALID" | null = null;
   let enrichedResults: ComparisonResult[] = results;
   try {
-    openRouterResponse = await openRouterClient.complete(intentPrompt(results), {
-      maxRetries: 0, timeoutMs: 15_000,
-    });
-    try {
-      enrichedResults = enrichIntent(openRouterResponse, results);
-    } catch {
-      intentError = "PROVIDER_RESPONSE_INVALID";
-    }
+    const completed = await completeIntent(
+      (prompt, options) => openRouterClient.complete(prompt, options),
+      results,
+    );
+    openRouterResponse = completed.response;
+    if (completed.results) enrichedResults = completed.results;
+    else intentError = "PROVIDER_RESPONSE_INVALID";
   } catch {
     openRouterResponse = null;
     intentError = "PROVIDER_FAILED";
@@ -715,7 +740,12 @@ export const executeByokCompareIntentRetry = async (input: Readonly<{
   const existing = await getOwnedByokJobByIdempotency({
     userId: input.ownerId, jobType: "compare_intent", idempotencyKey: expectedHash,
   }).catch(() => fail("JOB_PERSISTENCE_ERROR"));
-  if (existing && existing.status !== "pending") return publicResult(input.ownerId, existing);
+  const reusable = existing?.status === "failed" && existing.error === "WORKER_TIMEOUT"
+    ? await reclaimTimedOutOwnedByokJob({
+      id: existing.id, userId: input.ownerId, jobType: "compare_intent",
+    }).catch(() => null)
+    : existing;
+  if (reusable && reusable.status !== "pending") return publicResult(input.ownerId, reusable);
   try {
     await reserveConfirmedByokCostQuote({
       ownerId: input.ownerId, quoteId: input.quoteId, requestHash: expectedHash,
@@ -766,10 +796,14 @@ export const executeByokCompareIntentRetry = async (input: Readonly<{
     { apiKey: key }, { model: BYOK_COMPARE_MODEL },
   )))(apiKey);
   let response: unknown;
+  let enriched: ComparisonResult[] | null = null;
   try {
-    response = await client.complete(intentPrompt(base.data.comparison.results), {
-      maxRetries: 0, timeoutMs: 15_000,
-    });
+    const completed = await completeIntent(
+      (prompt, options) => client.complete(prompt, options),
+      base.data.comparison.results,
+    );
+    response = completed.response;
+    enriched = completed.results;
   } catch {
     try {
       await recordEvent({
@@ -785,9 +819,7 @@ export const executeByokCompareIntentRetry = async (input: Readonly<{
     } catch { return failRetry("COST_LEDGER_WRITE_FAILED"); }
     return failRetry("PROVIDER_FAILED");
   }
-  let enriched: ComparisonResult[];
-  try { enriched = enrichIntent(response, base.data.comparison.results); }
-  catch {
+  if (!enriched) {
     try {
       await recordEvent({
         job: record.job, ownerId: input.ownerId, provider: "openrouter",
