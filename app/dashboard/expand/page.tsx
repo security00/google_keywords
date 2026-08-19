@@ -40,6 +40,8 @@ export default function ExpandPage() {
     executionMode,
     setExecutionMode,
     byokReady,
+    partialRetry,
+    retryByokPartial,
   } = useResearch();
 
   const expansionCost = formatUsd(effectiveKeywords.length * TASK_COST_USD);
@@ -138,8 +140,19 @@ export default function ExpandPage() {
 
         <CardFooter className="flex flex-col gap-3 border-t bg-muted/50 px-4 py-4 sm:px-6">
           {error && (
-            <div className="w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
+            <div className="w-full space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <div>{error}</div>
+              {partialRetry?.operation === "expand" && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { void retryByokPartial(); }}
+                  disabled={loadingExpand}
+                >
+                  {loadingExpand && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  只重试失败项（约 ${partialRetry.estimatedCostUsd.toFixed(3)}）
+                </Button>
+              )}
             </div>
           )}
 

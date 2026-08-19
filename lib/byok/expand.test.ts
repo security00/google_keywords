@@ -47,6 +47,7 @@ vi.mock("@/lib/research-jobs", async (importOriginal) => ({
   claimOwnedByokJob: vi.fn(), completeOwnedByokJob: vi.fn(),
   createOrGetOwnedByokJob: vi.fn(), failOwnedByokJob: vi.fn(),
   getOwnedByokJobByIdempotency: vi.fn(), getOwnedJob: vi.fn(),
+  reclaimTimedOutOwnedByokJob: vi.fn(),
 }));
 
 const mockLoad = vi.mocked(loadProviderConnection);

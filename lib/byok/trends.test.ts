@@ -57,6 +57,7 @@ vi.mock("@/lib/research-jobs", async (importOriginal) => {
     failOwnedByokJob: vi.fn(),
     getOwnedByokJobByIdempotency: vi.fn(),
     getOwnedJob: vi.fn(),
+    reclaimTimedOutOwnedByokJob: vi.fn(),
   };
 });
 

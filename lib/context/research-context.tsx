@@ -317,6 +317,8 @@ interface ResearchContextType {
     // Actions
     handleExpand: () => Promise<void>;
     handleCompare: () => Promise<void>;
+    retryByokPartial: () => Promise<void>;
+    partialRetry: { operation: "expand" | "compare"; estimatedCostUsd: number; batchCount: number } | null;
     toggleCandidate: (keyword: string) => void;
     selectAll: () => void;
     selectTop: (count: number) => void;
@@ -381,6 +383,14 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
     const [expandProgress, setExpandProgress] = useState<TaskProgress | null>(null);
     const [compareProgress, setCompareProgress] = useState<TaskProgress | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [partialRetry, setPartialRetry] = useState<{
+        operation: "expand" | "compare";
+        quoteId: string;
+        requestHash: string;
+        estimatedCostUsd: number;
+        batchCount: number;
+        executeKey: string;
+    } | null>(null);
     const [debugLogs, setDebugLogs] = useState<LogEntry[]>([]);
     const [logToConsole, setLogToConsole] = useState(true);
 
@@ -727,7 +737,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         operation: "expand" | "compare",
         body: Record<string, unknown>,
         onProgress: (progress: { completed: number; total: number }) => void,
-    ): Promise<T> => {
+    ): Promise<{ result: T; partial: boolean }> => {
         type PipelineQuote = {
             quoteId: string; requestHash: string; estimatedCostUsd: number;
             expiresAt: string; batchCount: number;
@@ -771,38 +781,119 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
             + `内部批次：${quote.batchCount}\n\n确认继续？`,
         );
         if (!confirmed) throw new Error("已取消实时请求");
-        let job = await pollJob(await executeQuote(quote, `execute-${quoteKey}`));
+        const job = await pollJob(await executeQuote(quote, `execute-${quoteKey}`));
         if (job.status === "failed") throw new Error(job.errorCode || "实时任务失败");
         if (!job.result) throw new Error("实时任务等待超时");
         if (job.status === "partial") {
-            const retryKey = `retry-${operation}-${crypto.randomUUID()}`;
-            const retryResponse = await fetch(
-                `/api/research/byok/pipeline/jobs/${encodeURIComponent(job.jobId)}/retry/quote`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "Idempotency-Key": retryKey },
-                    credentials: "include",
-                    body: "{}",
-                },
-            );
-            const retryBody = await retryResponse.json().catch(() => ({}));
-            if (retryResponse.ok) {
-                const retryQuote = retryBody.quote as PipelineQuote;
-                const retryConfirmed = window.confirm(
-                    `部分阶段未完成。是否只重试失败阶段？\n`
-                    + `追加费用上限：$${retryQuote.estimatedCostUsd.toFixed(3)}\n`
-                    + `重试批次：${retryQuote.batchCount}\n\n已成功阶段不会再次调用 Provider。`,
-                );
-                if (retryConfirmed) {
-                    const retried = await pollJob(await executeQuote(retryQuote, `execute-${retryKey}`));
-                    if (retried.result) job = retried;
-                }
-            } else if (retryBody?.code !== "NO_RETRYABLE_STEPS") {
-                window.alert(`部分结果已保留，但失败阶段暂时无法重新报价：${retryBody?.code || "RETRY_UNAVAILABLE"}`);
-            }
+            await offerPartialRetry(operation, job.jobId);
+        } else {
+            setPartialRetry(null);
         }
-        return job.result as T;
+        return { result: job.result as T, partial: job.status === "partial" };
     }, []);
+
+    const offerPartialRetry = async (operation: "expand" | "compare", jobId: string) => {
+        const retryKey = `retry-${operation}-${crypto.randomUUID()}`;
+        const retryResponse = await fetch(
+            `/api/research/byok/pipeline/jobs/${encodeURIComponent(jobId)}/retry/quote`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Idempotency-Key": retryKey },
+                credentials: "include",
+                body: "{}",
+            },
+        );
+        const retryBody = await retryResponse.json().catch(() => ({}));
+        if (retryResponse.ok) {
+            const retryQuote = retryBody.quote as {
+                quoteId: string; requestHash: string; estimatedCostUsd: number; batchCount: number;
+            };
+            setPartialRetry({
+                operation,
+                quoteId: retryQuote.quoteId,
+                requestHash: retryQuote.requestHash,
+                estimatedCostUsd: retryQuote.estimatedCostUsd,
+                batchCount: retryQuote.batchCount,
+                executeKey: `execute-${retryKey}`,
+            });
+            setError(operation === "compare"
+                ? "部分阶段未完成：趋势结果已保留，可只重试失败的意图分类。"
+                : "部分阶段未完成：已完成结果已保留，可只重试失败项。");
+            return;
+        }
+        setPartialRetry(null);
+        if (retryBody?.code !== "NO_RETRYABLE_STEPS") {
+            setError(`部分结果已保留，但失败阶段暂时无法重新报价：${retryBody?.code || "RETRY_UNAVAILABLE"}`);
+        }
+    };
+
+    const retryByokPartial = async () => {
+        const stored = partialRetry;
+        if (!stored) return;
+        const startedAt = performance.now();
+        setError(null);
+        if (stored.operation === "expand") {
+            setLoadingExpand(true);
+            setExpandProgress({ ready: 0, total: 0 });
+        } else {
+            setLoadingCompare(true);
+            setCompareProgress({ ready: 0, total: 0 });
+        }
+        try {
+            const response = await fetch(`/api/research/byok/pipeline/${stored.operation}/execute`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Idempotency-Key": stored.executeKey },
+                credentials: "include",
+                body: JSON.stringify({
+                    quoteId: stored.quoteId,
+                    requestHash: stored.requestHash,
+                    confirmedEstimatedCostUsd: stored.estimatedCostUsd,
+                }),
+            });
+            const started = await response.json().catch(() => ({})) as PipelineJobResult<ExpandResponse | CompareResponse> & {
+                code?: string;
+            };
+            if (!response.ok) {
+                throw new Error(byokUserError(started.code, "实时重试启动失败"));
+            }
+            const job = await pollByokPipelineJob(started, {
+                onProgress: (progress) => {
+                    const next = { ready: progress.completed, total: progress.total };
+                    if (stored.operation === "expand") setExpandProgress(next);
+                    else setCompareProgress(next);
+                },
+                maxWaitMs: CLIENT_MAX_WAIT_MS,
+                pollIntervalMs: CLIENT_POLL_INTERVAL_MS,
+            });
+            if (job.status === "failed") throw new Error(job.errorCode || "实时重试失败");
+            if (!job.result) throw new Error("实时重试等待超时");
+            if (stored.operation === "expand") {
+                const payload = job.result as ExpandResponse;
+                setExpandData(payload);
+                setSelected(new Set(buildRecommendedSelection(payload)));
+                setSessionId(payload.sessionId ?? null);
+            } else {
+                const payload = job.result as CompareResponse;
+                setCompareData(payload);
+                setComparisonId(payload.comparisonId ?? null);
+            }
+            if (job.status === "partial") {
+                await offerPartialRetry(stored.operation, job.jobId);
+                pushLog("info", "失败项仍有未完成阶段", `耗时=${Math.round(performance.now() - startedAt)}ms`);
+            } else {
+                setPartialRetry(null);
+                pushLog("success", "失败项重试完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "重试失败");
+            pushLog("error", "失败项重试异常", err instanceof Error ? err.message : "未知错误");
+        } finally {
+            setLoadingExpand(false);
+            setLoadingCompare(false);
+            setExpandProgress(null);
+            setCompareProgress(null);
+        }
+    };
 
     useEffect(() => {
         if (!user || !byokReady) return;
@@ -854,7 +945,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                     if (!stillCurrent()) return;
                     if (done.result) {
                         applyExpand(done.result);
-                        pushLog("success", "已恢复后台扩词结果", done.jobId);
+                        pushLog(
+                            done.status === "partial" ? "info" : "success",
+                            done.status === "partial" ? "已恢复后台扩词部分结果" : "已恢复后台扩词结果",
+                            done.jobId,
+                        );
+                        if (done.status === "partial") await offerPartialRetry("expand", done.jobId);
                     } else if (done.status === "failed") {
                         setError(done.errorCode || "后台扩词失败");
                     }
@@ -862,7 +958,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                     setExpandProgress(null);
                 } else if (job.result) {
                     applyExpand(job.result);
-                    pushLog("success", "已恢复上次扩词结果", job.jobId);
+                    pushLog(
+                        job.status === "partial" ? "info" : "success",
+                        job.status === "partial" ? "已恢复上次扩词部分结果" : "已恢复上次扩词结果",
+                        job.jobId,
+                    );
+                    if (job.status === "partial") await offerPartialRetry("expand", job.jobId);
                 }
             }
 
@@ -886,7 +987,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                     if (!stillCurrent()) return;
                     if (done.result) {
                         applyCompare(done.result);
-                        pushLog("success", "已恢复后台对比结果", done.jobId);
+                        pushLog(
+                            done.status === "partial" ? "info" : "success",
+                            done.status === "partial" ? "已恢复后台对比部分结果" : "已恢复后台对比结果",
+                            done.jobId,
+                        );
+                        if (done.status === "partial") await offerPartialRetry("compare", done.jobId);
                     } else if (done.status === "failed") {
                         setError(done.errorCode || "后台对比失败");
                     }
@@ -894,7 +1000,12 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                     setCompareProgress(null);
                 } else if (job.result) {
                     applyCompare(job.result);
-                    pushLog("success", "已恢复上次对比结果", job.jobId);
+                    pushLog(
+                        job.status === "partial" ? "info" : "success",
+                        job.status === "partial" ? "已恢复上次对比部分结果" : "已恢复上次对比结果",
+                        job.jobId,
+                    );
+                    if (job.status === "partial") await offerPartialRetry("compare", job.jobId);
                 }
             }
         };
@@ -914,6 +1025,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         pipelineWatchGeneration.current += 1;
         setLoadingExpand(true);
         setError(null);
+        setPartialRetry(null);
         setCompareData(null);
         setExpandProgress({ ready: 0, total: 0 });
         const startedAt = performance.now();
@@ -921,7 +1033,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
 
         try {
             if (executionMode === "byok") {
-                const completedPayload = await runByokPipeline<ExpandResponse>("expand", {
+                const { result: completedPayload, partial } = await runByokPipeline<ExpandResponse>("expand", {
                     keywords: effectiveKeywords,
                     days: 90,
                     filterTerms: parsedFilterTerms,
@@ -930,7 +1042,11 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 setExpandData(completedPayload);
                 setSelected(new Set(buildRecommendedSelection(completedPayload)));
                 setSessionId(completedPayload.sessionId ?? null);
-                pushLog("success", "实时扩展完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
+                pushLog(
+                    partial ? "info" : "success",
+                    partial ? "实时扩展部分完成" : "实时扩展完成",
+                    `耗时=${Math.round(performance.now() - startedAt)}ms`,
+                );
                 router.push("/dashboard/candidates");
                 return;
             }
@@ -1012,13 +1128,14 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         pipelineWatchGeneration.current += 1;
         setLoadingCompare(true);
         setError(null);
+        setPartialRetry(null);
         setCompareProgress({ ready: 0, total: 0 });
         const startedAt = performance.now();
         pushLog("info", "对比请求已发送", `selected=${selected.size}`);
 
         try {
             if (executionMode === "byok") {
-                const completedPayload = await runByokPipeline<CompareResponse>("compare", {
+                const { result: completedPayload, partial } = await runByokPipeline<CompareResponse>("compare", {
                     keywords: Array.from(selected),
                     benchmark: DEFAULT_BENCHMARK,
                     ...(expandData?.dateFrom && expandData?.dateTo
@@ -1027,7 +1144,11 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 }, (progress) => setCompareProgress({ ready: progress.completed, total: progress.total }));
                 setCompareData(completedPayload);
                 setComparisonId(completedPayload.comparisonId ?? null);
-                pushLog("success", "实时对比完成", `耗时=${Math.round(performance.now() - startedAt)}ms`);
+                pushLog(
+                    partial ? "info" : "success",
+                    partial ? "实时对比部分完成" : "实时对比完成",
+                    `耗时=${Math.round(performance.now() - startedAt)}ms`,
+                );
                 router.push("/dashboard/analysis");
                 return;
             }
@@ -1157,6 +1278,14 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 byokReady,
                 handleExpand,
                 handleCompare,
+                retryByokPartial,
+                partialRetry: partialRetry
+                    ? {
+                        operation: partialRetry.operation,
+                        estimatedCostUsd: partialRetry.estimatedCostUsd,
+                        batchCount: partialRetry.batchCount,
+                    }
+                    : null,
                 toggleCandidate,
                 selectAll,
                 selectTop,

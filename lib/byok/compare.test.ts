@@ -47,6 +47,7 @@ vi.mock("@/lib/research-jobs", async (importOriginal) => ({
   claimOwnedByokJob: vi.fn(), completeOwnedByokJob: vi.fn(),
   createOrGetOwnedByokJob: vi.fn(), failOwnedByokJob: vi.fn(),
   getOwnedByokJobByIdempotency: vi.fn(), getOwnedJob: vi.fn(),
+  reclaimTimedOutOwnedByokJob: vi.fn(),
 }));
 
 const mockLoad = vi.mocked(loadProviderConnection);
@@ -220,6 +221,61 @@ describe("BYOK Compare", () => {
     expect(mockCost).toHaveBeenCalledTimes(2);
     expect(mockPlatformDataForSeo).not.toHaveBeenCalled();
     expect(mockPlatformOpenRouter).not.toHaveBeenCalled();
+  });
+
+  test("retries invalid OpenRouter JSON once and maps unknown labels to Other", async () => {
+    const connections = await stored();
+    mockLoad.mockImplementation(async (_ownerId, id) => id === "dataforseo-1"
+      ? connections.dataForSeo : connections.openRouter);
+    const request = {
+      keywords: ["ai resume builder"], benchmark: "gpts",
+      dateFrom: "2026-04-22", dateTo: "2026-07-21",
+    };
+    const requestHash = buildByokCompareRequestHash({
+      ownerId: "owner-1", dataForSeoConnectionId: "dataforseo-1",
+      dataForSeoConnectionVersion: 1, openRouterConnectionId: "openrouter-1",
+      openRouterConnectionVersion: 1, request,
+    });
+    const job = {
+      id: "job-1", user_id: "owner-1", job_type: "compare" as const, status: "pending" as const,
+      task_ids: [], payload: { request }, session_id: null, error: null,
+      execution_mode: "byok" as const, credential_source: "user" as const,
+      idempotency_key: requestHash, claim_token: null, lease_expires_at: null, attempt_count: 0,
+      provider_connection_id: "dataforseo-1", provider_connection_version: 1,
+      provider_request_state: "not_started" as const, result_cache_key: null,
+      created_at: "now", updated_at: "now",
+    };
+    mockCreate.mockResolvedValue({ job, created: true });
+    const dataForSeoRequest = vi.fn().mockResolvedValue(comparisonResponse());
+    const openRouterComplete = vi.fn()
+      .mockResolvedValueOnce({ choices: [{ message: { content: "not json" } }] })
+      .mockResolvedValueOnce({
+        usage: { cost: 0.0002 },
+        choices: [{ message: { content: JSON.stringify({ intents: [{
+          keyword: "ai resume builder", label: "Not A Real Label",
+          demand: "Create resumes with AI",
+          reason: "The rising comparison indicates active tool demand",
+          confidence: 0.9,
+        }] }) } }],
+      });
+
+    const result = await executeByokCompare({
+      ownerId: "owner-1", dataForSeoConnectionId: "dataforseo-1",
+      dataForSeoConnectionVersion: 1, openRouterConnectionId: "openrouter-1",
+      openRouterConnectionVersion: 1, request, quoteId: "quote-1", requestHash,
+      confirmedEstimatedCostUsd: 0.012, confirmation: "CONFIRM",
+      decryptionKeys: connections.bundle.decryption,
+      dataForSeoClientFactory: vi.fn().mockReturnValue({ provider: "dataforseo", request: dataForSeoRequest }),
+      openRouterClientFactory: vi.fn().mockReturnValue({
+        provider: "openrouter", model: "google/gemini-2.5-flash-lite", complete: openRouterComplete,
+      }),
+    });
+
+    expect(openRouterComplete).toHaveBeenCalledTimes(2);
+    expect(result.data).toMatchObject({
+      phase: "complete", partialSuccess: false,
+      comparison: { results: [{ keyword: "ai resume builder", intent: { label: "Other" } }] },
+    });
   });
 
   test("retries only the failed intent stage with a new explicit quote", async () => {

@@ -13,6 +13,7 @@ import {
   getInternalJobById,
   getOwnedJob,
   linkJobToRequest,
+  reclaimTimedOutOwnedByokJob,
 } from "./research-jobs";
 
 vi.mock("@/lib/d1", () => ({
@@ -215,6 +216,29 @@ describe("research job ownership", () => {
     expect(String(sql)).toContain("status = 'pending'");
     expect(String(sql)).not.toContain("lease_expires_at <=");
     expect(params?.slice(-2)).toEqual(["connection-1", 2]);
+  });
+
+  test("reclaims a timed-out BYOK job back to pending", async () => {
+    mockD1Query.mockResolvedValueOnce({
+      rows: [{
+        ...jobRow,
+        job_type: "compare",
+        status: "pending",
+        error: null,
+        execution_mode: "byok",
+        credential_source: "user",
+        provider_request_state: "not_started",
+      }],
+      meta: { changes: 1 },
+    });
+    const reclaimed = await reclaimTimedOutOwnedByokJob({
+      id: "job-1",
+      userId: "user-1",
+      jobType: "compare",
+    });
+    expect(reclaimed?.status).toBe("pending");
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("error = 'WORKER_TIMEOUT'");
+    expect(String(mockD1Query.mock.calls[0][0])).toContain("status = 'pending'");
   });
 
   test("completes or fails BYOK jobs only from the current started claim", async () => {
