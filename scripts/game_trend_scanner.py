@@ -75,6 +75,15 @@ TRENDS_PENDING_JOBS_FILE = os.environ.get(
 
 # CrazyGames /new — 特殊源，有发布日期排序
 CRAZYGAMES_NEW = "https://www.crazygames.com/new"
+ADDICTING_GAMES_NEW_PAGE = "https://www.addictinggames.com/new-games"
+ADDICTING_GAMES_DATA_URL = "https://www.addictinggames.com/_next/data/{build_id}/new-games.json"
+ADDICTING_GAMES_BUILD_ID_FALLBACK = (os.environ.get("ADDICTING_GAMES_BUILD_ID") or "np0g0qQCmUV26zh9pzpv3").strip()
+ADDICTING_GAMES_BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.addictinggames.com/new-games",
+}
 
 # ── Load shared business rules from config ──
 _RULES_PATH = os.path.join(os.path.dirname(__file__), '..', 'config', 'business-rules.json')
@@ -970,48 +979,83 @@ def fetch_poki_new():
 
 # ─── Addicting Games /new-games ──────────────────────────────────────
 
-def fetch_addicting_games_new():
-    """Fetch new games from Addicting Games /new-games page."""
-    print("\n🎮 Phase 1c: Addicting Games /new-games", flush=True)
-    try:
-        req = urllib.request.Request(
-            "https://www.addictinggames.com/new-games",
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
+def addicting_games_http_get(url):
+    req = urllib.request.Request(url, headers=ADDICTING_GAMES_BROWSER_HEADERS)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return resp.read()
 
-        import re as _re
-        match = _re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html)
-        if not match:
-            print("  ❌ No __NEXT_DATA__ found on Addicting Games", flush=True)
-            return []
 
-        data = json.loads(match.group(1))
-        raw_games = data["props"]["pageProps"]["games"]
+def addicting_games_build_id_from_html(html):
+    match = re.search(r'"buildId"\s*:\s*"([^"]+)"', html or "")
+    if match:
+        return match.group(1)
+    match = re.search(r"/_next/data/([A-Za-z0-9_-]+)/", html or "")
+    return match.group(1) if match else ""
 
-        games = []
-        for g in raw_games:
-            title = g.get("title", "").strip()
-            published = g.get("published", "")
-            # Only include games from the last 14 days
-            if published:
-                try:
-                    from datetime import datetime, timezone
-                    pub_date = datetime.fromisoformat(published.replace("+00:00", "+00:00"))
-                    days_ago = (datetime.now(timezone.utc) - pub_date).days
-                    if days_ago > 14:
-                        continue
-                except:
-                    pass
-            if is_game_name_valid(title):
-                games.append({"name": title, "source": "addictinggames"})
 
-        print(f"  Found {len(games)} new Addicting Games (last 14 days)", flush=True)
-        return games
-    except Exception as e:
-        print(f"  ❌ Addicting Games fetch failed: {e}", flush=True)
+def parse_addicting_games_payload(data, max_age_days=14, now=None):
+    """Parse Next pageProps or __NEXT_DATA__ payloads into recent game names."""
+    if not isinstance(data, dict):
         return []
+    raw_games = (data.get("pageProps") or {}).get("games")
+    if not isinstance(raw_games, list):
+        raw_games = ((data.get("props") or {}).get("pageProps") or {}).get("games")
+    if not isinstance(raw_games, list):
+        return []
+    now = now or datetime.now(timezone.utc)
+    games = []
+    seen = set()
+    for item in raw_games:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        published = str(item.get("published") or "").strip()
+        if published:
+            try:
+                pub_date = datetime.fromisoformat(published)
+                if pub_date.tzinfo is None:
+                    pub_date = pub_date.replace(tzinfo=timezone.utc)
+                if (now - pub_date).days > max_age_days:
+                    continue
+            except ValueError:
+                pass
+        key = title.lower()
+        if not is_game_name_valid(title) or key in seen:
+            continue
+        seen.add(key)
+        games.append({"name": title, "source": "addictinggames"})
+    return games
+
+
+def fetch_addicting_games_new():
+    """Fetch new games from the Addicting Games Next.js data API."""
+    print("\n🎮 Phase 1c: Addicting Games /new-games.json", flush=True)
+    payload = None
+    build_id = ADDICTING_GAMES_BUILD_ID_FALLBACK
+    try:
+        html = addicting_games_http_get(ADDICTING_GAMES_NEW_PAGE).decode("utf-8", errors="ignore")
+        html_build_id = addicting_games_build_id_from_html(html)
+        if html_build_id:
+            build_id = html_build_id
+        match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+        if match:
+            payload = json.loads(match.group(1))
+    except Exception as exc:
+        print(f"  ⚠️ HTML /new-games failed: {exc}", flush=True)
+
+    if build_id:
+        data_url = ADDICTING_GAMES_DATA_URL.format(build_id=build_id)
+        try:
+            payload = json.loads(addicting_games_http_get(data_url).decode("utf-8"))
+        except Exception as exc:
+            print(f"  ⚠️ Next data JSON failed: {exc}", flush=True)
+
+    games = parse_addicting_games_payload(payload)
+    if not games and payload is None:
+        print("  ❌ Addicting Games fetch failed: no HTML or JSON payload", flush=True)
+        return []
+    print(f"  Found {len(games)} new Addicting Games (last 14 days)", flush=True)
+    return games
 
 
 # ─── itch.io New Games ────────────────────────────────────────────
