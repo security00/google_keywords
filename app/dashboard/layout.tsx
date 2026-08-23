@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb, FileText, Gauge, SlidersHorizontal, Radar, ChevronDown, type LucideIcon } from "lucide-react";
+import { Loader2, Key, Users, Activity, Gamepad2, Search, ListChecks, Settings, PanelLeftClose, PanelLeftOpen, Shield, Signal, BrainCircuit, Lightbulb, FileText, Gauge, SlidersHorizontal, Radar, ChevronDown, UserPlus, type LucideIcon } from "lucide-react";
 
 import { TrialBanner } from "@/components/trial-banner";
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ function Navigation({
   const adminSteps: NavItem[] = [
     { href: "/dashboard/admin/health", label: "系统健康", icon: Activity, active: pathname.includes("/admin/health") },
     { href: "/dashboard/admin/byok-health", label: "BYOK 运行", icon: Shield, active: pathname.includes("/admin/byok-health") },
+    { href: "/dashboard/admin/byok-allowlist", label: "BYOK 名单", icon: UserPlus, active: pathname.includes("/admin/byok-allowlist") },
     { href: "/dashboard/admin/pipeline-runs", label: "成本统计", icon: ListChecks, active: pathname.includes("/admin/pipeline-runs") },
     { href: "/dashboard/admin/codes", label: "邀请码管理", icon: Key, active: pathname.includes("/admin/codes") },
     { href: "/dashboard/admin/users", label: "用户管理", icon: Users, active: pathname.includes("/admin/users") },

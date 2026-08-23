@@ -3,9 +3,9 @@ import "server-only";
 import { NextResponse } from "next/server";
 
 import { requireEffectiveUser } from "@/lib/authz";
+import { isByokOwnerAllowed } from "@/lib/byok/allowlist";
 import {
   ProviderConnectionKeyringError,
-  providerConnectionOwnerAllowed,
   providerConnectionsManagementEnabled,
 } from "./keyring";
 import { ProviderConnectionServiceError } from "./service";
@@ -116,7 +116,7 @@ export const requireProviderConnectionOwner = async (
       { status: 403 },
     );
   }
-  if (!providerConnectionOwnerAllowed(principal.userId)) {
+  if (!await isByokOwnerAllowed(principal.userId)) {
     return featureDisabledResponse();
   }
   if (options.mutation && !sameOrigin(request)) {
