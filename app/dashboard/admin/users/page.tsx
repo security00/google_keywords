@@ -216,7 +216,12 @@ export default function UsersPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <h2 className="text-2xl font-bold">用户管理</h2>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h2 className="text-2xl font-bold">用户管理</h2>
+        <Link href="/dashboard/admin/byok-allowlist" className="text-sm text-primary hover:underline">
+          管理 BYOK 测试员
+        </Link>
+      </div>
 
       {error && <div className="rounded bg-red-50 p-3 text-sm text-red-600">{error}</div>}
       {message && <div className="rounded bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
