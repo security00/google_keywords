@@ -1,8 +1,10 @@
 # Execution Roadmap
 
-> Current-state baseline: 2026-07-20. This document is the delivery-facing
-> roadmap. Historical `*-todo.md` files remain useful design records, but do
-> not by themselves indicate that a capability is unimplemented.
+> Current-state baseline: 2026-08-24 (original baseline 2026-07-20). This
+> document is the delivery-facing roadmap. Historical `*-todo.md` files remain
+> useful design records, but do not by themselves indicate that a capability is
+> unimplemented. Dated log entries below are historical; later entries supersede
+> them.
 >
 > Domain terms and invariants are defined in `CONTEXT.md`. Architecture
 > decisions live in `docs/adr/`; engineering debt and closure evidence live
@@ -26,16 +28,29 @@ the browser.
 | --- | --- | --- |
 | Shared expansion | Operational; debt closure deployed | Shared cache and background precompute exist; Pipeline v1 run/task/cost instrumentation and migrations are in production; the stabilization observation window remains. |
 | Old-keyword pipeline | Operational | Explicit run/task/cost stages are recorded by the Python runtime. |
-| Game discovery pipeline | Operational | Trends, history, SERP, and classification stages are recorded. |
-| Game Radar | Implemented; needs quality operations | Scanner, admin review, trends, SERP, promotion, and auto-review scripts exist. Expand sources only after quality review. |
+| Game discovery pipeline | Operational | Linux cron still drives Trends, history, SERP, and classification. Students get three staggered weekly hot/rising keywords; weak niches stay off the student list. Steam current-player counts are optional (`STEAM_WEB_API_KEY`). |
+| Game Radar | Operational; quality review continues | OnlineGames.io, FreeGames.com, and Coolmath `/0-` sitemaps are enabled. Remaining evaluated sitemaps are parked `enabled=0`. Radar ingest does not auto-promote to students. |
 | Multi-signal discovery | Implemented; needs operational metrics | Collection, standardization, review, and signal bridge exist. New platforms remain deferred. |
 | Source/opportunity dashboards | Implemented, read-only by design | Quality, score, suggestions, enrichment, feedback, report, and semantic-dedupe surfaces are available. |
-| SaaS operations | Production healthy; BYOK isolated development active | BYOK B1-B3 are locally implemented, including quoted paid execution, private-cache isolation, Partial Success, cost reconciliation, static isolation checks and controlled stale-job recovery. B4 production gray observation has not started. Management and Live Mode remain feature-off, with no production KEK, remote migration, or deployment. |
+| SaaS operations | Invite-only paid access in production | Stripe live Founding Member $49/month (tax included). Public signup remains off. Paid vs trial is access continuation, not a feature-tier split. Scout/Builder/Studio prices are not for sale. |
+| BYOK | Production G2-scale gray | Connection Management and Live Mode are on for an allowlist (env union D1). Production KEK `v1`, default $1/day and concurrency 1. G3 (3–5 internal accounts, 7-day observation) has not passed. Not open to all paid users. |
 
 ## Ordered Work
 
 ## Execution Log
 
+- 2026-08-24, documentation sync: CONTEXT, ARCHITECTURE, README, API, and this
+  roadmap now match production. BYOK is allowlisted Live Mode, not an undeployed
+  isolated branch. Stripe Founding is live. Game student picks, Steam CCU,
+  Addicting Games Next JSON, and evaluated Radar sitemaps are in `main`.
+- 2026-08-23, game discovery ops: backfilled Steam current-player counts into
+  existing recommended/watchlist reasons and showed them as a student/admin
+  badge. Student 新游发现 switched from a pinned weekly title to three
+  staggered hot/rising picks. Daily scanner caps any one source at 25% of the
+  keyword budget. Addicting Games reads `/_next/data/{buildId}/new-games.json`;
+  the Linux cron host is still Cloudflare-challenged. Game Radar ingested
+  OnlineGames.io, FreeGames.com, and Coolmath candidates without promoting them
+  to students.
 - 2026-07-21, BYOK B3 connection slice: added owner-scoped encrypted
   DataForSEO `{login,password}` management beside OpenRouter. Verification is
   fixed to the official free `/v3/appendix/user_data` endpoint and returns only
@@ -162,9 +177,10 @@ operations gate, not additional BYOK implementation:
    completeness, stale runs, and paid-provider errors for one stable window.
 4. Disable side-effecting GET compatibility and legacy shared-cache reads only
    after the observation evidence is clean.
-5. Approve the BYOK production gate; until then, the isolated implementation is
-   not merged or deployed and no production user credential storage or
-   user-triggered paid-provider route is enabled.
+5. Complete BYOK G3 observation (3–5 internal accounts, seven calendar days,
+   five capabilities, one rejection path, one reconciliation drill) before any
+   G4 paid-user expansion. Connection Management and Live Mode are already on
+   for the current allowlist.
 
 ### P1 — Quality operations
 
@@ -181,13 +197,12 @@ Design, but do not deploy, a Cloudflare Queue consumer. It must reuse current
 pipeline task records, provide global idempotency, retries and dead-letter
 handling, and retain a cron rollback path.
 
-### Engineering sequence before BYOK
+### Engineering sequence for remaining BYOK ops
 
-Close the independently deployable debt batches in this order: CI/runtime,
-Principal and entitlement, Research Job ownership/idempotency, cache/D1
-boundaries, Provider adapters, then Pipeline observability and legacy
-retirement. BYOK development starts only after the current paid platform paths
-and student cache-only invariant pass the stabilization gate.
+Debt batches B0–B3 are in production for the allowlisted gray. Remaining work
+is observation and admission, not a second implementation: G3 evidence, then a
+separate approval for G4. Python Cron remains the pipeline Driver (ADR-0007).
+Do not move the three long-running scanners onto Worker Cron Triggers.
 
 ## Explicitly Deferred
 

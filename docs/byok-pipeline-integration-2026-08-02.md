@@ -1,5 +1,9 @@
 # BYOK UI/API 一体化实施证据（2026-08-02）
 
+> 这是 2026-08-02 的分期证据，不是当前生产状态。之后生产已打开
+> allowlist Live Mode；以 `docs/execution-roadmap.md` 和
+> `docs/runbooks/byok-gray-rollout.md` 为准。
+
 ## 结论边界
 
 - 分支：`codex/byok-pipeline-integration`

@@ -12,8 +12,9 @@ Production site: <https://discoverkeywords.co>
 - **Game discovery** — scan Steam/community signals and surface new game keyword opportunities.
 - **Old keyword mining** — identify older keywords worth revisiting.
 - **Shared precompute cache** — keep expensive research work in scheduled background jobs instead of user clicks.
-- **Student access control** — registration, pending activation, 90-day trials, API keys, quotas, and session auth.
-- **Admin operations** — user activation, invite codes, health panels, pipeline runs, and cost visibility.
+- **Student access control** — invite-code registration, pending activation, 90-day trials, API keys, quotas, and session auth. Public self-serve signup stays off.
+- **Billing** — live Stripe Founding Member at $49/month (tax included). Paid access continues the same Shared Cache product after trial.
+- **Admin operations** — user activation, invite codes, health panels, pipeline runs, cost visibility, BYOK testers, and SaaS funnel.
 - **External APIs** — authenticated endpoints for research and discovery-feed consumers.
 
 ## Three Keyword Pipelines
@@ -31,10 +32,13 @@ tool-site recommendations.
 2. **Game keyword pipeline**
    - Entry: `/dashboard/games`, `/dashboard/admin/game-radar`,
      `scripts/game_trend_scanner.py`, `scripts/game_radar_pipeline.py`.
-   - Input: game-specific sources such as Roblox, Steam, itch.io, Poki, and
-     curated radar sources.
+   - Input: game-specific sources such as Roblox, Steam (optional Web API
+     player counts), itch.io, Poki, CrazyGames `/new`, and curated radar
+     sitemaps (OnlineGames.io, FreeGames.com, Coolmath `/0-` pages).
    - Output: student-visible game recommendations only after Trends, history,
-     and SERP game-relevance checks pass.
+     and SERP game-relevance checks pass. Each student gets three staggered
+     picks from the weekly hot/rising pool; weak niches stay off the student
+     list. Radar candidates are admin-only until explicitly promoted.
 3. **Old-word pipeline**
    - Entry: `/dashboard/old-keywords`, `/dashboard/admin/old-keywords`,
      `scripts/old_word_pipeline.py`.
@@ -83,6 +87,10 @@ Admin pages live under `/dashboard/admin`:
 - `/dashboard/admin/source-weight-suggestions` — read-only source weight suggestions; does not apply weights automatically
 - `/dashboard/admin/old-keywords` — old keyword pipeline
 - `/dashboard/admin/pipeline-runs` — pipeline run and cost visibility
+- `/dashboard/admin/byok-allowlist` — BYOK tester allowlist
+- `/dashboard/admin/byok-health` — BYOK health and reconciliation
+- `/dashboard/admin/saas-funnel` — signup and billing funnel
+- `/dashboard/admin/game-radar` — curated sitemap radar sources
 
 ### Scheduled jobs
 
@@ -92,7 +100,8 @@ Important scripts:
 - `scripts/run_precompute.sh` — main precompute entrypoint
 - `scripts/run_precompute_with_retry.sh` — retry wrapper
 - `scripts/run_precompute_watchdog.sh` — watchdog/backfill wrapper
-- `scripts/game_trend_scanner.py` — game discovery scanner
+- `scripts/game_trend_scanner.py` — game discovery scanner (Linux cron host, not the Worker)
+- `scripts/game_page_radar.py` — Game Radar sitemap ingest; does not auto-promote to students
 - `scripts/old_word_pipeline.py` — old keyword pipeline
 - `scripts/check-business-rules.mjs` — CI guard for business-rule sync
 
@@ -171,10 +180,9 @@ For Stripe webhooks, configure the endpoint as:
 https://www.discoverkeywords.co/api/billing/webhook
 ```
 
-Current SaaS billing starts with a test-mode Founding Member subscription at
-`$49/month`. The Stripe Product/Price/Webhook resources live in Stripe test mode;
-store the secret key, webhook signing secret, and price id in Cloudflare secrets.
-Do not commit Stripe keys or webhook secrets to the repo.
+Production billing uses a live Founding Member price at `$49/month` (tax
+included). Local `.env.local` keeps Stripe test-mode keys. Do not commit Stripe
+keys or webhook secrets to the repo. See `docs/runbooks/stripe-live-cutover.md`.
 
 ## Database and migrations
 

@@ -1,10 +1,11 @@
 # BYOK B0-B4 实施计划
 
-> 更新：2026-07-21
+> 更新：2026-08-24
 >
-> 当前状态：B1-B3 与 B4 代码侧运维工具已在隔离分支完成实现、完成审计与全量回归；
-> 实际灰度和稳定观察尚未开始。生产 KEK、远程 migration、BYOK API 启用、Live Mode
-> 和生产部署仍须按灰度 Runbook 分阶段批准。
+> 当前状态：B1–B3 已在生产按 allowlist 灰度运行（Connection Management + Live Mode，
+> KEK `v1`，低预算低并发）。B4/G3 的多账号 7 日观察尚未验收。下文阶段表里
+> 「隔离分支 / 待生产 G0」是 2026-07 的历史表述，以本段和
+> `docs/runbooks/byok-gray-rollout.md` 为准。
 
 ## 1. 不可破坏边界
 
@@ -23,11 +24,11 @@
 
 | 阶段 | 目标 | 当前状态 | 完成定义 |
 | --- | --- | --- | --- |
-| B0 | 生产稳定与准入证据 | 开发准入已批准；生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
-| B1 | Provider Connection 安全管理 | 隔离分支已完成实现、审计与全量回归，待生产 G0/G1 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
-| B2 | OpenRouter 单能力 Live Mode | 隔离分支已完成实现、审计与全量回归，待生产 G2 | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
-| B3 | DataForSEO 与完整实时研究 | 隔离分支已完成实现、审计与全量回归，待生产 G2/G3 | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
-| B4 | 产品化灰度与稳定观察 | 运维健康与受控恢复已实现；尚未部署观察 | 无 P0/P1 安全或成本问题，runbook 可执行并明确验收 |
+| B0 | 生产稳定与准入证据 | 生产观察继续 | Cron、成本、权限和稳定窗口证据闭环 |
+| B1 | Provider Connection 安全管理 | 生产 allowlist 可用 | crypto/store/API/隔离/删除/轮换内部灰度通过 |
+| B2 | OpenRouter 单能力 Live Mode | 生产 allowlist Live Mode | user/byok Job、Private Cache、Cost 和零平台回退闭环 |
+| B3 | DataForSEO 与完整实时研究 | 生产 allowlist Live Mode | 双 Provider、预算、幂等、Partial Success 与账单对账通过 |
+| B4 | 产品化灰度与稳定观察 | G2 量级已开；G3 观察未完成 | 无 P0/P1 安全或成本问题，G3 7 日证据闭环 |
 
 Rising Sites 排在 BYOK B1-B4 完整验收之后；PDR 产品融合排在 Rising Sites 的公开
 MVP 和稳定榜单周期之后。
@@ -106,31 +107,32 @@ Trends 第一能力已在隔离分支接入两步式报价/确认：报价不解
 Provider；执行只接受服务器规范化请求、固定请求哈希、未过期 quote id、精确的
 `$0.011` 估算和单独 `CONFIRM`。结果只写 `byok-trends` Private Cache，Cost Event
 固定标记 `user/byok`，测试明确断言平台 DataForSEO Client 调用数为 0。该能力仍受
-Live Mode 默认关闭和 allowlist 约束，尚未部署。
+Live Mode 与 allowlist 约束。生产已按该约束开旗。
 
 SERP 第二能力沿用同一安全边界：固定 Google Organic Live、美国英文桌面端和 depth
 10，使用当前 `$0.002` 估算；请求哈希绑定 owner、connection/version、关键词和固定
 配置。只有未过期的精确报价和独立 `CONFIRM` 才会调用用户 DataForSEO 凭证；结果只写
 `byok-serp` Private Cache，Cost Event 固定标记 `user/byok`，测试明确禁止平台凭证
-回退。该能力仍未部署。
+回退。生产已按 allowlist 开旗。
 
 Compare 第四能力一次最多比较 4 个候选词和 1 个 benchmark，固定使用单个 Google
 Trends Live 任务。保守报价为 DataForSEO `$0.011` 加固定低成本 OpenRouter 模型的
 `$0.001` 上界。DataForSEO 成功结果会在 LLM 调用前写入 `byok-compare` Private Cache；
 LLM 失败时任务以 Partial Success 完成。用户可为语义阶段单独取得 `$0.001` 新报价，
 该重试使用独立 `compare_intent` Job，API 请求结构中不存在 DataForSEO connection 字段，
-测试验证不会重跑已成功的付费 Trends 阶段。该能力仍未部署。
+测试验证不会重跑已成功的付费 Trends 阶段。生产已按 allowlist 开旗。
 
 Expand 第三能力固定为单种子词 Google Trends Related Queries（US/en/web），因为官方
 要求 Top/Rising 相关查询一次最多指定一个关键词。它使用当前 `$0.011` Live 任务估算，
 只返回去重、限量、脱敏的候选词，并只写 `byok-expand` Private Cache；报价、确认、预算、
-幂等、Cost Event 和零平台凭证回退边界与 Trends/SERP 相同。该能力仍未部署。
+幂等、Cost Event 和零平台凭证回退边界与 Trends/SERP 相同。生产已按 allowlist 开旗。
 
 ## 6. B4 — 灰度与验收
 
 灰度顺序：维护者单账户 → internal allowlist 多账户/低预算 → 小比例已付费用户。
-Live Mode 始终默认关闭。观测 connection CRUD/verify、BYOK Job、Private Cache、
-Cost Event、预算阻断、跨 owner 拒绝、crypto/KEK 和恢复后删除对账。
+当前停在第二段（G2 量级）。Live Mode 对 allowlist 已打开，对新用户默认仍不可用。
+观测 connection CRUD/verify、BYOK Job、Private Cache、Cost Event、预算阻断、
+跨 owner 拒绝、crypto/KEK 和恢复后删除对账。
 
 代码侧准入包含 `check:byok-isolation` 静态守卫，以及管理员只读
 `GET /api/admin/byok-health`。守卫禁止 BYOK 生产代码引用平台 Provider credential、Shared Cache
