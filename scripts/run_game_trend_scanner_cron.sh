@@ -36,8 +36,8 @@ cd "$ROOT"
 
 # Keep the daily cron comfortably below the OpenClaw job timeout. The scanner is
 # sequential and each 5-keyword trends batch can take ~60-120s plus 90d/SERP.
-# A 20-keyword budget still samples all active sources via select_games_to_check.
-MAX_KEYWORDS="${GAME_TREND_MAX_KEYWORDS:-20}"
+# 25 keywords is 5 Trends batches and still samples every active source.
+MAX_KEYWORDS="${GAME_TREND_MAX_KEYWORDS:-25}"
 MAX_SOURCES="${GAME_TREND_MAX_SOURCES:-5}"
 TIMEOUT_SECONDS="${GAME_TREND_TIMEOUT_SECONDS:-780}"
 

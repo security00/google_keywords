@@ -120,6 +120,7 @@ WATCHLIST_RECOMMENDATION = "👀 watchlist"
 SERP_MIN_RATIO = 0.05
 WATCHLIST_MIN_RATIO = 0.05
 WATCHLIST_RECHECK_SHARE = 0.2
+SOURCE_DAILY_CAP_SHARE = 0.25
 SOURCE_SELECTION_WEIGHTS = {
     "steam-topsellers": 3.8,
     "steam-charts": 3.5,
@@ -1673,14 +1674,17 @@ def candidate_selection_score(game, watchlist_names):
     )
 
 
+def source_daily_cap(max_keywords):
+    return max(2, int(max_keywords * SOURCE_DAILY_CAP_SHARE))
+
+
 def select_games_to_check(all_games, checked_names, max_keywords, watchlist_names=None):
     """Select trend-check candidates without starving later sources.
 
     The scanner collects sources in a fixed order. A plain global slice can let
     CrazyGames consume the whole daily budget before Steam/Poki/itch.io get any
-    checks. New-game discovery is more valuable when every source gets a small
-    daily look, then remaining capacity goes to better historical sources and
-    watchlist rechecks.
+    checks. After one floor slot per source, remaining slots prefer stronger
+    sources but cap any single source so a noisy feed cannot fill the day.
     """
     watchlist_names = {name.lower() for name in (watchlist_names or set())}
     pending = [g for g in all_games if g["name"].lower() not in checked_names]
@@ -1735,13 +1739,33 @@ def select_games_to_check(all_games, checked_names, max_keywords, watchlist_name
         if candidates:
             add_game(candidates[0])
 
-    # Fill remaining slots by learned source weight and cheap title signals.
+    # Fill remaining slots by learned source weight and cheap title signals,
+    # but cap any one source so leftover CrazyGames/itch names cannot consume
+    # the budget after Steam titles are already in the pipeline.
+    cap = source_daily_cap(max_keywords)
+    source_counts = {}
+    for game in selected:
+        src = game.get("source", "unknown")
+        source_counts[src] = source_counts.get(src, 0) + 1
+
     remaining = [game for game in pending if game["name"].lower() not in selected_names]
     remaining.sort(key=lambda game: candidate_selection_score(game, watchlist_names), reverse=True)
     for game in remaining:
         if len(selected) >= max_keywords:
             break
-        add_game(game)
+        src = game.get("source", "unknown")
+        if source_counts.get(src, 0) >= cap:
+            continue
+        if add_game(game):
+            source_counts[src] = source_counts.get(src, 0) + 1
+
+    if len(selected) < max_keywords:
+        leftover = [game for game in pending if game["name"].lower() not in selected_names]
+        leftover.sort(key=lambda game: candidate_selection_score(game, watchlist_names), reverse=True)
+        for game in leftover:
+            if len(selected) >= max_keywords:
+                break
+            add_game(game)
 
     return selected
 

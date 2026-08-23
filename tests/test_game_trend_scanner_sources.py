@@ -196,7 +196,7 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
         self.assertEqual(len(selected), 7)
         self.assertEqual(
             [game["source"] for game in selected],
-            ["crazygames", "steam", "steam-topsellers", "poki", "steam-topsellers", "steam", "steam"],
+            ["crazygames", "steam", "steam-topsellers", "poki", "steam-topsellers", "steam", "poki"],
         )
 
     def test_select_games_to_check_keeps_one_floor_for_low_weight_sources(self):
@@ -214,6 +214,20 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
             [game["source"] for game in selected],
             ["crazygames", "steam", "itchio-free", "crazygames", "crazygames"],
         )
+
+    def test_select_games_to_check_caps_a_noisy_source(self):
+        scanner = load_scanner()
+        games = (
+            [{"name": f"Crazy {i}", "source": "crazygames"} for i in range(20)]
+            + [{"name": f"Poki {i}", "source": "poki"} for i in range(8)]
+        )
+        selected = scanner.select_games_to_check(games, checked_names=set(), max_keywords=8)
+        counts = {}
+        for game in selected:
+            counts[game["source"]] = counts.get(game["source"], 0) + 1
+        self.assertEqual(len(selected), 8)
+        self.assertLessEqual(counts["crazygames"], scanner.source_daily_cap(8))
+        self.assertGreaterEqual(counts.get("poki", 0), 6)
 
     def test_select_games_to_check_prioritizes_watchlist_rechecks(self):
         scanner = load_scanner()

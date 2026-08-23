@@ -5,6 +5,7 @@ export type GameKeywordCandidate = {
   source_site?: string | null;
   source?: string | null;
   trend_ratio?: number | null;
+  trend_slope?: number | null;
   serp_auth?: number | null;
   recommendation?: string | null;
   trend_checked_at?: string | null;
@@ -35,6 +36,18 @@ export function isWithinDays(
   return nowMs - ms <= days * 24 * 60 * 60 * 1000;
 }
 
+export function isStudentHotGame(
+  row: GameKeywordCandidate,
+  minRatio = 1,
+): boolean {
+  const rec = String(row.recommendation || "");
+  if (rec.includes("skip") || rec.includes("watchlist")) return false;
+  if (rec.includes("hot") || rec.includes("rising")) return true;
+  const ratio = Number(row.trend_ratio) || 0;
+  const slope = Number(row.trend_slope) || 0;
+  return rec.includes("niche") && ratio >= minRatio && slope > 0;
+}
+
 function sourceOf(row: GameKeywordCandidate): string {
   return String(row.source_site || row.source || "");
 }
@@ -48,24 +61,15 @@ function trendRatio(row: GameKeywordCandidate): number {
 }
 
 function diversityScore(row: GameKeywordCandidate, usedSources: Set<string>): number {
-  let score = Math.min(trendRatio(row), 5);
+  const rec = String(row.recommendation || "");
+  let score = Math.min(trendRatio(row), 8);
   if (!usedSources.has(sourceOf(row))) score += 100;
-  if (Number(row.serp_auth) === 0) score += 30;
-  if (row.recommendation === "🎯 niche") score += 10;
+  if (rec.includes("hot")) score += 6;
+  else if (rec.includes("rising")) score += 3;
   return score;
 }
 
-function pickPinnedHot<T extends GameKeywordCandidate>(
-  rows: T[],
-  weeklyWindowDays: number,
-  nowMs: number,
-): T {
-  const weekly = rows.filter((row) => isWithinDays(row.trend_checked_at, weeklyWindowDays, nowMs));
-  const pool = weekly.length > 0 ? weekly : rows;
-  return [...pool].sort((a, b) => trendRatio(b) - trendRatio(a) || a.keyword.localeCompare(b.keyword))[0];
-}
-
-function pickDiverse<T extends GameKeywordCandidate>(
+function pickStaggered<T extends GameKeywordCandidate>(
   remaining: T[],
   usedSources: Set<string>,
   userId: string,
@@ -99,24 +103,33 @@ export function pickStudentGameKeywords<T extends GameKeywordCandidate>(
     count?: number;
     weeklyWindowDays?: number;
     maxAgeDays?: number;
+    minRatio?: number;
     nowMs?: number;
   },
 ): Array<T & { slot: StudentGamePickSlot }> {
   const count = options?.count ?? 3;
   const weeklyWindowDays = options?.weeklyWindowDays ?? 7;
+  const minRatio = options?.minRatio ?? 1;
   const nowMs = options?.nowMs ?? Date.now();
   const fresh =
     options?.maxAgeDays != null
       ? rows.filter((row) => isWithinDays(row.trend_checked_at, options.maxAgeDays as number, nowMs))
       : rows;
-  if (fresh.length === 0 || count <= 0) return [];
+  const hot = fresh.filter((row) => isStudentHotGame(row, minRatio));
+  if (hot.length === 0 || count <= 0) return [];
 
-  const pinned = pickPinnedHot(fresh, weeklyWindowDays, nowMs);
-  const remaining = fresh.filter((row) => rowKey(row) !== rowKey(pinned));
-  const diverse = pickDiverse(remaining, new Set([sourceOf(pinned)]), userId, Math.max(0, count - 1));
+  const weekly = hot.filter((row) => isWithinDays(row.trend_checked_at, weeklyWindowDays, nowMs));
+  const weeklyKeys = new Set(weekly.map(rowKey));
+  const picked = pickStaggered(weekly, new Set(), userId, Math.min(count, weekly.length));
+  if (picked.length < count) {
+    const used = new Set(picked.map(sourceOf));
+    const usedKeys = new Set(picked.map(rowKey));
+    const fallback = hot.filter((row) => !usedKeys.has(rowKey(row)));
+    picked.push(...pickStaggered(fallback, used, userId, count - picked.length));
+  }
 
-  return [
-    { ...pinned, slot: "weekly_hot" as const },
-    ...diverse.map((row) => ({ ...row, slot: "diverse" as const })),
-  ];
+  return picked.map((row) => ({
+    ...row,
+    slot: weeklyKeys.has(rowKey(row)) ? ("weekly_hot" as const) : ("diverse" as const),
+  }));
 }

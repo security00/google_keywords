@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import MagicMock
 
 
 def load_radar():
@@ -90,6 +91,14 @@ class GamePageRadarTest(unittest.TestCase):
         self.assertIsNone(radar.extract_keyword_from_url("https://example.com/privacy", source))
         self.assertIsNone(radar.extract_keyword_from_url("https://example.com/games", source))
         self.assertIsNone(radar.extract_keyword_from_url("https://example.com/12345", source))
+
+    def test_load_sources_can_filter_by_id(self):
+        radar = load_radar()
+        d1 = MagicMock()
+        d1.query.return_value = [{"id": "onlinegames-io"}]
+        rows = radar.load_sources(d1, 3, ["onlinegames-io", "freegames-com"])
+        self.assertEqual(rows, [{"id": "onlinegames-io"}])
+        self.assertIn("id IN", d1.query.call_args[0][0])
 
     def test_parse_sitemap_urls_sorts_newest_lastmod_first(self):
         radar = load_radar()
