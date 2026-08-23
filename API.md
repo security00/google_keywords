@@ -33,10 +33,12 @@ API Key 必须放在 Authorization Header 中。URL Query 中携带 API Key
 - **管理员**：无限制
 - **学员**：每天 3 次综合 API 调用（expand/compare/serp/trends 合计）
 - **缓存命中**：不计入配额
-- **试用期**：90 天，到期后需续费
+- **试用期**：邀请码注册 90 天；公开自助注册未开放
+- **续费**：Stripe live Founding Member $49/月（含税），与试用看到同一套产品
 
 学生请求默认读取平台预计算的共享缓存，不因缓存未命中而触发平台
-DataForSEO、OpenRouter、SERP 或 Trends 计费。实时 BYOK 尚未上线。
+DataForSEO、OpenRouter、SERP 或 Trends 计费。BYOK Live Mode 仅对 allowlist
+内账号开放，使用用户自己的 Provider Connection，结果进入 Private Cache。
 
 ---
 

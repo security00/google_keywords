@@ -46,11 +46,12 @@ Discover Keywords 是一个关键词机会发现与运营平台。当前由三�
 
 ### BYOK Live Mode（自带密钥实时模式）
 
-隔离分支已实现 OpenRouter 关键词语义过滤，以及 DataForSEO Trends、SERP、Expand 和
-DataForSEO + OpenRouter Compare；生产仍关闭。用户明确选择并确认费用后，使用用户自己的
+生产已开 Connection Management 与 Live Mode，但只对 allowlist 内的内部账号开放
+（当前为 G2 量级：低预算、低并发）。用户明确选择并确认费用后，使用自己的
 Provider Connection 执行实时付费请求。结果只属于该用户，且不得回退到平台凭证。付费请求在
 发送前写入不可自动重领的 checkpoint，结果只进入 Private Cache。Compare 的 DataForSEO 阶段
 成功而 LLM 阶段失败时保留 Partial Success，只允许通过独立报价重试语义阶段。
+G3（3–5 个内部账号、连续 7 日观察）尚未验收；未开放给全部付费用户。
 
 ### Credential Source（凭证来源）
 

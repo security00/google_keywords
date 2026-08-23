@@ -1,7 +1,7 @@
 # Discover Keywords 当前架构
 
-> 更新时间：2026-07-21
-> 本文描述已经存在的实现，不把 BYOK 或未来 Queue 当作已上线能力。领域术语和强制不变量以 [CONTEXT.md](./CONTEXT.md) 为准。
+> 更新时间：2026-08-24
+> 本文描述已经存在的实现。BYOK 生产已开旗但仅 allowlist 灰度；Queue/Workflow 仍不是 Driver。领域术语和强制不变量以 [CONTEXT.md](./CONTEXT.md) 为准。
 
 ## 1. 架构结论
 
@@ -76,17 +76,19 @@ Admin 或 Cron 可以使用平台环境变量中的 Provider 凭证执行真实�
 
 当前代码中部分状态 GET 同时承担“查询”和“推进”职责。ADR-0003 要求在兼容迁移后将 GET 变为只读，并由显式执行入口调用统一幂等执行器。
 
-### 3.3 BYOK：尚未上线
+### 3.3 BYOK：生产灰度（allowlist）
 
-BYOK 已在隔离分支按旁路实现，但尚未部署：
+Connection Management 与 Live Mode 已在生产打开，并由环境变量 allowlist 与 D1 `byok_allowlist` 的并集约束 owner。当前不是全员功能：
 
 - 用户显式选择 BYOK Live Mode。
-- 使用加密的用户 Provider Connection。
+- 使用加密的用户 Provider Connection（生产 KEK `v1`）。
 - 复用平台链路提取出的纯业务核心，不复制规则、解析和结果合并逻辑。
 - 只写 Private Cache，默认 24 小时。
 - 失败不回退平台凭证。
+- 默认日预算 $1、并发 1；管理员可在限额内调整。
+- 管理端有测试员名单（`/dashboard/admin/byok-allowlist`）和健康页。
 
-完整顺序见 ADR-0006；在 BYOK 灰度开旗前，Credential Source 为 user 的请求不应出现在生产真实 Provider 调用中。
+完整顺序见 ADR-0006。G3 多账号 7 日观察尚未完成；未 allowlist 的用户不得发起 `credential_source=user` 的生产 Provider 调用。
 
 ## 4. 三条业务 Pipeline
 
@@ -94,16 +96,16 @@ BYOK 已在隔离分支按旁路实现，但尚未部署：
 | --- | --- | --- | --- |
 | Shared Expansion | **scripts/precompute_shared_expand.py** | 种子词、DataForSEO 扩展、LLM/SERP/Trends | 学生共享候选结果 |
 | Old Keyword | **scripts/old_word_pipeline.py** | 成熟词池、趋势、搜索量、竞争度、社区信号 | 老词机会 |
-| Game Discovery | **scripts/game_trend_scanner.py** 等 | Steam、CrazyGames、Poki、itch.io、趋势和 SERP | 游戏词机会 |
+| Game Discovery | **scripts/game_trend_scanner.py**、**scripts/game_page_radar.py** | Steam（含可选 Web API 在线人数）、CrazyGames `/new`、Poki、itch.io、Roblox 搜索；Radar sitemap（OnlineGames.io、FreeGames.com、Coolmath `/0-` 等） | 过热/升门槛后的学生游戏词；Radar 候选默认不自动 promote |
 
-Python Cron 目前仍是正式 Driver。**pipeline_runs**、**pipeline_tasks** 和 **pipeline_cost_events** 是统一运维边界；Queue/Workflow 仅是未来可能的 Driver，不得另建任务模型。
+Python Cron 目前仍是正式 Driver，跑在 Worker 外的 Linux 主机上。Worker Cron Trigger 尚未承担这三条管线。**pipeline_runs**、**pipeline_tasks** 和 **pipeline_cost_events** 是统一运维边界；Queue/Workflow 仅是未来可能的 Driver，必须复用现有 Task 模型并保留 Cron 回滚（ADR-0007）。
 
 ## 5. Next.js 模块边界
 
 ### 页面
 
 - **app/dashboard/**：学生研究、候选、游戏、老词和设置。
-- **app/dashboard/admin/**：用户、健康、Pipeline、来源质量和机会运营。
+- **app/dashboard/admin/**：用户、健康、Pipeline、来源质量、机会运营、BYOK 测试员/健康、SaaS 漏斗。
 
 ### API
 
@@ -134,7 +136,7 @@ Python Cron 目前仍是正式 Driver。**pipeline_runs**、**pipeline_tasks** �
 - x-cron-secret 或受控 Bearer Secret：Cron。
 - URL Query API Key：遗留兼容能力，文档已停止推荐，按 ADR-0002 退役。
 
-当前 **authz.ts** 是 Principal 与 Cron 的唯一实现；旧的 **auth_middleware.ts** 已删除。共享研究入口通过 **requireEffectiveUser()** 和 **checkEffectiveAccess()** 汇总管理员、课程试用、Stripe 订阅和每日配额。Query Key 默认关闭，仅在尚处于兼容观察期的旧接口显式开启。统一调用顺序为：
+当前 **authz.ts** 是 Principal 与 Cron 的唯一实现；旧的 **auth_middleware.ts** 已删除。共享研究入口通过 **requireEffectiveUser()** 和 **checkEffectiveAccess()** 汇总管理员、课程试用、Stripe 订阅和每日配额。公开注册保持关闭；邀请码试用 90 天，到期后可用 live Founding $49/月（含税）续用，付费与试用看到同一套 Shared Cache 产品。Query Key 默认关闭，仅在尚处于兼容观察期的旧接口显式开启。统一调用顺序为：
 
 ~~~text
 Request

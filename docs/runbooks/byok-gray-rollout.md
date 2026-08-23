@@ -1,15 +1,27 @@
 # BYOK 灰度与完整观察周期 Runbook
 
-> 当前状态：仅完成代码与本地验证。本 runbook 不授权生产 Secret、远程 migration、推送、部署或开旗。
+> 当前状态（2026-08-24）：生产已完成 G0–G2 量级开门。
+> `BYOK_PROVIDER_CONNECTIONS_ENABLED` 与 `BYOK_LIVE_MODE_ENABLED` 均为 true；
+> 生产 KEK/fingerprint 为 `v1`；owner allowlist 为环境变量与 D1 `byok_allowlist`
+> 的并集（当前约 2 个内部账号）；默认日预算 $1、并发 1。
+> G3（3–5 内部账号、连续 7 日观察）尚未验收。本 runbook 仍约束 G3/G4 扩员、
+> 提预算和关旗回滚；不要把它读成「功能还没部署」。
+
+## 0. 当前生产
+
+不要把下面的 G0「双开关关闭」当成现在要执行的步骤。生产已经开旗。
+从今天往前推进，只做 G3 观察与扩员，或按第 5 节关旗回滚。
 
 ## 1. 灰度前置条件
+
+以下适用于从完全关闭重新开门（事故恢复），不是日常扩员：
 
 - 当前 `main` 已完成既有 Shared Expansion 稳定观察，且 Cron/runtime 与仓库版本一致；
 - B1-B3 全量测试、构建、依赖审计、migration 检查、student paid-provider guard 与
   `check:byok-isolation` 全部通过；
 - 先应用 additive migrations，再部署同版本 Worker；
-- `BYOK_PROVIDER_CONNECTIONS_ENABLED=false` 与 `BYOK_LIVE_MODE_ENABLED=false` 保持关闭，
-  allowlist 初始为空；
+- 重新开门时先让 `BYOK_PROVIDER_CONNECTIONS_ENABLED=false` 与
+  `BYOK_LIVE_MODE_ENABLED=false`，allowlist 收窄后再按 G0→G3 打开；
 - 部署前记录 D1 Time Travel bookmark、当前 Worker version 和回滚目标。
 
 ## 2. 分阶段开门
