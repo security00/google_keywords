@@ -35,7 +35,9 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from urllib.parse import urlparse
+from pathlib import Path
 import xml.etree.ElementTree as ET
+import math
 from datetime import datetime, timezone
 
 try:
@@ -65,6 +67,7 @@ D1_API_TOKEN = os.environ.get("CF_API_TOKEN", "")
 D1_DATABASE_ID = os.environ.get("D1_DATABASE_ID", "b40de8a4-75e1-4df6-a84d-3ecd62b70538")
 API_URL = os.environ.get("GK_API_URL", "https://discoverkeywords.co")
 API_KEY = os.environ.get("GK_API_KEY", "")
+STEAM_WEB_API_KEY = os.environ.get("STEAM_WEB_API_KEY", "").strip()
 TRENDS_PENDING_JOBS_FILE = os.environ.get(
     "GK_GAME_TRENDS_PENDING_JOBS_FILE",
     "/root/.local/state/google_keywords/game_trends_pending_jobs.json",
@@ -109,6 +112,7 @@ WATCHLIST_MIN_RATIO = 0.05
 WATCHLIST_RECHECK_SHARE = 0.2
 SOURCE_SELECTION_WEIGHTS = {
     "steam-topsellers": 3.8,
+    "steam-charts": 3.5,
     "steam": 3.0,
     "steam-new": 3.0,
     "poki": 2.2,
@@ -568,7 +572,7 @@ def extract_steam_search_items(results_html):
     return items
 
 
-def fetch_steam_app_release_date(app_id):
+def fetch_steam_app_basic(app_id):
     url = f"https://store.steampowered.com/api/appdetails?appids={app_id}&filters=release_date,basic"
     req = urllib.request.Request(
         url,
@@ -579,10 +583,142 @@ def fetch_steam_app_release_date(app_id):
     app_data = data.get(str(app_id), {})
     if not app_data.get("success"):
         return None
-    release_date = app_data.get("data", {}).get("release_date", {})
-    if release_date.get("coming_soon"):
+    payload = app_data.get("data") or {}
+    release_date = payload.get("release_date") or {}
+    return {
+        "name": str(payload.get("name") or "").strip(),
+        "type": payload.get("type"),
+        "coming_soon": bool(release_date.get("coming_soon")),
+        "release_date": release_date.get("date"),
+    }
+
+
+def fetch_steam_app_release_date(app_id):
+    info = fetch_steam_app_basic(app_id)
+    if not info or info.get("coming_soon"):
         return None
-    return release_date.get("date")
+    return info.get("release_date")
+
+
+def steam_web_api_key():
+    return (os.environ.get("STEAM_WEB_API_KEY") or "").strip()
+
+
+def load_steam_web_api_key_from_dotenv(path=".env.local"):
+    if steam_web_api_key():
+        return steam_web_api_key()
+    env_path = Path(__file__).resolve().parents[1] / path
+    if not env_path.exists():
+        return ""
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("STEAM_WEB_API_KEY="):
+            os.environ["STEAM_WEB_API_KEY"] = line.split("=", 1)[1].strip()
+            break
+    return steam_web_api_key()
+
+
+def steam_web_api_get(method_path, params=None):
+    key = steam_web_api_key()
+    if not key:
+        return None
+    query = dict(params or {})
+    query["key"] = key
+    url = f"https://api.steampowered.com/{method_path}?{urllib.parse.urlencode(query)}"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read())
+
+
+def fetch_steam_player_count(app_id):
+    if not app_id or not steam_web_api_key():
+        return None
+    data = steam_web_api_get(
+        "ISteamUserStats/GetNumberOfCurrentPlayers/v1/",
+        {"appid": str(app_id)},
+    )
+    response = (data or {}).get("response") or {}
+    if response.get("result") != 1:
+        return None
+    return int(response.get("player_count") or 0)
+
+
+def enrich_games_with_steam_players(games, delay=0.1):
+    if not steam_web_api_key():
+        return games
+    steam_games = [game for game in games if game.get("steam_id") and game.get("steam_player_count") is None]
+    if steam_games:
+        print(f"\n👥 Steam Web API: fetching current players for {len(steam_games)} games", flush=True)
+    for game in steam_games:
+        try:
+            game["steam_player_count"] = fetch_steam_player_count(game.get("steam_id"))
+        except Exception as exc:
+            print(f"  ⚠️ player count failed for {game.get('name')}: {exc}", flush=True)
+            game["steam_player_count"] = None
+        time.sleep(delay)
+    return games
+
+
+def fetch_steam_charts_recent(max_lookups=40):
+    """Most-played Steam apps that released in the last 60 days. No-op without a Web API key."""
+    print("\n🎮 Phase 1b: Steam Charts (most played, recent)", flush=True)
+    if not steam_web_api_key():
+        print("  skip: STEAM_WEB_API_KEY not set", flush=True)
+        return []
+    try:
+        payload = steam_web_api_get("ISteamChartsService/GetMostPlayedGames/v1/")
+        ranks = ((payload or {}).get("response") or {}).get("ranks") or []
+        games = []
+        seen = set()
+        lookups = 0
+        for row in ranks:
+            if lookups >= max_lookups:
+                break
+            app_id = str(row.get("appid") or "").strip()
+            if not app_id:
+                continue
+            lookups += 1
+            info = fetch_steam_app_basic(app_id)
+            time.sleep(0.1)
+            if not info or info.get("coming_soon") or (info.get("type") and info.get("type") != "game"):
+                continue
+            name = info.get("name") or ""
+            if not is_game_name_valid(name) or not is_recent_steam_release(info.get("release_date")):
+                continue
+            key = name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            games.append({
+                "name": name,
+                "source": "steam-charts",
+                "steam_id": app_id,
+                "steam_player_count": fetch_steam_player_count(app_id),
+            })
+        print(f"  Found {len(games)} recent Steam chart games ({lookups} lookups)", flush=True)
+        return games
+    except Exception as exc:
+        print(f"  ❌ Steam Charts fetch failed: {exc}", flush=True)
+        return []
+
+
+def append_steam_player_reason(reason, player_count):
+    if player_count is None:
+        return reason
+    suffix = f"Steam在线 {int(player_count):,}人"
+    if not reason:
+        return suffix
+    if "Steam在线" in reason:
+        return reason
+    return f"{reason} · {suffix}"
+
+
+def player_count_selection_boost(player_count):
+    if not isinstance(player_count, (int, float)) or player_count <= 0:
+        return 0.0
+    return min(4.0, math.log1p(player_count) * 0.35)
 
 
 def fetch_steam_top_sellers():
@@ -1009,10 +1145,12 @@ def call_trends_api(keywords, max_wait=180, *, endpoint_label="trends_14d", task
 
 def save_result(keyword, source_site, ratio, slope, verdict, status="done",
                serp_organic=0, serp_auth=0, serp_featured=0,
-               recommendation=None, reason=None, trend_series=None):
+               recommendation=None, reason=None, trend_series=None,
+               steam_player_count=None):
     """Save trend result to D1 with SERP and recommendation data."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     series_json = json.dumps(trend_series) if trend_series else None
+    reason = append_steam_player_reason(reason, steam_player_count)
     return d1_execute(
         """INSERT OR REPLACE INTO game_keyword_pipeline 
            (keyword, source_site, trend_ratio, trend_slope, trend_verdict,
@@ -1283,6 +1421,8 @@ def serp_relevance_query(keyword, source):
         "roblox": "roblox",
         "steam": "steam",
         "steam-new": "steam",
+        "steam-topsellers": "steam",
+        "steam-charts": "steam",
         "poki": "poki",
         "crazygames": "game",
         "itchio": "itch.io",
@@ -1321,7 +1461,12 @@ def candidate_selection_score(game, watchlist_names):
     name = game.get("name", "")
     source = game.get("source", "unknown")
     watchlist_boost = 5.0 if name.lower() in watchlist_names else 0.0
-    return source_selection_weight(source) + title_quality_score(name) + watchlist_boost
+    return (
+        source_selection_weight(source)
+        + title_quality_score(name)
+        + watchlist_boost
+        + player_count_selection_boost(game.get("steam_player_count"))
+    )
 
 
 def select_games_to_check(all_games, checked_names, max_keywords, watchlist_names=None):
@@ -1509,6 +1654,27 @@ def apply_history_baseline(hist_results, hist_baseline):
     return baseline_count
 
 
+def probe_steam_web_api(max_lookups=15):
+    """Live Steam Web API check. Does not read or write D1 or paid providers."""
+    key = load_steam_web_api_key_from_dotenv()
+    if not key:
+        print("❌ STEAM_WEB_API_KEY missing (env or .env.local)", file=sys.stderr)
+        return 1
+    print("Steam Web API probe")
+    print(f"  key: present ({len(key)} chars)")
+    cs2 = fetch_steam_player_count(730)
+    print(f"  CS2 current players: {cs2}")
+    recent = fetch_steam_charts_recent(max_lookups=max_lookups)
+    if not recent:
+        print("  no recent chart games in lookup window")
+        return 0
+    print("  recent most-played games:")
+    for game in recent:
+        players = game.get("steam_player_count")
+        print(f"    {game['name']} appid={game['steam_id']} players={players}")
+    return 0
+
+
 # ─── Main ─────────────────────────────────────────────────────────────
 
 def main():
@@ -1518,7 +1684,15 @@ def main():
     parser.add_argument("--max-keywords", type=int, default=50, help="Max keywords to check trends")
     parser.add_argument("--max-sources", type=int, default=5, help="Max sitemap sources to scan")
     parser.add_argument("--api-url", default=None, help="Override API URL")
+    parser.add_argument(
+        "--steam-probe",
+        action="store_true",
+        help="Test Steam Web API only; skip D1 and DataForSEO",
+    )
     args = parser.parse_args()
+
+    if args.steam_probe:
+        raise SystemExit(probe_steam_web_api())
 
     global API_URL
     if args.api_url:
@@ -1543,15 +1717,17 @@ def main():
     if args.max_sources == 0:
         steam_top_sellers = []
         steam_new = []
+        steam_charts = []
         poki_new = []
         ag_new = []
         itchio_new = []
         itchio_free = []
         roblox_new = []
     else:
-        # ── Phase 1b: Steam top sellers and new releases ──
+        # ── Phase 1b: Steam top sellers, new releases, and optional charts ──
         steam_top_sellers = fetch_steam_top_sellers()
         steam_new = fetch_steam_new_releases()
+        steam_charts = fetch_steam_charts_recent()
 
         # ── Phase 1c: Poki new games ──
         poki_new = fetch_poki_new()
@@ -1571,14 +1747,15 @@ def main():
     # ── Combine and deduplicate ──
     seen = set()
     all_games = []
-    for g in crazygames_new + steam_top_sellers + steam_new + poki_new + ag_new + itchio_new + itchio_free + roblox_new:
+    for g in crazygames_new + steam_top_sellers + steam_new + steam_charts + poki_new + ag_new + itchio_new + itchio_free + roblox_new:
         key = g["name"].lower()
         if key not in seen and is_game_name_valid(g["name"]):
             seen.add(key)
             all_games.append(g)
 
-    source_label = "CrazyGames /new" if args.max_sources == 0 else "CrazyGames + Steam Top Sellers + Steam New Releases + Poki + Addicting Games + itch.io + Roblox"
+    source_label = "CrazyGames /new" if args.max_sources == 0 else "CrazyGames + Steam Top Sellers + Steam New Releases + Steam Charts + Poki + Addicting Games + itch.io + Roblox"
     print(f"\n📋 Combined: {len(all_games)} unique new games ({source_label})", flush=True)
+    enrich_games_with_steam_players(all_games)
 
     # ── Filter out already trend-checked ──
     pipeline_names = {r["keyword"].lower() for r in d1_query(
@@ -1653,15 +1830,19 @@ def main():
             ratio = r.get("ratioMean", 0) or r.get("ratio", 0)
             slope = r.get("slopeRatio", 0) or 0
             verdict = r.get("verdict", "unknown")
-            source = next((g["source"] for g in batch if g["name"].lower() == kw.lower()), "unknown")
+            matched = next((g for g in batch if g["name"].lower() == kw.lower()), {})
+            source = matched.get("source", "unknown")
+            player_count = matched.get("steam_player_count")
 
             results.append({
                 "keyword": kw, "source": source,
                 "ratio": ratio, "slope": slope, "verdict": verdict,
                 "series": r.get("series"),
+                "steam_player_count": player_count,
             })
 
-            print(f"  📊 {kw}: ratio={ratio:.3f}, slope={slope:.3f}, verdict={verdict}", flush=True)
+            player_note = f", steam={player_count}" if player_count is not None else ""
+            print(f"  📊 {kw}: ratio={ratio:.3f}, slope={slope:.3f}, verdict={verdict}{player_note}", flush=True)
 
             # Extract trend series for charting
             series = r.get("series")  # {timestamps, values, benchmarkValues}
@@ -1671,7 +1852,7 @@ def main():
                 rec, reason = classify_keyword(ratio, slope, verdict)
                 save_result(kw, source, ratio, slope, verdict,
                            status="serp_pending", recommendation=rec, reason=reason,
-                           trend_series=series)
+                           trend_series=series, steam_player_count=player_count)
 
         if i + BATCH_SIZE < len(to_check):
             time.sleep(1)
@@ -1935,7 +2116,8 @@ def main():
                 status=status, serp_organic=organic, serp_auth=auth,
                 serp_featured=1 if featured else 0,
                 recommendation=rec, reason=reason,
-                trend_series=r.get("series")
+                trend_series=r.get("series"),
+                steam_player_count=r.get("steam_player_count"),
             )
 
     recommended = [r for r in results if r.get("recommendation") not in ("⏭️ skip", WATCHLIST_RECOMMENDATION)]
@@ -2007,6 +2189,8 @@ def main():
 
 
 if __name__ == "__main__":
+    if "--steam-probe" in sys.argv:
+        raise SystemExit(main())
     with pipeline_run("game-trend-scanner") as run_id:
         print(f"run_id={run_id}", flush=True)
         main()
