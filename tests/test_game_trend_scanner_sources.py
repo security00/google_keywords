@@ -200,6 +200,61 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
 
         self.assertEqual(selected, [{"name": "Fresh Steam", "source": "steam"}])
 
+    def test_steam_web_api_helpers_are_noop_without_key(self):
+        scanner = load_scanner()
+        with patch.dict(scanner.os.environ, {"STEAM_WEB_API_KEY": ""}, clear=False):
+            games = [{"name": "Fresh Steam", "source": "steam", "steam_id": "1"}]
+            self.assertIsNone(scanner.fetch_steam_player_count("730"))
+            self.assertEqual(scanner.fetch_steam_charts_recent(), [])
+            self.assertEqual(scanner.enrich_games_with_steam_players(games), games)
+            self.assertNotIn("steam_player_count", games[0])
+
+    def test_player_count_boosts_steam_selection_without_starving_other_sources(self):
+        scanner = load_scanner()
+        games = (
+            [{"name": f"Crazy {i}", "source": "crazygames"} for i in range(4)]
+            + [{"name": "Quiet Steam", "source": "steam", "steam_player_count": 3}]
+            + [{"name": "Hot Steam", "source": "steam", "steam_player_count": 50000}]
+        )
+        selected = scanner.select_games_to_check(games, checked_names=set(), max_keywords=3)
+        self.assertEqual(
+            [game["name"] for game in selected],
+            ["Crazy 0", "Hot Steam", "Quiet Steam"],
+        )
+
+    def test_append_steam_player_reason_is_idempotent(self):
+        scanner = load_scanner()
+        reason = scanner.append_steam_player_reason("14d rising vs gpts", 12345)
+        self.assertEqual(reason, "14d rising vs gpts · Steam在线 12,345人")
+        self.assertEqual(scanner.append_steam_player_reason(reason, 12345), reason)
+        self.assertIsNone(scanner.append_steam_player_reason(None, None))
+
+    def test_fetch_steam_charts_recent_keeps_recent_games_only(self):
+        scanner = load_scanner()
+        charts = {"response": {"ranks": [{"appid": 11, "peak_in_game": 9000}, {"appid": 22, "peak_in_game": 800}]}}
+
+        def fake_get(method_path, params=None):
+            self.assertEqual(method_path, "ISteamChartsService/GetMostPlayedGames/v1/")
+            return charts
+
+        def fake_basic(app_id):
+            if str(app_id) == "11":
+                return {"name": "Fresh Chart Game", "type": "game", "coming_soon": False, "release_date": "1 Aug, 2026"}
+            return {"name": "Old Chart Game", "type": "game", "coming_soon": False, "release_date": "1 Aug, 2012"}
+
+        with patch.dict(scanner.os.environ, {"STEAM_WEB_API_KEY": "test-key"}, clear=False), \
+             patch.object(scanner, "steam_web_api_get", side_effect=fake_get), \
+             patch.object(scanner, "fetch_steam_app_basic", side_effect=fake_basic), \
+             patch.object(scanner, "is_recent_steam_release", side_effect=lambda date: date == "1 Aug, 2026"), \
+             patch.object(scanner, "fetch_steam_player_count", return_value=4321), \
+             patch.object(scanner.time, "sleep"):
+            games = scanner.fetch_steam_charts_recent(max_lookups=10)
+
+        self.assertEqual(
+            games,
+            [{"name": "Fresh Chart Game", "source": "steam-charts", "steam_id": "11", "steam_player_count": 4321}],
+        )
+
     def test_call_trends_api_saves_pending_job_on_timeout(self):
         scanner = load_scanner()
 
