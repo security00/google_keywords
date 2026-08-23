@@ -76,7 +76,7 @@ export default function StudentGamesPage() {
           <div>
             <h1 className="text-2xl font-bold">新游发现</h1>
             <p className="text-sm text-muted-foreground">
-              本周精选全员同一条最热词，另外两条错开来源和竞争，只展示近 14 天复查过的机会
+              从本周爆款池里给每人抽三条，按用户错开来源，避免全员写同一个词
             </p>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function StudentGamesPage() {
       {/* Legend */}
       <div className="rounded-lg border bg-card p-4">
         <div className="flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6">
-          <span className="flex items-center gap-1.5"><Star className="h-4 w-4 text-amber-500" /> <strong>本周精选</strong> — 近 7 天搜热最高，全员相同</span>
+          <span className="flex items-center gap-1.5"><Star className="h-4 w-4 text-amber-500" /> <strong>本周爆款</strong> — 近 7 天热/升中的词，按账号错开</span>
           <span className="flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500" /> <strong>🔥 Hot</strong> — 流量远超基准，值得关注</span>
           <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" /> <strong>📈 Rising</strong> — 上升趋势，有竞争</span>
           <span className="flex items-center gap-1.5"><Target className="h-4 w-4 text-green-500" /> <strong>🎯 Niche</strong> — 低竞争蓝海机会</span>
@@ -122,7 +122,7 @@ export default function StudentGamesPage() {
 
       {/* Info */}
       <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground">
-        💡 没过热度或 SERP 门槛的词不会出现在这里。过期推荐会降回观察名单，等下次扫描再复查。
+        💡 只发搜热够格的热/升词。弱 Niche 和过期推荐不会出现在这里。
       </div>
     </div>
   );
@@ -153,7 +153,7 @@ function GameCard({ item, expanded, onToggle }: { item: GameKeyword; expanded: b
             {item.slot === "weekly_hot" ? (
               <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
                 <Star className="h-3 w-3" />
-                本周精选
+                本周爆款
               </span>
             ) : null}
             <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">

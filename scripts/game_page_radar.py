@@ -298,7 +298,13 @@ def scan_source(source: dict, *, max_pages_per_source: int, dry_run: bool, d1: D
     return {"source": source["id"], "urls": len(urls), "candidates": len(candidates), "inserted_pages": inserted_pages, "inserted_candidates": inserted_candidates}
 
 
-def load_sources(d1: D1Client, max_sources: int) -> list[dict]:
+def load_sources(d1: D1Client, max_sources: int, source_ids: list[str] | None = None) -> list[dict]:
+    if source_ids:
+        placeholders = ",".join("?" for _ in source_ids)
+        return d1.query(
+            f"SELECT * FROM game_radar_sources WHERE enabled = 1 AND id IN ({placeholders}) ORDER BY quality_tier ASC, id",
+            list(source_ids),
+        )
     limit = max(1, max_sources)
     return d1.query(
         "SELECT * FROM game_radar_sources WHERE enabled = 1 ORDER BY quality_tier ASC, COALESCE(last_checked_at, '') ASC LIMIT ?",
@@ -311,11 +317,12 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--max-sources", type=int, default=3)
     parser.add_argument("--max-pages-per-source", type=int, default=50)
+    parser.add_argument("--source-id", action="append", default=[], help="Scan only these enabled source ids")
     args = parser.parse_args()
 
     print(f"🎯 Game Page Radar — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}", flush=True)
     d1 = D1Client()
-    sources = load_sources(d1, args.max_sources)
+    sources = load_sources(d1, args.max_sources, args.source_id or None)
     if not sources:
         print("No enabled game_radar_sources found. Apply migration 0009 first.", flush=True)
         return

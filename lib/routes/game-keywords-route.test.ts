@@ -85,11 +85,11 @@ describe("GET /api/game-keywords", () => {
     expect(sql).toContain("serp_organic > 0");
     expect(sql).toContain("reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%'");
     expect(sql).toContain("datetime(trend_checked_at) >= datetime('now', ?)");
-    expect(mockD1Query.mock.calls[0][1]).toEqual(["-14 days"]);
+    expect(mockD1Query.mock.calls[0][1]).toEqual(["-14 days", 1]);
     expect(body.keywords[0].slot).toBe("weekly_hot");
   });
 
-  it("pins the weekly hottest game and staggers the rest by user", async () => {
+  it("staggers weekly hot games across users instead of pinning one title", async () => {
     const now = new Date().toISOString().slice(0, 19).replace("T", " ");
     mockD1Query.mockResolvedValue({
       rows: [
@@ -108,30 +108,30 @@ describe("GET /api/game-keywords", () => {
           trend_checked_at: now,
         },
         {
-          keyword: "Poki Niche",
+          keyword: "Poki Rising",
           source_site: "poki",
-          trend_ratio: 1.2,
-          trend_slope: 1,
+          trend_ratio: 3.2,
+          trend_slope: 4,
           trend_verdict: "watch",
           serp_organic: 6,
           serp_auth: 0,
           serp_featured: 0,
-          recommendation: "🎯 niche",
-          reason: "low competition",
+          recommendation: "📈 rising",
+          reason: "rising traffic",
           trend_series: null,
           trend_checked_at: now,
         },
         {
-          keyword: "Itch Niche",
-          source_site: "itchio",
-          trend_ratio: 0.9,
-          trend_slope: 1,
+          keyword: "Steam New Hot",
+          source_site: "steam-new",
+          trend_ratio: 2.5,
+          trend_slope: 3,
           trend_verdict: "watch",
           serp_organic: 5,
           serp_auth: 0,
           serp_featured: 0,
-          recommendation: "🎯 niche",
-          reason: "low competition",
+          recommendation: "🔥 hot",
+          reason: "high traffic",
           trend_series: null,
           trend_checked_at: now,
         },
@@ -142,8 +142,7 @@ describe("GET /api/game-keywords", () => {
     const body = await response.json();
 
     expect(body.keywords).toHaveLength(3);
-    expect(body.keywords[0]).toMatchObject({ keyword: "Weekly Hot", slot: "weekly_hot" });
-    expect(body.keywords.slice(1).every((item: { slot: string }) => item.slot === "diverse")).toBe(true);
+    expect(body.keywords.every((item: { slot: string }) => item.slot === "weekly_hot")).toBe(true);
     expect(new Set(body.keywords.map((item: { source: string }) => item.source)).size).toBe(3);
   });
 

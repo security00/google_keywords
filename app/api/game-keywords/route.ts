@@ -4,6 +4,7 @@ import { d1Query } from "@/lib/d1";
 import {
   GAME_KEYWORDS_PER_USER,
   GAME_RECOMMENDATION_MAX_AGE_DAYS,
+  GAME_STUDENT_MIN_RATIO,
   GAME_WEEKLY_HOT_WINDOW_DAYS,
 } from "@/config/business-rules";
 import { pickStudentGameKeywords } from "@/lib/game-student-picks";
@@ -47,15 +48,20 @@ export async function GET(req: NextRequest) {
        AND (reason IS NULL OR reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%')
        AND trend_checked_at IS NOT NULL
        AND datetime(trend_checked_at) >= datetime('now', ?)
+       AND (
+         recommendation IN ('🔥 hot', '📈 rising')
+         OR (recommendation = '🎯 niche' AND trend_ratio >= ? AND trend_slope > 0)
+       )
      ORDER BY trend_ratio DESC
      LIMIT 200`,
-    [`-${GAME_RECOMMENDATION_MAX_AGE_DAYS} days`],
+    [`-${GAME_RECOMMENDATION_MAX_AGE_DAYS} days`, GAME_STUDENT_MIN_RATIO],
   );
 
   const picked = pickStudentGameKeywords(rows, userId, {
     count: GAME_KEYWORDS_PER_USER,
     weeklyWindowDays: GAME_WEEKLY_HOT_WINDOW_DAYS,
     maxAgeDays: GAME_RECOMMENDATION_MAX_AGE_DAYS,
+    minRatio: GAME_STUDENT_MIN_RATIO,
   });
   if (picked.length === 0) {
     return NextResponse.json({
