@@ -98,6 +98,7 @@ GAME_14D_STABLE_RATIO = GAME.get('GAME_14D_STABLE_RATIO', 5.0)
 GAME_14D_LOW_CV = GAME.get('GAME_14D_LOW_CV', 0.15)
 GAME_HIST_DECLINING_SURGE = GAME.get('GAME_HIST_DECLINING_SURGE', 0.8)
 GAME_MIN_RATIO = GAME.get('GAME_MIN_RATIO', 1.0)
+GAME_RECOMMENDATION_MAX_AGE_DAYS = int(GAME.get('GAME_RECOMMENDATION_MAX_AGE_DAYS', 14))
 
 TREND_BENCHMARK = "gpts"
 TREND_MONTHS = 0  # Use TREND_DAYS instead
@@ -814,6 +815,63 @@ def refresh_steam_player_reasons(delay=0.15, dry_run=False, require_key=False):
         finally:
             time.sleep(delay)
     print(f"  Steam CCU refresh done: updated={updated} skipped={skipped} failed={failed}", flush=True)
+    return 1 if failed and not updated else 0
+
+
+STALE_RECOMMENDATION_MARKER = "降回观察名单"
+
+
+def append_stale_recommendation_reason(reason, max_age_days):
+    note = f"⏱️ 超过{int(max_age_days)}天未复查，降回观察名单"
+    rest = (reason or "").strip()
+    if STALE_RECOMMENDATION_MARKER in rest:
+        return rest
+    if not rest:
+        return note
+    return f"{rest} · {note}"
+
+
+def demote_stale_recommended(max_age_days=None, dry_run=False):
+    """Move recommended rows older than the student window back to watchlist.
+
+    Does not call paid providers. Watchlist recheck can revive them later.
+    """
+    days = GAME_RECOMMENDATION_MAX_AGE_DAYS if max_age_days is None else int(max_age_days)
+    if not D1_ACCOUNT_ID or not D1_API_TOKEN:
+        print("❌ Missing CF_ACCOUNT_ID or CF_API_TOKEN env vars", file=sys.stderr)
+        return 1
+    rows = d1_query(
+        """SELECT keyword, source_site, reason
+           FROM game_keyword_pipeline
+           WHERE status = 'recommended'
+             AND (trend_checked_at IS NULL
+                  OR datetime(trend_checked_at) < datetime('now', ?))""",
+        [f"-{days} days"],
+    )
+    print(f"\n⏱️ Stale recommendation demote: {len(rows)} rows older than {days}d", flush=True)
+    updated = 0
+    failed = 0
+    for row in rows:
+        keyword = row.get("keyword") or ""
+        source_site = row.get("source_site")
+        new_reason = append_stale_recommendation_reason(row.get("reason"), days)
+        if dry_run:
+            print(f"  dry-run: {keyword} ({source_site})", flush=True)
+            updated += 1
+            continue
+        ok = d1_execute(
+            """UPDATE game_keyword_pipeline
+               SET status = 'watchlist', recommendation = ?, reason = ?
+               WHERE keyword = ? AND source_site = ? AND status = 'recommended'""",
+            [WATCHLIST_RECOMMENDATION, new_reason, keyword, source_site],
+        )
+        if not ok:
+            print(f"  ❌ demote failed: {keyword}", flush=True)
+            failed += 1
+            continue
+        print(f"  demoted: {keyword} ({source_site})", flush=True)
+        updated += 1
+    print(f"  Stale demote done: updated={updated} failed={failed}", flush=True)
     return 1 if failed and not updated else 0
 
 
@@ -1817,6 +1875,7 @@ def main():
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(f"🎮 Game Trend Scanner — {ts}")
+    demote_stale_recommended(dry_run=args.dry_run)
     if not args.dry_run:
         refresh_steam_player_reasons()
     print(f"   Max keywords: {args.max_keywords}, Max sources: {args.max_sources}, Dry run: {args.dry_run}")

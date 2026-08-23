@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthzError, requireEffectiveUser } from "@/lib/authz";
 import { d1Query } from "@/lib/d1";
-import { GAME_KEYWORDS_PER_USER } from "@/config/business-rules";
-
-/** Deterministic hash to pick a stable subset of keywords per user. */
-function simpleHash(str: string): number {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
-}
+import {
+  GAME_KEYWORDS_PER_USER,
+  GAME_RECOMMENDATION_MAX_AGE_DAYS,
+  GAME_WEEKLY_HOT_WINDOW_DAYS,
+} from "@/config/business-rules";
+import { pickStudentGameKeywords } from "@/lib/game-student-picks";
 
 export async function GET(req: NextRequest) {
   const principal = await requireEffectiveUser(req, {
@@ -20,57 +16,72 @@ export async function GET(req: NextRequest) {
 
   const userId = principal.userId;
 
-  // Fetch only fully verified game keywords. Intermediate rows may carry a
-  // non-skip recommendation before SERP finishes; those must not reach students.
-  const { rows } = await d1Query<Record<string, unknown>>(
+  type PipelineRow = {
+    keyword: string;
+    source_site: string;
+    trend_ratio: number;
+    trend_slope: number;
+    trend_verdict: string;
+    serp_organic: number;
+    serp_auth: number;
+    serp_featured: number;
+    recommendation: string;
+    reason: string | null;
+    trend_series: string | null;
+    trend_checked_at: string | null;
+  };
+
+  // Fetch only fully verified, recently checked game keywords. Intermediate
+  // rows may carry a non-skip recommendation before SERP finishes; those must
+  // not reach students. Stale recommended rows are hidden here and demoted by
+  // the scanner so they can re-enter watchlist recheck.
+  const { rows } = await d1Query<PipelineRow>(
     `SELECT keyword, source_site, trend_ratio, trend_slope, trend_verdict,
             serp_organic, serp_auth, serp_featured, recommendation, reason,
-            trend_series
+            trend_series, trend_checked_at
      FROM game_keyword_pipeline
      WHERE status = 'recommended'
        AND recommendation != '⏭️ skip'
        AND recommendation IS NOT NULL
        AND serp_organic > 0
        AND (reason IS NULL OR reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%')
+       AND trend_checked_at IS NOT NULL
+       AND datetime(trend_checked_at) >= datetime('now', ?)
      ORDER BY trend_ratio DESC
-     LIMIT 200`
+     LIMIT 200`,
+    [`-${GAME_RECOMMENDATION_MAX_AGE_DAYS} days`],
   );
 
-  const hash = simpleHash(userId);
-  const count = Math.min(GAME_KEYWORDS_PER_USER, rows.length);
-  if (count === 0) {
+  const picked = pickStudentGameKeywords(rows, userId, {
+    count: GAME_KEYWORDS_PER_USER,
+    weeklyWindowDays: GAME_WEEKLY_HOT_WINDOW_DAYS,
+    maxAgeDays: GAME_RECOMMENDATION_MAX_AGE_DAYS,
+  });
+  if (picked.length === 0) {
     return NextResponse.json({
       keywords: [],
       message: "暂无推荐游戏关键词，系统每日自动扫描中",
     });
   }
 
-  // Pick keywords using hash offset (千人千面)
-  const picked: typeof rows = [];
-  for (let i = 0; i < count; i++) {
-    const idx = (hash + i * 7) % rows.length;
-    picked.push(rows[idx]);
-  }
-
-  // Format for student
   const result = picked.map((row) => {
     const raw = row.trend_series as string | null;
     const item: Record<string, unknown> = {
       keyword: row.keyword,
       source: row.source_site,
+      slot: row.slot,
       ratio: Number(row.trend_ratio),
       slope: Number(row.trend_slope),
       verdict: row.trend_verdict,
       recommendation: row.recommendation,
       reason: row.reason,
-      // Backward-compatible fields used by the student games page.
       trend_ratio: Number(row.trend_ratio),
       trend_slope: Number(row.trend_slope),
       trend_verdict: row.trend_verdict,
       trend_series: raw,
+      trend_checked_at: row.trend_checked_at,
     };
 
-    // Parse trend_series for chart
     if (raw) {
       try {
         const parsed = JSON.parse(raw);

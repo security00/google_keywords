@@ -40,10 +40,6 @@ vi.mock("@/lib/d1", () => ({
   d1Query: vi.fn(),
 }));
 
-vi.mock("@/config/business-rules", () => ({
-  GAME_KEYWORDS_PER_USER: 3,
-}));
-
 const mockD1Query = vi.mocked(d1Query);
 const mockRequireEffectiveUser = vi.mocked(requireEffectiveUser);
 
@@ -74,6 +70,7 @@ describe("GET /api/game-keywords", () => {
           recommendation: "🎯 niche",
           reason: "game SERP verified",
           trend_series: null,
+          trend_checked_at: new Date().toISOString().slice(0, 19).replace("T", " "),
         },
       ],
     });
@@ -87,6 +84,67 @@ describe("GET /api/game-keywords", () => {
     expect(sql).toContain("recommendation != '⏭️ skip'");
     expect(sql).toContain("serp_organic > 0");
     expect(sql).toContain("reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%'");
+    expect(sql).toContain("datetime(trend_checked_at) >= datetime('now', ?)");
+    expect(mockD1Query.mock.calls[0][1]).toEqual(["-14 days"]);
+    expect(body.keywords[0].slot).toBe("weekly_hot");
+  });
+
+  it("pins the weekly hottest game and staggers the rest by user", async () => {
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    mockD1Query.mockResolvedValue({
+      rows: [
+        {
+          keyword: "Weekly Hot",
+          source_site: "steam-topsellers",
+          trend_ratio: 9.1,
+          trend_slope: 4,
+          trend_verdict: "watch",
+          serp_organic: 8,
+          serp_auth: 1,
+          serp_featured: 0,
+          recommendation: "🔥 hot",
+          reason: "high traffic",
+          trend_series: null,
+          trend_checked_at: now,
+        },
+        {
+          keyword: "Poki Niche",
+          source_site: "poki",
+          trend_ratio: 1.2,
+          trend_slope: 1,
+          trend_verdict: "watch",
+          serp_organic: 6,
+          serp_auth: 0,
+          serp_featured: 0,
+          recommendation: "🎯 niche",
+          reason: "low competition",
+          trend_series: null,
+          trend_checked_at: now,
+        },
+        {
+          keyword: "Itch Niche",
+          source_site: "itchio",
+          trend_ratio: 0.9,
+          trend_slope: 1,
+          trend_verdict: "watch",
+          serp_organic: 5,
+          serp_auth: 0,
+          serp_featured: 0,
+          recommendation: "🎯 niche",
+          reason: "low competition",
+          trend_series: null,
+          trend_checked_at: now,
+        },
+      ],
+    });
+
+    const response = await GET(new NextRequest("https://example.com/api/game-keywords"));
+    const body = await response.json();
+
+    expect(body.keywords).toHaveLength(3);
+    expect(body.keywords[0]).toMatchObject({ keyword: "Weekly Hot", slot: "weekly_hot" });
+    expect(body.keywords.slice(1).every((item: { slot: string }) => item.slot === "diverse")).toBe(true);
+    expect(new Set(body.keywords.map((item: { source: string }) => item.source)).size).toBe(3);
   });
 
   it("blocks pending students before reading game recommendations", async () => {

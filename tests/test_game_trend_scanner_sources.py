@@ -289,6 +289,47 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
             ["Steam在线 263,000人 · 14d rising vs gpts", "How to Fish", "steam-topsellers"],
         )
 
+    def test_demote_stale_recommended_moves_old_rows_to_watchlist(self):
+        scanner = load_scanner()
+        rows = [
+            {"keyword": "Old Hot", "source_site": "steam", "reason": "14d rising vs gpts"},
+        ]
+        with patch.object(scanner, "D1_ACCOUNT_ID", "acct"), \
+             patch.object(scanner, "D1_API_TOKEN", "token"), \
+             patch.object(scanner, "d1_query", return_value=rows) as query, \
+             patch.object(scanner, "d1_execute", return_value=True) as execute:
+            self.assertEqual(scanner.demote_stale_recommended(max_age_days=14), 0)
+
+        query.assert_called_once()
+        self.assertEqual(query.call_args[0][1], ["-14 days"])
+        execute.assert_called_once_with(
+            """UPDATE game_keyword_pipeline
+               SET status = 'watchlist', recommendation = ?, reason = ?
+               WHERE keyword = ? AND source_site = ? AND status = 'recommended'""",
+            [
+                scanner.WATCHLIST_RECOMMENDATION,
+                "14d rising vs gpts · ⏱️ 超过14天未复查，降回观察名单",
+                "Old Hot",
+                "steam",
+            ],
+        )
+
+    def test_demote_stale_recommended_dry_run_does_not_write(self):
+        scanner = load_scanner()
+        rows = [{"keyword": "Old Hot", "source_site": "steam", "reason": None}]
+        with patch.object(scanner, "D1_ACCOUNT_ID", "acct"), \
+             patch.object(scanner, "D1_API_TOKEN", "token"), \
+             patch.object(scanner, "d1_query", return_value=rows), \
+             patch.object(scanner, "d1_execute") as execute:
+            self.assertEqual(scanner.demote_stale_recommended(dry_run=True), 0)
+        execute.assert_not_called()
+
+    def test_append_stale_recommendation_reason_is_idempotent(self):
+        scanner = load_scanner()
+        reason = scanner.append_stale_recommendation_reason("14d rising", 14)
+        self.assertEqual(reason, "14d rising · ⏱️ 超过14天未复查，降回观察名单")
+        self.assertEqual(scanner.append_stale_recommendation_reason(reason, 14), reason)
+
     def test_refresh_steam_player_reasons_dry_run_does_not_write(self):
         scanner = load_scanner()
         rows = [{"keyword": "How to Fish", "source_site": "steam", "reason": None}]
