@@ -6,6 +6,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from "recharts";
+import { SteamOnlineBadge } from "@/components/steam-online-badge";
+import { reasonWithoutSteamPlayerCount } from "@/lib/game-steam-players";
 
 type TrendSeries = {
   timestamps: string[];
@@ -236,6 +238,7 @@ function parseSeries(raw: string | null): TrendSeries | null {
 function GameRow({ item, dimmed, expanded, onToggle }: { item: GameKeyword; dimmed?: boolean; expanded: boolean; onToggle: () => void }) {
   const series = useMemo(() => parseSeries(item.trend_series), [item.trend_series]);
   const hasChart = !!series;
+  const reasonText = reasonWithoutSteamPlayerCount(item.reason);
 
   return (
     <>
@@ -253,7 +256,12 @@ function GameRow({ item, dimmed, expanded, onToggle }: { item: GameKeyword; dimm
             <span className="text-xs">{item.recommendation}</span>
           </div>
         </td>
-        <td className="px-4 py-3 font-medium">{item.keyword}</td>
+        <td className="px-4 py-3 font-medium">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>{item.keyword}</span>
+            <SteamOnlineBadge reason={item.reason} />
+          </div>
+        </td>
         <td className="px-4 py-3 text-muted-foreground">
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs">
             {item.source_site}
@@ -267,7 +275,7 @@ function GameRow({ item, dimmed, expanded, onToggle }: { item: GameKeyword; dimm
           </span>
         </td>
         <td className="max-w-[200px] truncate px-4 py-3 text-xs text-muted-foreground" title={item.reason}>
-          {item.reason || "-"}
+          {reasonText || "-"}
         </td>
         <td className="px-4 py-3 text-xs text-muted-foreground">
           {item.trend_checked_at ? new Date(item.trend_checked_at).toLocaleDateString("zh-CN") : "-"}
