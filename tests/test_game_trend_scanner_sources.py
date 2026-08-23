@@ -79,6 +79,52 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
 
         self.assertEqual(games, [{"name": "MECCHA CHAMELEON", "source": "steam-topsellers", "steam_id": "4704690"}])
 
+    def test_parse_addicting_games_json_keeps_recent_titles(self):
+        scanner = load_scanner()
+        now = scanner.datetime(2026, 8, 24, tzinfo=scanner.timezone.utc)
+        payload = {
+            "pageProps": {
+                "games": [
+                    {"title": "Hauntworks Demo", "published": "2026-08-20T06:10:22+00:00"},
+                    {"title": "Arrow Slide Puzzle", "published": "2026-08-13T18:06:00+00:00"},
+                    {"title": "CAT Z Studio", "published": "2025-12-04T09:43:54+00:00"},
+                    {"title": "Free", "published": "2026-08-22T00:00:00+00:00"},
+                ]
+            },
+            "__N_SSG": True,
+        }
+        games = scanner.parse_addicting_games_payload(payload, now=now)
+        self.assertEqual(
+            games,
+            [
+                {"name": "Hauntworks Demo", "source": "addictinggames"},
+                {"name": "Arrow Slide Puzzle", "source": "addictinggames"},
+            ],
+        )
+
+    def test_fetch_addicting_games_new_uses_next_data_json(self):
+        scanner = load_scanner()
+        html = '<html><script id="__NEXT_DATA__" type="application/json">{"buildId":"np0g0qQCmUV26zh9pzpv3","props":{"pageProps":{"games":[]}}}</script></html>'
+        payload = {
+            "pageProps": {
+                "games": [
+                    {"title": "Hauntworks Demo", "published": "2026-08-20T06:10:22+00:00"},
+                ]
+            }
+        }
+
+        def fake_get(url):
+            if "/_next/data/" in url:
+                self.assertIn("np0g0qQCmUV26zh9pzpv3", url)
+                self.assertTrue(url.endswith("/new-games.json"))
+                return scanner.json.dumps(payload).encode("utf-8")
+            return html.encode("utf-8")
+
+        with patch.object(scanner, "addicting_games_http_get", side_effect=fake_get):
+            games = scanner.fetch_addicting_games_new()
+
+        self.assertEqual(games, [{"name": "Hauntworks Demo", "source": "addictinggames"}])
+
     def test_fetch_roblox_search_extracts_game_results(self):
         scanner = load_scanner()
 
