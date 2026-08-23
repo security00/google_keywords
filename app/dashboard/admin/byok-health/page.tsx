@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -131,6 +132,11 @@ export default function ByokHealthPage() {
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">Live Mode 默认关闭</span>
+          <Link href="/dashboard/admin/byok-allowlist">
+            <Button type="button" variant="outline">
+              <UserPlus className="mr-2 h-4 w-4" />管理测试员
+            </Button>
+          </Link>
           <Button variant="outline" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />刷新
           </Button>
