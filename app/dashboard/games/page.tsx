@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Gamepad2, TrendingUp, Flame, Target, SkipForward, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
+import { Gamepad2, TrendingUp, Flame, Target, SkipForward, RefreshCw, ChevronDown, ChevronRight, Star } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
@@ -18,6 +18,7 @@ type TrendSeries = {
 type GameKeyword = {
   keyword: string;
   source: string;
+  slot?: "weekly_hot" | "diverse";
   trend_ratio: number;
   trend_slope: number;
   trend_verdict: string;
@@ -75,7 +76,7 @@ export default function StudentGamesPage() {
           <div>
             <h1 className="text-2xl font-bold">新游发现</h1>
             <p className="text-sm text-muted-foreground">
-              定期筛选近期上架或正在上升的游戏关键词，发现流量机会
+              本周精选全员同一条最热词，另外两条错开来源和竞争，只展示近 14 天复查过的机会
             </p>
           </div>
         </div>
@@ -87,6 +88,7 @@ export default function StudentGamesPage() {
       {/* Legend */}
       <div className="rounded-lg border bg-card p-4">
         <div className="flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6">
+          <span className="flex items-center gap-1.5"><Star className="h-4 w-4 text-amber-500" /> <strong>本周精选</strong> — 近 7 天搜热最高，全员相同</span>
           <span className="flex items-center gap-1.5"><Flame className="h-4 w-4 text-red-500" /> <strong>🔥 Hot</strong> — 流量远超基准，值得关注</span>
           <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-orange-500" /> <strong>📈 Rising</strong> — 上升趋势，有竞争</span>
           <span className="flex items-center gap-1.5"><Target className="h-4 w-4 text-green-500" /> <strong>🎯 Niche</strong> — 低竞争蓝海机会</span>
@@ -120,7 +122,7 @@ export default function StudentGamesPage() {
 
       {/* Info */}
       <div className="rounded-lg border bg-muted/30 p-4 text-xs text-muted-foreground">
-        💡 系统会从多个新游来源筛选候选关键词，并结合搜索热度、趋势变化和竞争情况综合判断。
+        💡 没过热度或 SERP 门槛的词不会出现在这里。过期推荐会降回观察名单，等下次扫描再复查。
       </div>
     </div>
   );
@@ -148,6 +150,12 @@ function GameCard({ item, expanded, onToggle }: { item: GameKeyword; expanded: b
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="break-words font-semibold">{item.keyword}</span>
+            {item.slot === "weekly_hot" ? (
+              <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                <Star className="h-3 w-3" />
+                本周精选
+              </span>
+            ) : null}
             <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
               {item.source || "多来源"}
             </span>

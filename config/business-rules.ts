@@ -164,8 +164,14 @@ export const OLD_WORD_DECLINE_RATIO = 0.8;
 /** 老词每人推荐数 */
 export const OLD_WORD_PER_USER = 3;
 
-/** 游戏词每人推荐数 */
+/** 游戏词每人推荐数：1 条本周最热 + 其余错开来源/竞争 */
 export const GAME_KEYWORDS_PER_USER = 3;
+
+/** 学生端可见、以及扫描器降回观察名单的推荐最长天数 */
+export const GAME_RECOMMENDATION_MAX_AGE_DAYS = 14;
+
+/** 本周精选：在该窗口内按搜热取全员同一条最热词 */
+export const GAME_WEEKLY_HOT_WINDOW_DAYS = 7;
 
 // ── 缓存日期范围 ──
 
@@ -236,6 +242,8 @@ export const BUSINESS_RULES_JSON = {
     GAME_14D_STABLE_RATIO,
     GAME_14D_LOW_CV,
     GAME_KEYWORDS_PER_USER,
+    GAME_RECOMMENDATION_MAX_AGE_DAYS,
+    GAME_WEEKLY_HOT_WINDOW_DAYS,
   },
   old_word: {
     OLD_WORD_MIN_VOLUME,
