@@ -7,10 +7,8 @@ import {
   ProviderConnectionApiError,
   readLimitedJsonObject,
 } from "@/lib/provider-connections/api";
-import {
-  ProviderConnectionKeyringError,
-  providerConnectionOwnerAllowed,
-} from "@/lib/provider-connections/keyring";
+import { isByokOwnerAllowed } from "@/lib/byok/allowlist";
+import { ProviderConnectionKeyringError } from "@/lib/provider-connections/keyring";
 import { ByokSemanticFilterError } from "./semantic-filter";
 import { ByokExpandError } from "./expand";
 import { ByokCompareError } from "./compare";
@@ -60,9 +58,8 @@ export const requireByokLiveOwner = async (
   const cookieOwner = principal.authMethod === "cookie";
   const apiOwner = principal.authMethod === "api_key"
     && hasApiKeyScope(principal, "byok:execute");
-  if ((!cookieOwner && !apiOwner) || !providerConnectionOwnerAllowed(principal.userId)) {
-    return hiddenResponse();
-  }
+  if (!cookieOwner && !apiOwner) return hiddenResponse();
+  if (!await isByokOwnerAllowed(principal.userId)) return hiddenResponse();
   if (options.mutation && cookieOwner && !isSameOrigin(request)) {
     return noStoreJson(
       { error: "Cross-origin request rejected", code: "CROSS_ORIGIN_REQUEST" },
