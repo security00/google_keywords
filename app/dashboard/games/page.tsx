@@ -6,6 +6,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer,
 } from "recharts";
+import { SteamOnlineBadge } from "@/components/steam-online-badge";
+import { reasonWithoutSteamPlayerCount } from "@/lib/game-steam-players";
 
 type TrendSeries = {
   timestamps: string[];
@@ -135,6 +137,7 @@ function parseSeries(raw: string | null): TrendSeries | null {
 
 function GameCard({ item, expanded, onToggle }: { item: GameKeyword; expanded: boolean; onToggle: () => void }) {
   const series = useMemo(() => parseSeries(item.trend_series), [item.trend_series]);
+  const reasonText = reasonWithoutSteamPlayerCount(item.reason);
 
   return (
     <div className={`rounded-lg border bg-card transition-shadow hover:shadow-md ${expanded ? "ring-1 ring-primary/20" : ""}`}>
@@ -148,8 +151,11 @@ function GameCard({ item, expanded, onToggle }: { item: GameKeyword; expanded: b
             <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
               {item.source || "多来源"}
             </span>
+            <SteamOnlineBadge reason={item.reason} />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.reason}</p>
+          {reasonText ? (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{reasonText}</p>
+          ) : null}
         </div>
         <div className="flex shrink-0 items-center justify-between gap-3 text-sm sm:justify-start">
           <div className="text-right">

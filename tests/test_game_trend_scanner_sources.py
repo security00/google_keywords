@@ -225,9 +225,83 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
     def test_append_steam_player_reason_is_idempotent(self):
         scanner = load_scanner()
         reason = scanner.append_steam_player_reason("14d rising vs gpts", 12345)
-        self.assertEqual(reason, "14d rising vs gpts · Steam在线 12,345人")
+        self.assertEqual(reason, "Steam在线 12,345人 · 14d rising vs gpts")
         self.assertEqual(scanner.append_steam_player_reason(reason, 12345), reason)
+        self.assertEqual(
+            scanner.append_steam_player_reason(reason, 999),
+            "Steam在线 999人 · 14d rising vs gpts",
+        )
         self.assertIsNone(scanner.append_steam_player_reason(None, None))
+
+    def test_search_steam_app_id_requires_normalized_exact_name(self):
+        scanner = load_scanner()
+        payload = {
+            "items": [
+                {"type": "bundle", "name": "How to Fish", "id": 1},
+                {"type": "app", "name": "How to Fish!", "id": 4001890},
+                {"type": "app", "name": "How to Fish 2", "id": 99},
+            ]
+        }
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = scanner.json.dumps(payload).encode("utf-8")
+        with patch.object(scanner.urllib.request, "urlopen", return_value=response):
+            self.assertEqual(scanner.search_steam_app_id("How to Fish"), "4001890")
+
+        payload["items"] = [{"type": "app", "name": "Something Else", "id": 2}]
+        response.__enter__.return_value.read.return_value = scanner.json.dumps(payload).encode("utf-8")
+        with patch.object(scanner.urllib.request, "urlopen", return_value=response):
+            self.assertIsNone(scanner.search_steam_app_id("How to Fish"))
+
+    def test_refresh_steam_player_reasons_is_noop_without_key(self):
+        scanner = load_scanner()
+        with patch.dict(scanner.os.environ, {"STEAM_WEB_API_KEY": ""}, clear=False), \
+             patch.object(scanner, "d1_query") as query:
+            self.assertEqual(scanner.refresh_steam_player_reasons(), 0)
+            query.assert_not_called()
+            self.assertEqual(scanner.refresh_steam_player_reasons(require_key=True), 1)
+            query.assert_not_called()
+
+    def test_refresh_steam_player_reasons_updates_matching_steam_rows(self):
+        scanner = load_scanner()
+        rows = [
+            {"keyword": "How to Fish", "source_site": "steam-topsellers", "reason": "14d rising vs gpts"},
+            {"keyword": "Roblox Homonym", "source_site": "roblox", "reason": "should not be queried"},
+        ]
+        with patch.dict(scanner.os.environ, {
+            "STEAM_WEB_API_KEY": "test-key",
+            "CF_ACCOUNT_ID": "acct",
+            "CF_API_TOKEN": "token",
+        }, clear=False), \
+             patch.object(scanner, "D1_ACCOUNT_ID", "acct"), \
+             patch.object(scanner, "D1_API_TOKEN", "token"), \
+             patch.object(scanner, "d1_query", return_value=rows[:1]) as query, \
+             patch.object(scanner, "d1_execute", return_value=True) as execute, \
+             patch.object(scanner, "search_steam_app_id", return_value="4001890") as search, \
+             patch.object(scanner, "fetch_steam_player_count", return_value=263000) as ccu, \
+             patch.object(scanner.time, "sleep"):
+            self.assertEqual(scanner.refresh_steam_player_reasons(), 0)
+
+        query.assert_called_once()
+        search.assert_called_once_with("How to Fish")
+        ccu.assert_called_once_with("4001890")
+        execute.assert_called_once_with(
+            "UPDATE game_keyword_pipeline SET reason = ? WHERE keyword = ? AND source_site = ?",
+            ["Steam在线 263,000人 · 14d rising vs gpts", "How to Fish", "steam-topsellers"],
+        )
+
+    def test_refresh_steam_player_reasons_dry_run_does_not_write(self):
+        scanner = load_scanner()
+        rows = [{"keyword": "How to Fish", "source_site": "steam", "reason": None}]
+        with patch.dict(scanner.os.environ, {"STEAM_WEB_API_KEY": "test-key"}, clear=False), \
+             patch.object(scanner, "D1_ACCOUNT_ID", "acct"), \
+             patch.object(scanner, "D1_API_TOKEN", "token"), \
+             patch.object(scanner, "d1_query", return_value=rows), \
+             patch.object(scanner, "d1_execute") as execute, \
+             patch.object(scanner, "search_steam_app_id", return_value="4001890"), \
+             patch.object(scanner, "fetch_steam_player_count", return_value=10), \
+             patch.object(scanner.time, "sleep"):
+            self.assertEqual(scanner.refresh_steam_player_reasons(dry_run=True), 0)
+        execute.assert_not_called()
 
     def test_fetch_steam_charts_recent_keeps_recent_games_only(self):
         scanner = load_scanner()

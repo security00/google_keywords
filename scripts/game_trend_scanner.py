@@ -130,6 +130,12 @@ STEAM_TOP_SELLERS_URL = (
     "&sort_by=_ASC&snr=1_7_7_230_7&filter=topsellers&infinite=1"
 )
 STEAM_TOP_SELLER_MAX_AGE_DAYS = 60
+STEAM_STORE_SEARCH_URL = "https://store.steampowered.com/api/storesearch/"
+STEAM_PIPELINE_SOURCES = ("steam", "steam-new", "steam-topsellers", "steam-charts")
+STEAM_PLAYER_REASON_RE = re.compile(r"Steam在线\s*[\d,]+人")
+STEAM_HTTP_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+}
 
 GENERIC_KEYWORDS = {
     "beauty", "art", "io", "fun", "run", "car", "bus", "pop", "box", "tap",
@@ -704,15 +710,111 @@ def fetch_steam_charts_recent(max_lookups=40):
         return []
 
 
+def normalize_steam_name(name):
+    return re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip()
+
+
+def search_steam_app_id(name):
+    """Resolve a Steam appid from the public store search JSON. Exact name only."""
+    target = normalize_steam_name(name)
+    if not target:
+        return None
+    query = urllib.parse.urlencode({"term": name, "cc": "US", "l": "english"})
+    url = f"{STEAM_STORE_SEARCH_URL}?{query}"
+    req = urllib.request.Request(url, headers=STEAM_HTTP_HEADERS)
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    items = data.get("items") or []
+    for item in items:
+        if str(item.get("type") or "").lower() != "app":
+            continue
+        app_id = item.get("id")
+        if not app_id:
+            continue
+        if normalize_steam_name(item.get("name")) == target:
+            return str(app_id)
+    return None
+
+
 def append_steam_player_reason(reason, player_count):
     if player_count is None:
         return reason
-    suffix = f"Steam在线 {int(player_count):,}人"
-    if not reason:
-        return suffix
-    if "Steam在线" in reason:
-        return reason
-    return f"{reason} · {suffix}"
+    prefix = f"Steam在线 {int(player_count):,}人"
+    rest = STEAM_PLAYER_REASON_RE.sub("", reason or "")
+    rest = re.sub(r"(^\s*·\s*)|(\s*·\s*$)", "", rest).strip(" ·")
+    if not rest:
+        return prefix
+    return f"{prefix} · {rest}"
+
+
+def refresh_steam_player_reasons(delay=0.15, dry_run=False, require_key=False):
+    """Write current Steam CCU into existing recommended/watchlist reasons.
+
+    Does not call DataForSEO or other paid providers. Without a Web API key this
+    is a no-op unless require_key=True.
+    """
+    if not steam_web_api_key():
+        if require_key:
+            print("❌ STEAM_WEB_API_KEY missing (env or .env.local)", file=sys.stderr)
+            return 1
+        print("  skip Steam CCU refresh: STEAM_WEB_API_KEY not set", flush=True)
+        return 0
+    if not D1_ACCOUNT_ID or not D1_API_TOKEN:
+        print("❌ Missing CF_ACCOUNT_ID or CF_API_TOKEN env vars", file=sys.stderr)
+        return 1
+
+    placeholders = ",".join("?" for _ in STEAM_PIPELINE_SOURCES)
+    rows = d1_query(
+        f"""SELECT keyword, source_site, reason
+            FROM game_keyword_pipeline
+            WHERE status IN ('recommended', 'watchlist')
+              AND source_site IN ({placeholders})""",
+        list(STEAM_PIPELINE_SOURCES),
+    )
+    print(f"\n👥 Steam CCU refresh: {len(rows)} steam recommended/watchlist rows", flush=True)
+    updated = 0
+    skipped = 0
+    failed = 0
+    for row in rows:
+        keyword = row.get("keyword") or ""
+        source_site = row.get("source_site")
+        reason = row.get("reason")
+        try:
+            app_id = search_steam_app_id(keyword)
+            if not app_id:
+                print(f"  skip (no appid): {keyword}", flush=True)
+                skipped += 1
+                continue
+            count = fetch_steam_player_count(app_id)
+            if count is None:
+                print(f"  skip (no CCU): {keyword} appid={app_id}", flush=True)
+                skipped += 1
+                continue
+            new_reason = append_steam_player_reason(reason, count)
+            if new_reason == reason:
+                print(f"  unchanged: {keyword} players={count}", flush=True)
+                skipped += 1
+                continue
+            if dry_run:
+                print(f"  dry-run: {keyword} appid={app_id} players={count}", flush=True)
+            else:
+                ok = d1_execute(
+                    "UPDATE game_keyword_pipeline SET reason = ? WHERE keyword = ? AND source_site = ?",
+                    [new_reason, keyword, source_site],
+                )
+                if not ok:
+                    print(f"  ❌ update failed: {keyword}", flush=True)
+                    failed += 1
+                    continue
+                print(f"  updated: {keyword} appid={app_id} players={count}", flush=True)
+            updated += 1
+        except Exception as exc:
+            print(f"  ⚠️ {keyword}: {exc}", flush=True)
+            failed += 1
+        finally:
+            time.sleep(delay)
+    print(f"  Steam CCU refresh done: updated={updated} skipped={skipped} failed={failed}", flush=True)
+    return 1 if failed and not updated else 0
 
 
 def player_count_selection_boost(player_count):
@@ -1689,10 +1791,18 @@ def main():
         action="store_true",
         help="Test Steam Web API only; skip D1 and DataForSEO",
     )
+    parser.add_argument(
+        "--steam-backfill",
+        action="store_true",
+        help="Write current Steam CCU onto existing recommended/watchlist reasons; skip DataForSEO",
+    )
     args = parser.parse_args()
 
     if args.steam_probe:
         raise SystemExit(probe_steam_web_api())
+    if args.steam_backfill:
+        load_steam_web_api_key_from_dotenv()
+        raise SystemExit(refresh_steam_player_reasons(dry_run=args.dry_run, require_key=True))
 
     global API_URL
     if args.api_url:
@@ -1707,6 +1817,8 @@ def main():
 
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     print(f"🎮 Game Trend Scanner — {ts}")
+    if not args.dry_run:
+        refresh_steam_player_reasons()
     print(f"   Max keywords: {args.max_keywords}, Max sources: {args.max_sources}, Dry run: {args.dry_run}")
 
     # ── Phase 1: CrazyGames /new (latest games by publish date) ──
@@ -2189,7 +2301,7 @@ def main():
 
 
 if __name__ == "__main__":
-    if "--steam-probe" in sys.argv:
+    if "--steam-probe" in sys.argv or "--steam-backfill" in sys.argv:
         raise SystemExit(main())
     with pipeline_run("game-trend-scanner") as run_id:
         print(f"run_id={run_id}", flush=True)
