@@ -1,0 +1,235 @@
+-- Catalog evaluated sitemaps for Game Radar only.
+-- Does not change the daily game-trend scanner or student recommendations.
+-- INSERT OR IGNORE so existing source enablement (CrazyGames, Poki, etc.) is unchanged.
+
+INSERT OR IGNORE INTO game_radar_sources
+  (id, name, base_url, sitemap_url, enabled, quality_tier, url_include_patterns, url_exclude_patterns, keyword_extract_rule, status_note)
+VALUES
+  (
+    'onlinegames-io',
+    'OnlineGames.io',
+    'https://www.onlinegames.io',
+    'https://www.onlinegames.io/sitemap.xml',
+    1,
+    2,
+    '[]',
+    '["/about", "/privacy", "/terms", "/contact", "/blog", "/category", "/tag", "/search"]',
+    '{"type":"slug"}',
+    'Enabled: game slugs at /{name}/ with real lastmod; 200+ URLs updated in the last 30 days.'
+  ),
+  (
+    'freegames-com',
+    'FreeGames.com',
+    'https://www.freegames.com',
+    'https://www.freegames.com/sitemap/games_1.xml',
+    1,
+    2,
+    '["/game/"]',
+    '["/category/", "/tag/", "/privacy", "/terms", "/about"]',
+    '{"type":"slug","stripPrefix":"/game/"}',
+    'Enabled: /game/ sitemap with lastmod; tens of URLs updated in the last 30 days.'
+  ),
+  (
+    'coolmathgames',
+    'Coolmath Games',
+    'https://www.coolmathgames.com',
+    'https://www.coolmathgames.com/sitemap.xml',
+    1,
+    3,
+    '["/0-"]',
+    '["/c/", "/chess-videos", "/subscription", "/contact", "/privacy", "/about", "/page"]',
+    '{"type":"slug","stripPrefix":"0-"}',
+    'Enabled with /0- game-page filter only. Mixed sitemap also contains categories, FAQ, and chess videos.'
+  ),
+  (
+    'lagged',
+    'Lagged',
+    'https://lagged.com',
+    'https://lagged.com/sitemap.xml',
+    0,
+    9,
+    '["/game/", "/games/"]',
+    '["/category/", "/tag/", "/privacy", "/terms", "/about", "/blog"]',
+    '{"type":"slug"}',
+    'Parked: large game catalog but no lastmod, so newest-page radar cannot tell launches from inventory.'
+  ),
+  (
+    'arkadium',
+    'Arkadium',
+    'https://www.arkadium.com',
+    'https://www.arkadium.com/sitemap.xml',
+    0,
+    9,
+    '["/games/"]',
+    '["/category/", "/tag/", "/privacy", "/terms", "/about", "/blog"]',
+    '{"type":"slug","stripPrefix":"/games/"}',
+    'Parked: /games/ URLs are clean, but lastmod is rewritten across the catalog (including 2048) and is not a launch date.'
+  ),
+  (
+    'truckgamesparking',
+    'Truck Games Parking',
+    'https://www.truckgamesparking.com',
+    'https://www.truckgamesparking.com/game-sitemap.xml',
+    0,
+    9,
+    '["/playgames/"]',
+    '["/privacy", "/terms", "/about"]',
+    '{"type":"slug","stripPrefix":"/playgames/"}',
+    'Parked: sitemap lastmod is frozen in 2019-02.'
+  ),
+  (
+    'nowgg',
+    'now.gg',
+    'https://now.gg',
+    'https://now.gg/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/blog", "/news", "/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: sitemap index is pages/news/blog, not a game catalog.'
+  ),
+  (
+    'iogames-onl',
+    'ioGames.onl',
+    'https://iogames.onl',
+    'https://iogames.onl/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/hot-games", "/trending", "/new-games", "/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: io clone portal with no lastmod.'
+  ),
+  (
+    'friv',
+    'Friv',
+    'https://www.friv.com',
+    'https://www.friv.com/sitemap.xml',
+    0,
+    9,
+    '["/z/play/"]',
+    '["/privacy", "/help", "/school"]',
+    '{"type":"slug"}',
+    'Parked: legacy HTML catalog with no lastmod.'
+  ),
+  (
+    'armorgames',
+    'Armor Games',
+    'https://armorgames.com',
+    'https://armorgames.com/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/news/", "/privacy", "/terms", "/about"]',
+    '{"type":"slug"}',
+    'Parked: news plus old catalog, no lastmod.'
+  ),
+  (
+    'gamemonetize',
+    'GameMonetize',
+    'https://gamemonetize.com',
+    'https://gamemonetize.com/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/developers", "/publishers", "/blog", "/sdk", "/faq"]',
+    '{"type":"slug"}',
+    'Parked: 37k URLs with the same lastmod timestamp from 2024-11-23; publisher dump, not new launches.'
+  ),
+  (
+    'bloxd-io',
+    'Bloxd.io',
+    'https://bloxd.io',
+    'https://bloxd.io/sitemap.xml',
+    0,
+    9,
+    '["/game/", "/play/"]',
+    '["/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: one game with mode URLs (parkour, fishing), not a multi-game discovery source.'
+  ),
+  (
+    'crazycattle3d',
+    'Crazy Cattle 3D',
+    'https://crazycattle3d.io',
+    'https://crazycattle3d.io/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/new-games", "/hot-games", "/privacy"]',
+    '{"type":"slug"}',
+    'Parked: clone/unblocked portal around one viral title.'
+  ),
+  (
+    'minijuegos',
+    'MiniJuegos',
+    'https://www.minijuegos.com',
+    'https://www.minijuegos.com/sitemap-games-3.xml',
+    0,
+    9,
+    '[]',
+    '["/category/", "/tag/", "/privacy"]',
+    '{"type":"slug"}',
+    'Parked: sitemap returned HTTP 403.'
+  ),
+  (
+    'gamiary',
+    'Gamiary',
+    'https://gamiary.com',
+    'https://gamiary.com/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: sitemap SSL handshake timed out.'
+  ),
+  (
+    'geometrydashlitepc',
+    'Geometry Dash Lite PC',
+    'https://geometrydashlitepc.io',
+    'https://geometrydashlitepc.io/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: sitemap fetch failed (SSL/EOF).'
+  ),
+  (
+    'geometrygames-io',
+    'Geometry Games',
+    'https://geometrygames.io',
+    'https://geometrygames.io/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: sitemap unreachable.'
+  ),
+  (
+    'geometrygame-org',
+    'Geometry Game',
+    'https://geometrygame.org',
+    'https://geometrygame.org/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: sitemap unreachable.'
+  ),
+  (
+    'geometry-lite',
+    'Geometry Lite',
+    'https://geometry-lite.io',
+    'https://geometry-lite.io/sitemap.xml',
+    0,
+    9,
+    '[]',
+    '["/privacy", "/terms"]',
+    '{"type":"slug"}',
+    'Parked: sitemap unreachable.'
+  );

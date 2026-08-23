@@ -44,6 +44,45 @@ class GamePageRadarTest(unittest.TestCase):
             "Wheel Master",
         )
 
+    def test_onlinegames_and_freegames_and_coolmath_filters(self):
+        radar = load_radar()
+        onlinegames = {
+            "url_include_patterns": "[]",
+            "url_exclude_patterns": '["/about", "/privacy"]',
+            "keyword_extract_rule": '{"type":"slug"}',
+        }
+        freegames = {
+            "url_include_patterns": '["/game/"]',
+            "url_exclude_patterns": '["/category/"]',
+            "keyword_extract_rule": '{"type":"slug","stripPrefix":"/game/"}',
+        }
+        coolmath = {
+            "url_include_patterns": '["/0-"]',
+            "url_exclude_patterns": '["/c/"]',
+            "keyword_extract_rule": '{"type":"slug","stripPrefix":"0-"}',
+        }
+
+        self.assertTrue(radar.is_candidate_url("https://www.onlinegames.io/monster-truck-mountain-climb/", onlinegames))
+        self.assertFalse(radar.is_candidate_url("https://www.onlinegames.io/about", onlinegames))
+        self.assertEqual(
+            radar.extract_keyword_from_url("https://www.onlinegames.io/monster-truck-mountain-climb/", onlinegames).keyword,
+            "Monster Truck Mountain Climb",
+        )
+
+        self.assertTrue(radar.is_candidate_url("https://www.freegames.com/game/Steal-An-Egg", freegames))
+        self.assertFalse(radar.is_candidate_url("https://www.freegames.com/category/action", freegames))
+        self.assertEqual(
+            radar.extract_keyword_from_url("https://www.freegames.com/game/Steal-An-Egg", freegames).keyword,
+            "Steal an Egg",
+        )
+
+        self.assertTrue(radar.is_candidate_url("https://www.coolmathgames.com/0-spaceburst", coolmath))
+        self.assertFalse(radar.is_candidate_url("https://www.coolmathgames.com/c/logic-games", coolmath))
+        self.assertEqual(
+            radar.extract_keyword_from_url("https://www.coolmathgames.com/0-spaceburst", coolmath).keyword,
+            "Spaceburst",
+        )
+
     def test_rejects_generic_or_non_game_slugs(self):
         radar = load_radar()
         source = {"keyword_extract_rule": '{"type":"slug"}'}
