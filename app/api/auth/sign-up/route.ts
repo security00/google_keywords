@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     }
 
     const session = await createSession(user.id);
-    void sendWelcomeEmail(user.id, user.email).catch(() => undefined);
+    await sendWelcomeEmail(user.id, user.email).catch(() => undefined);
     const response = NextResponse.json({
       user,
       expiresAt: session.expiresAt.toISOString(),

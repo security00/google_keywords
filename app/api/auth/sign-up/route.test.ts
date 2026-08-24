@@ -7,6 +7,7 @@ const mockValidateInviteCode = vi.hoisted(() => vi.fn());
 const mockConsumeInviteCode = vi.hoisted(() => vi.fn());
 const mockRejectIfAuthRateLimited = vi.hoisted(() => vi.fn());
 const mockRejectInvalidTurnstile = vi.hoisted(() => vi.fn());
+const mockSendWelcomeEmail = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth", () => ({
   createUser: mockCreateUser,
@@ -28,7 +29,7 @@ vi.mock("@/lib/turnstile", () => ({
 }));
 
 vi.mock("@/lib/lifecycle-emails", () => ({
-  sendWelcomeEmail: vi.fn().mockResolvedValue("sent"),
+  sendWelcomeEmail: mockSendWelcomeEmail,
 }));
 
 const { POST } = await import("./route");
@@ -54,6 +55,8 @@ describe("POST /api/auth/sign-up", () => {
     mockRejectInvalidTurnstile.mockReset();
     mockRejectIfAuthRateLimited.mockResolvedValue(null);
     mockRejectInvalidTurnstile.mockResolvedValue(null);
+    mockSendWelcomeEmail.mockReset();
+    mockSendWelcomeEmail.mockResolvedValue("sent");
     mockSetSessionCookie.mockImplementation((response) => response);
     vi.stubEnv("NEXT_PUBLIC_PUBLIC_SIGNUP_ENABLED", "");
     vi.stubEnv("PUBLIC_SIGNUP_ENABLED", "");
@@ -134,6 +137,7 @@ describe("POST /api/auth/sign-up", () => {
       trialDays: 14,
       activateTrial: true,
     });
+    expect(mockSendWelcomeEmail).toHaveBeenCalledWith("user-1", "student@example.com");
   });
 
   test("keeps the 90-day invite trial even when public signup is enabled", async () => {
@@ -165,5 +169,35 @@ describe("POST /api/auth/sign-up", () => {
       activateTrial: true,
     });
     expect(mockConsumeInviteCode).toHaveBeenCalledWith("SK-TEST-CODE", "user-2");
+    expect(mockSendWelcomeEmail).toHaveBeenCalledWith("user-2", "invited@example.com");
+  });
+
+  test("awaits the welcome email before returning the session", async () => {
+    let sendFinished = false;
+    mockValidateInviteCode.mockResolvedValueOnce({ valid: true });
+    mockCreateUser.mockResolvedValueOnce({
+      id: "user-3",
+      email: "awaited@example.com",
+      role: "student",
+    });
+    mockCreateSession.mockResolvedValueOnce({
+      token: "session-3",
+      expiresAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    mockSendWelcomeEmail.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      sendFinished = true;
+      return "sent";
+    });
+
+    const response = await postSignUp({
+      email: "awaited@example.com",
+      password: "password12",
+      inviteCode: "SK-TEST-CODE",
+    });
+
+    expect(sendFinished).toBe(true);
+    expect(response.status).toBe(200);
+    expect(mockSendWelcomeEmail).toHaveBeenCalledWith("user-3", "awaited@example.com");
   });
 });

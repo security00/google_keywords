@@ -258,6 +258,42 @@ export async function activateUserTrials(
   return { updated, users };
 }
 
+export async function listActivatedStudents({
+  userIds = [],
+  emails = [],
+}: {
+  userIds?: string[];
+  emails?: string[];
+}): Promise<{ id: string; email: string }[]> {
+  const uniqueUserIds = Array.from(new Set(userIds.map((id) => id.trim()).filter(Boolean)));
+  const uniqueEmails = Array.from(
+    new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean))
+  );
+  if (uniqueUserIds.length === 0 && uniqueEmails.length === 0) {
+    return [];
+  }
+
+  const clauses: string[] = [];
+  const params: string[] = [];
+  if (uniqueUserIds.length > 0) {
+    clauses.push(`id IN (${uniqueUserIds.map(() => "?").join(", ")})`);
+    params.push(...uniqueUserIds);
+  }
+  if (uniqueEmails.length > 0) {
+    clauses.push(`lower(email) IN (${uniqueEmails.map(() => "?").join(", ")})`);
+    params.push(...uniqueEmails);
+  }
+
+  const { rows } = await d1Query<{ id: string; email: string }>(
+    `SELECT id, email FROM auth_users_v2
+     WHERE role = 'student'
+       AND trial_started_at IS NOT NULL
+       AND (${clauses.join(" OR ")})`,
+    params
+  );
+  return rows;
+}
+
 export async function getUserDetail(id: string): Promise<AdminUserDetail | null> {
   const { rows } = await d1Query<AdminUser>(
     `SELECT id, email, role, trial_started_at, trial_expires_at, created_at
