@@ -13,4 +13,12 @@ describe("lifecycle email windows", () => {
     expect(lifecycleEmailCopy("trial_expired").html).toContain("tax is included");
     expect(lifecycleEmailCopy("payment_succeeded").subject).toContain("subscription is active");
   });
+
+  test("tells newly activated students that an administrator opened the trial", () => {
+    const copy = lifecycleEmailCopy("trial_activated");
+    expect(copy.subject).toBe("Your Discover Keywords account is active");
+    expect(copy.html).toContain("Account activated");
+    expect(copy.html).toContain("administrator has opened your 90-day trial");
+    expect(copy.html).toContain("/dashboard/opportunities");
+  });
 });

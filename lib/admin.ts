@@ -210,10 +210,10 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{ error?
 export async function activateUserTrials(
   userIds: string[],
   trialDays = 90
-): Promise<{ updated: number }> {
+): Promise<{ updated: number; users: { id: string; email: string }[] }> {
   const uniqueUserIds = Array.from(new Set(userIds.map((id) => id.trim()).filter(Boolean)));
   if (uniqueUserIds.length === 0) {
-    return { updated: 0 };
+    return { updated: 0, users: [] };
   }
 
   const now = new Date();
@@ -241,7 +241,21 @@ export async function activateUserTrials(
     updated += result.meta?.changes ?? 0;
   }
 
-  return { updated };
+  const users: { id: string; email: string }[] = [];
+  for (let index = 0; index < uniqueUserIds.length; index += 100) {
+    const chunk = uniqueUserIds.slice(index, index + 100);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const { rows } = await d1Query<{ id: string; email: string }>(
+      `SELECT id, email FROM auth_users_v2
+       WHERE role = 'student'
+         AND trial_started_at IS NOT NULL
+         AND id IN (${placeholders})`,
+      chunk
+    );
+    users.push(...rows);
+  }
+
+  return { updated, users };
 }
 
 export async function getUserDetail(id: string): Promise<AdminUserDetail | null> {

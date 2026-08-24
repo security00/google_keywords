@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { listRecentPrecomputeHealth, writePrecomputeHealth } from "@/lib/admin_health";
 import { activateUserTrials, listActiveUsers, listPendingUsers, listUsers, requireAdmin } from "@/lib/admin";
 import { isAuthzError, requireCronOrAdmin } from "@/lib/authz";
+import { sendAccountActivatedEmail } from "@/lib/lifecycle-emails";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -99,9 +100,13 @@ export async function POST(request: Request) {
     }
 
     const result = await activateUserTrials(userIds, trialDays);
+    for (const user of result.users) {
+      void sendAccountActivatedEmail(user.id, user.email).catch(() => undefined);
+    }
     return NextResponse.json({
       updated: result.updated,
-      message: `已开通 ${result.updated} 个账号的 ${trialDays} 天使用期`,
+      emailed: result.users.length,
+      message: `已开通 ${result.updated} 个账号的 ${trialDays} 天使用期，并发送开通通知`,
     });
   } catch (e) {
     return NextResponse.json(
