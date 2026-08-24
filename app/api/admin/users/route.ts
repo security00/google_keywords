@@ -1,12 +1,32 @@
 import { NextResponse } from "next/server";
 
 import { listRecentPrecomputeHealth, writePrecomputeHealth } from "@/lib/admin_health";
-import { activateUserTrials, listActiveUsers, listPendingUsers, listUsers, requireAdmin } from "@/lib/admin";
+import {
+  activateUserTrials,
+  listActivatedStudents,
+  listActiveUsers,
+  listPendingUsers,
+  listUsers,
+  requireAdmin,
+} from "@/lib/admin";
 import { isAuthzError, requireCronOrAdmin } from "@/lib/authz";
 import { sendAccountActivatedEmail } from "@/lib/lifecycle-emails";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const sendActivationEmails = async (users: { id: string; email: string }[]) => {
+  const emailResults = await Promise.all(
+    users.map((user) =>
+      sendAccountActivatedEmail(user.id, user.email).catch(() => "failed" as const)
+    )
+  );
+  return {
+    emailed: emailResults.filter((status) => status === "sent").length,
+    failed: emailResults.filter((status) => status === "failed").length,
+    duplicate: emailResults.filter((status) => status === "duplicate").length,
+  };
+};
 
 // GET /api/admin/users
 export async function GET(request: Request) {
@@ -40,6 +60,36 @@ export async function GET(request: Request) {
 // POST /api/admin/users
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
+
+  if (body?.action === "resend_activation_email") {
+    const principal = await requireCronOrAdmin(request);
+    if (isAuthzError(principal)) return principal;
+
+    const userIds = Array.isArray(body?.userIds)
+      ? body.userIds.filter((value: unknown): value is string => typeof value === "string")
+      : [];
+    const emails = Array.isArray(body?.emails)
+      ? body.emails.filter((value: unknown): value is string => typeof value === "string")
+      : [];
+    if (userIds.length === 0 && emails.length === 0) {
+      return NextResponse.json({ error: "请指定要补发的用户" }, { status: 400 });
+    }
+
+    try {
+      const users = await listActivatedStudents({ userIds, emails });
+      const result = await sendActivationEmails(users);
+      return NextResponse.json({
+        ...result,
+        matched: users.length,
+        message: `补发开通通知 ${result.emailed} 封`,
+      });
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "Resend failed" },
+        { status: 500 }
+      );
+    }
+  }
 
   if (body?.action === "sync_precompute_health") {
     const principal = await requireCronOrAdmin(request);
@@ -100,13 +150,14 @@ export async function POST(request: Request) {
     }
 
     const result = await activateUserTrials(userIds, trialDays);
-    for (const user of result.users) {
-      void sendAccountActivatedEmail(user.id, user.email).catch(() => undefined);
-    }
+    const { emailed } = await sendActivationEmails(result.users);
     return NextResponse.json({
       updated: result.updated,
-      emailed: result.users.length,
-      message: `已开通 ${result.updated} 个账号的 ${trialDays} 天使用期，并发送开通通知`,
+      emailed,
+      message:
+        emailed > 0
+          ? `已开通 ${result.updated} 个账号的 ${trialDays} 天使用期，并发送 ${emailed} 封开通通知`
+          : `已开通 ${result.updated} 个账号的 ${trialDays} 天使用期`,
     });
   } catch (e) {
     return NextResponse.json(
