@@ -5,6 +5,7 @@ import { appBaseUrl, sendTransactionalEmail } from "@/lib/email";
 
 export const LIFECYCLE_EVENT_TYPES = [
   "welcome",
+  "trial_activated",
   "trial_expiring_7d",
   "trial_expiring_1d",
   "trial_expired",
@@ -74,6 +75,16 @@ export const lifecycleEmailCopy = (
         html: wrap(
           "Your trial is ready",
           "Your account is live. Start with Opportunity Radar, then subscribe from Settings before the trial ends. The $49/month Founding Member price includes applicable tax.",
+          "Open the dashboard",
+          `${appBaseUrl()}/dashboard/opportunities`
+        ),
+      };
+    case "trial_activated":
+      return {
+        subject: "Your Discover Keywords account is active",
+        html: wrap(
+          "Account activated",
+          "An administrator has opened your 90-day trial. You can sign in now and use Opportunity Radar, new-game discovery, and the rest of the student dashboard.",
           "Open the dashboard",
           `${appBaseUrl()}/dashboard/opportunities`
         ),
@@ -155,6 +166,14 @@ export const sendWelcomeEmail = async (userId: string, email: string) =>
     email,
     eventType: "welcome",
     periodKey: "signup",
+  });
+
+export const sendAccountActivatedEmail = async (userId: string, email: string) =>
+  sendClaimedLifecycleEmail({
+    userId,
+    email,
+    eventType: "trial_activated",
+    periodKey: "activation",
   });
 
 export const sendPaymentSucceededEmail = async (
