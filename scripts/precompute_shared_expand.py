@@ -521,7 +521,11 @@ def refine_with_llm(expand_response):
                 error=str(exc),
                 metadata={"batch_index": idx, "candidate_count": len(batch)},
             )
-            raise
+            print(
+                f"⚠️  LLM batch {idx} failed; keeping rule-filtered candidates and continuing compare: {exc}",
+                file=sys.stderr,
+            )
+            return expand_response
         actual_cost = extract_usage_cost(result)
         record_cost_event(
             provider="openrouter",
