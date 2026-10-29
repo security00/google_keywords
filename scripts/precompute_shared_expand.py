@@ -55,7 +55,7 @@ GK_API_KEY = os.environ.get("GK_API_KEY", "")
 GK_CRON_SECRET = os.environ.get("GK_CRON_SECRET", os.environ.get("CRON_SECRET", ""))
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").rstrip("/")
-OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "openai/gpt-5.2")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "deepseek/deepseek-chat")
 OPENROUTER_FILTER_TERMS = [
     term.strip()
     for term in os.environ.get(

@@ -5,7 +5,7 @@ import {
 import type { ChatCompletionClient } from "./llm";
 
 export const OPENROUTER_API_BASE_URL = "https://openrouter.ai/api/v1";
-export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.2";
+export const DEFAULT_OPENROUTER_MODEL = "deepseek/deepseek-chat";
 
 export type OpenRouterCredentials = {
   apiKey: string;

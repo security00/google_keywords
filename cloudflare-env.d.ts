@@ -7,7 +7,7 @@ interface __BaseEnv_CloudflareEnv {
 	NEXT_PUBLIC_BENCHMARK_KEYWORD: "gpts";
 	CACHE_EXPIRY_HOURS: "24";
 	OPENROUTER_BASE_URL: "https://openrouter.ai/api/v1";
-	OPENROUTER_MODEL: "openai/gpt-5.2";
+	OPENROUTER_MODEL: "deepseek/deepseek-chat";
 	OPENROUTER_FILTER_TERMS: "赌博,博彩,赌场,投注,链接,新闻,名人,电影";
 	OPENROUTER_SITE_URL: "";
 	OPENROUTER_APP_NAME: "keyword-research";

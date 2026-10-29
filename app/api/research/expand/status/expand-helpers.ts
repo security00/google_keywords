@@ -176,7 +176,7 @@ export const parseFilterConfig = (value: unknown): FilterConfig | null => {
 
   return {
     enabled: raw.enabled === true,
-    model: typeof raw.model === "string" ? raw.model : "openai/gpt-5.2",
+    model: typeof raw.model === "string" ? raw.model : "deepseek/deepseek-chat",
     terms,
     prompt,
   };
