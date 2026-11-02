@@ -58,12 +58,19 @@ export const TASK_COST_USD = 0.05;
 const CLIENT_MAX_WAIT_MS = Number(process.env.NEXT_PUBLIC_TASK_MAX_WAIT_MS) || 600000;
 const CLIENT_POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_TASK_POLL_INTERVAL_MS) || 5000;
 import { RECOMMENDED_COMPARE_LIMIT } from "@/config/business-rules";
+const BYOK_MAX_SEEDS = 20;
 const byokUserError = (code?: string, fallback = "实时请求失败") => {
     if (code === "CONCURRENCY_LIMIT_REACHED") {
         return "上一个实时任务还在占用并发槽，请稍等几秒后重试。";
     }
     if (code === "DAILY_BUDGET_EXCEEDED") {
         return "今日 BYOK 预算已用完。";
+    }
+    if (code === "INVALID_REQUEST") {
+        return "实时模式一次最多 20 个词根，请减少后再试。";
+    }
+    if (code === "PROVIDER_FAILED") {
+        return "词根提供商没有返回结果（PROVIDER_FAILED）。";
     }
     return code || fallback;
 };
@@ -329,6 +336,7 @@ interface ResearchContextType {
 
     // Computed
     effectiveKeywords: string[];
+    parsedKeywords: string[];
 }
 
 const ResearchContext = createContext<ResearchContextType | undefined>(undefined);
@@ -782,7 +790,7 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         );
         if (!confirmed) throw new Error("已取消实时请求");
         const job = await pollJob(await executeQuote(quote, `execute-${quoteKey}`));
-        if (job.status === "failed") throw new Error(job.errorCode || "实时任务失败");
+        if (job.status === "failed") throw new Error(byokUserError(job.errorCode, "实时任务失败"));
         if (!job.result) throw new Error("实时任务等待超时");
         if (job.status === "partial") {
             await offerPartialRetry(operation, job.jobId);
@@ -1029,12 +1037,24 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
         setCompareData(null);
         setExpandProgress({ ready: 0, total: 0 });
         const startedAt = performance.now();
-        pushLog("info", "扩展请求已发送", `keywords=${effectiveKeywords.length}`);
+        if (executionMode === "byok" && parsedKeywords.length === 0) {
+            setError("实时模式需要自己填写词根。留空不会使用全部默认词，一次最多 20 个。");
+            setLoadingExpand(false);
+            setExpandProgress(null);
+            return;
+        }
+        if (executionMode === "byok" && parsedKeywords.length > BYOK_MAX_SEEDS) {
+            setError(`实时模式一次最多 ${BYOK_MAX_SEEDS} 个词根，当前有 ${parsedKeywords.length} 个。`);
+            setLoadingExpand(false);
+            setExpandProgress(null);
+            return;
+        }
+        pushLog("info", "扩展请求已发送", `keywords=${executionMode === "byok" ? parsedKeywords.length : effectiveKeywords.length}`);
 
         try {
             if (executionMode === "byok") {
                 const { result: completedPayload, partial } = await runByokPipeline<ExpandResponse>("expand", {
-                    keywords: effectiveKeywords,
+                    keywords: parsedKeywords,
                     days: 90,
                     filterTerms: parsedFilterTerms,
                     filterPrompt,
@@ -1293,7 +1313,8 @@ export function ResearchProvider({ children }: { children: React.ReactNode }) {
                 clearSelection,
                 loadLatestSession,
                 handleSignOut,
-                effectiveKeywords
+                effectiveKeywords,
+                parsedKeywords,
             }}
         >
             {children}

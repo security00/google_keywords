@@ -1,0 +1,7 @@
+# Discover Keywords production cron for root@missyourlove.
+# Install from the repo root: crontab scripts/server.crontab
+# Times are UTC. Do not remove the game scanner line; system health alerts
+# when game-trend-scanner has no successful run for more than 36 hours.
+5 16 * * * /root/clawd/projects/google_keywords/scripts/run_precompute_with_retry.sh
+*/10 * * * * /root/clawd/projects/google_keywords/scripts/run_precompute_watchdog.sh
+0 10 * * * /root/clawd/projects/google_keywords/scripts/run_game_trend_scanner_cron.sh

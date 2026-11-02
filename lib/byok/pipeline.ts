@@ -734,45 +734,92 @@ const loadCompletedSemanticDecisions = async (ownerId: string, parentJobId: stri
   return decisions;
 };
 
-const runExpand = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
+const EXPAND_STEP_FRESH_MS = 75_000;
+
+const expandStepViews = (steps: readonly PipelineStepRow[]) => steps.map((step) => ({
+  stepKey: step.step_key,
+  status: step.status,
+  updatedAt: step.updated_at,
+}));
+
+const runExpand = async (
+  run: PipelineRunRow,
+  quote: PipelineQuoteRow,
+  options?: Readonly<{ skipFreshProcessingMs?: number }>,
+) => {
   const connections = await loadPipelineConnections(run.owner_id);
   const keys = await loadProviderCredentialDecryptionKeys();
   const children = JSON.parse(quote.child_quotes_json) as ExpandChildQuote[];
   const request = JSON.parse(quote.request_json) as Required<Pick<PipelineExpandInput, "keywords">> & PipelineExpandInput;
-  const collected: Candidate[] = [];
-  let failed = 0;
-  for (let index = 0; index < children.length; index += 1) {
-    const child = children[index];
-    const stepKey = `expand:${index}`;
+  const freshMs = Math.max(options?.skipFreshProcessingMs ?? 0, EXPAND_STEP_FRESH_MS);
+  let steps = await loadCompareSteps(run.job_id);
+  const nextIndex = nextRunnableStepIndex(children.length, expandStepViews(steps), "expand", {
+    skipFreshProcessingMs: freshMs,
+  });
+  if (nextIndex >= 0) {
+    const child = children[nextIndex];
+    const stepKey = `expand:${nextIndex}`;
     await markStep(run.job_id, stepKey, "expand", "processing");
     try {
       const result = child.checkpointJobId
         ? await getOwnedByokExpandResult(run.owner_id, child.checkpointJobId)
         : await executeByokExpand({
-        ownerId: run.owner_id,
-        connectionId: connections.dataforseo.connectionId,
-        expectedConnectionVersion: child.connectionVersion,
-        request: child.request,
-        quoteId: child.quoteId,
-        requestHash: child.requestHash,
-        confirmedEstimatedCostUsd: child.estimatedCostUsd,
-        confirmation: "CONFIRM",
-        decryptionKeys: keys,
+          ownerId: run.owner_id,
+          connectionId: connections.dataforseo.connectionId,
+          expectedConnectionVersion: child.connectionVersion,
+          request: child.request,
+          quoteId: child.quoteId,
+          requestHash: child.requestHash,
+          confirmedEstimatedCostUsd: child.estimatedCostUsd,
+          confirmation: "CONFIRM",
+          decryptionKeys: keys,
           retryAttempt: child.retryAttempt,
         });
       if (result.status !== "complete" || !result.data) {
         throw new Error(result.errorCode ?? "PROVIDER_FAILED");
       }
-      collected.push(...(result.data?.candidates ?? []));
       await markStep(run.job_id, stepKey, "expand", "complete", result.jobId);
     } catch (error) {
-      failed += 1;
-      await markStep(run.job_id, stepKey, "expand", "failed", undefined, error instanceof Error ? error.message : "PROVIDER_FAILED");
+      await markStep(
+        run.job_id,
+        stepKey,
+        "expand",
+        "failed",
+        undefined,
+        error instanceof Error ? error.message : "PROVIDER_FAILED",
+      );
     }
+    if (nextIndex + 1 < children.length) return "continue" as const;
+    steps = await loadCompareSteps(run.job_id);
+  }
+  if (nextPendingStepIndex(children.length, expandStepViews(steps), "expand") >= 0) {
+    return "done" as const;
+  }
+
+  const collected: Candidate[] = [];
+  let failed = 0;
+  let failureCode = "PROVIDER_FAILED";
+  for (let index = 0; index < children.length; index += 1) {
+    const step = steps.find((item) => item.step_key === `expand:${index}`);
+    if (step?.status === "failed") {
+      failed += 1;
+      if (step.error_code) failureCode = step.error_code;
+      continue;
+    }
+    if (step?.status !== "complete" || !step.child_job_id) continue;
+    const result = await getOwnedByokExpandResult(run.owner_id, step.child_job_id);
+    if (result.status !== "complete" || !result.data) {
+      failed += 1;
+      if (result.errorCode) failureCode = result.errorCode;
+      continue;
+    }
+    collected.push(...(result.data.candidates ?? []));
   }
   if (!collected.length && failed > 0) {
-    return finishRun(run, "failed", null, "PROVIDER_FAILED");
+    await finishRun(run, "failed", null, failureCode);
+    return "done" as const;
   }
+
   const filterTerms = new Set((request.filterTerms ?? []).map((term) => term.toLocaleLowerCase("en-US")));
   const unique = new Map<string, Candidate>();
   for (const candidate of collected) {
@@ -783,15 +830,19 @@ const runExpand = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
   }
   const candidates = [...unique.values()];
   const priorDecisions = await loadCompletedSemanticDecisions(run.owner_id, quote.retry_of_job_id);
-  const kept = new Set<string>(
-    [...priorDecisions.entries()].filter(([, decision]) => decision === "keep").map(([keyword]) => keyword),
-  );
   const undecided = candidates.filter(
     (candidate) => !priorDecisions.has(candidate.keyword.toLocaleLowerCase("en-US")),
   );
-  for (let index = 0; index < undecided.length; index += SEMANTIC_CHUNK_SIZE) {
-    const chunk = undecided.slice(index, index + SEMANTIC_CHUNK_SIZE);
-    const stepKey = `semantic:${index / SEMANTIC_CHUNK_SIZE}`;
+  const semanticCount = Math.ceil(undecided.length / SEMANTIC_CHUNK_SIZE);
+  const semanticIndex = nextRunnableStepIndex(semanticCount, expandStepViews(steps), "semantic", {
+    skipFreshProcessingMs: freshMs,
+  });
+  if (semanticIndex >= 0) {
+    const chunk = undecided.slice(
+      semanticIndex * SEMANTIC_CHUNK_SIZE,
+      (semanticIndex + 1) * SEMANTIC_CHUNK_SIZE,
+    );
+    const stepKey = `semantic:${semanticIndex}`;
     await markStep(run.job_id, stepKey, "semantic_filter", "processing");
     try {
       const result = await executeByokSemanticFilter({
@@ -806,14 +857,44 @@ const runExpand = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
       if (result.status !== "complete" || !result.results) {
         throw new Error(result.errorCode ?? "PROVIDER_FAILED");
       }
-      for (const decision of result.results ?? []) {
-        if (decision.decision === "keep") kept.add(decision.keyword.toLocaleLowerCase("en-US"));
-      }
       await markStep(run.job_id, stepKey, "semantic_filter", "complete", result.jobId);
     } catch (error) {
+      await markStep(
+        run.job_id,
+        stepKey,
+        "semantic_filter",
+        "failed",
+        undefined,
+        error instanceof Error ? error.message : "PROVIDER_FAILED",
+      );
+    }
+    if (semanticIndex + 1 < semanticCount) return "continue" as const;
+    steps = await loadCompareSteps(run.job_id);
+  }
+  if (nextPendingStepIndex(semanticCount, expandStepViews(steps), "semantic") >= 0) {
+    return "done" as const;
+  }
+
+  const kept = new Set<string>(
+    [...priorDecisions.entries()].filter(([, decision]) => decision === "keep").map(([keyword]) => keyword),
+  );
+  for (let index = 0; index < semanticCount; index += 1) {
+    const step = steps.find((item) => item.step_key === `semantic:${index}`);
+    const chunk = undecided.slice(index * SEMANTIC_CHUNK_SIZE, (index + 1) * SEMANTIC_CHUNK_SIZE);
+    if (step?.status === "failed") {
       failed += 1;
       chunk.forEach((candidate) => kept.add(candidate.keyword.toLocaleLowerCase("en-US")));
-      await markStep(run.job_id, stepKey, "semantic_filter", "failed", undefined, error instanceof Error ? error.message : "PROVIDER_FAILED");
+      continue;
+    }
+    if (step?.status !== "complete" || !step.child_job_id) continue;
+    const result = await getOwnedByokSemanticFilterResult(run.owner_id, step.child_job_id);
+    if (result.status !== "complete" || !result.results) {
+      failed += 1;
+      chunk.forEach((candidate) => kept.add(candidate.keyword.toLocaleLowerCase("en-US")));
+      continue;
+    }
+    for (const decision of result.results) {
+      if (decision.decision === "keep") kept.add(decision.keyword.toLocaleLowerCase("en-US"));
     }
   }
   const filtered = candidates.filter((candidate) => kept.has(candidate.keyword.toLocaleLowerCase("en-US")));
@@ -830,6 +911,7 @@ const runExpand = async (run: PipelineRunRow, quote: PipelineQuoteRow) => {
     filteredOut: candidates.filter((candidate) => !kept.has(candidate.keyword.toLocaleLowerCase("en-US"))),
   };
   await finishRun(run, failed ? "partial" : "complete", result, failed ? "PARTIAL_SUCCESS" : undefined);
+  return "done" as const;
 };
 
 const loadCompareSteps = async (jobId: string) => {
@@ -979,8 +1061,7 @@ export const executePipelineJob = async (
   }
   try {
     if (run.operation === "expand") {
-      await runExpand(run, quote);
-      return "done" as const;
+      return await runExpand(run, quote, options);
     }
     return await runCompare(run, quote, options);
   } catch (error) {

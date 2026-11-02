@@ -131,7 +131,7 @@ export async function handleExpandPost(request: Request, userId: string, isStude
   if (!allowCreateSharedJob) {
     return NextResponse.json(
       {
-        error: "当前请求暂无可复用缓存结果，请稍后再试或等待后台预计算完成。",
+        error: "今天的扩词结果还在预计算，请稍后再看。",
         status: "cache_miss",
       },
       { status: 409 }

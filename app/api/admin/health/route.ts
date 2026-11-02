@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import {
+  gameTrendScannerSilence,
   listRecentPrecomputeHealth,
   type PrecomputeHealth,
   writePrecomputeHealth,
@@ -74,9 +75,18 @@ const loadOperationsHealth = async () => {
     for (const run of recentRuns) {
       if (!latestByPipeline.has(run.pipeline)) latestByPipeline.set(run.pipeline, run);
     }
+    const { rows: scannerRows } = await d1Query<{ last_success_at: string | null }>(
+      `SELECT MAX(COALESCE(completed_at, started_at)) AS last_success_at
+       FROM pipeline_runs
+       WHERE pipeline = 'game-trend-scanner' AND status IN ('success', 'complete')`,
+    );
+    const silenceAlerts = [
+      gameTrendScannerSilence(scannerRows[0]?.last_success_at ?? null, Date.now()),
+    ];
     return {
       available: true,
       latestRuns: [...latestByPipeline.values()],
+      silenceAlerts,
       totals: totals[0] ?? {
         running_count: 0,
         failed_runs_24h: 0,
@@ -95,6 +105,7 @@ const loadOperationsHealth = async () => {
     return {
       available: false,
       latestRuns: [],
+      silenceAlerts: [],
       totals: null,
       error: error instanceof Error ? error.message : "Pipeline health unavailable",
     };

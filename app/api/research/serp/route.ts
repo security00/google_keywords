@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const paidPrincipal = await requirePaidApiPermission(request);
     if (isAuthzError(paidPrincipal)) {
       return NextResponse.json(
-        { error: "今日 SERP 共享缓存尚未预计算完成，请稍后重试。", status: "cache_miss" },
+        { error: "今天的搜索结果还在预计算，请稍后再看。", status: "cache_miss" },
         { status: 409 }
       );
     }

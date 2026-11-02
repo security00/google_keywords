@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   if (picked.length === 0) {
     return NextResponse.json({
       keywords: [],
-      message: "暂无推荐游戏关键词，系统每日自动扫描中",
+      message: "新游结果还在更新。每日扫描完成后，这里会重新出现本周推荐。",
     });
   }
 

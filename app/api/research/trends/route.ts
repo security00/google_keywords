@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const paidPrincipal = await requirePaidApiPermission(request);
     if (isAuthzError(paidPrincipal)) {
       return NextResponse.json(
-        { error: "今日趋势对比缓存尚未预计算完成，请稍后重试。", status: "cache_miss" },
+        { error: "今天的对比结果还在预计算，请稍后再看。", status: "cache_miss" },
         { status: 409 }
       );
     }

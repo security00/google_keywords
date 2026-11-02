@@ -34,9 +34,17 @@ type PipelineRunHealth = {
   failed_task_count: number;
 };
 
+type SilenceAlert = {
+  pipeline: string;
+  stale: boolean;
+  lastSuccessAt: string | null;
+  message: string;
+};
+
 type OperationsHealth = {
   available: boolean;
   latestRuns: PipelineRunHealth[];
+  silenceAlerts?: SilenceAlert[];
   totals: {
     running_count: number;
     failed_runs_24h: number;
@@ -151,6 +159,11 @@ export default function AdminHealthPage() {
           <h3 className="text-lg font-semibold">管线运行概况</h3>
           <p className="text-sm text-muted-foreground">只读汇总最近运行、失败任务和过去 24 小时成本。</p>
         </div>
+        {(operations?.silenceAlerts ?? []).filter((alert) => alert.stale).map((alert) => (
+          <div key={alert.pipeline} className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {alert.message} 最近成功：{formatTime(alert.lastSuccessAt)}。
+          </div>
+        ))}
         {!operations?.available ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
             管线账本暂不可用：{operations?.error || "暂无数据"}

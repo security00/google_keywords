@@ -15,6 +15,35 @@ export type PrecomputeHealth = {
   intentJobId?: string | null;
 };
 
+export const GAME_TREND_SCANNER_MAX_SILENCE_MS = 36 * 60 * 60 * 1000;
+
+export type PipelineSilenceAlert = {
+  pipeline: "game-trend-scanner";
+  stale: boolean;
+  lastSuccessAt: string | null;
+  message: string;
+};
+
+export const gameTrendScannerSilence = (
+  lastSuccessAt: string | null,
+  nowMs: number,
+): PipelineSilenceAlert => {
+  const parsed = lastSuccessAt ? Date.parse(lastSuccessAt) : Number.NaN;
+  const ageMs = Number.isFinite(parsed) ? nowMs - parsed : Number.NaN;
+  const stale = !Number.isFinite(ageMs) || ageMs > GAME_TREND_SCANNER_MAX_SILENCE_MS;
+  const ageHours = Number.isFinite(ageMs) ? Math.floor(ageMs / (60 * 60 * 1000)) : null;
+  return {
+    pipeline: "game-trend-scanner",
+    stale,
+    lastSuccessAt,
+    message: stale
+      ? ageHours === null
+        ? "新游扫描没有成功记录。每天 10:00 UTC 的定时任务可能没有挂上。"
+        : `新游扫描已经 ${ageHours} 小时没有成功记录，超过 36 小时。`
+      : "新游扫描在 36 小时内有成功记录。",
+  };
+};
+
 const HEALTH_PREFIX = "precompute_health:";
 const HEALTH_TTL_HOURS = 24 * 14;
 

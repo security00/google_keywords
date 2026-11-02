@@ -104,8 +104,8 @@ export default function StudentGamesPage() {
       ) : items.length === 0 ? (
         <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">
           <Gamepad2 className="mx-auto mb-3 h-10 w-10 opacity-30" />
-          <p>{error || "暂无推荐游戏关键词"}</p>
-          {!error && <p className="text-xs mt-1">系统每日自动扫描，请稍后再来查看</p>}
+          <p>{error || "新游结果还在更新"}</p>
+          {!error && <p className="text-xs mt-1">每日扫描完成后，这里会重新出现本周推荐。</p>}
         </div>
       ) : (
         <div className="space-y-3">

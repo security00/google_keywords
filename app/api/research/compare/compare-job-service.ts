@@ -349,7 +349,7 @@ export async function handleComparePost(request: Request, userId: string, isStud
 
     return NextResponse.json(
       {
-        error: "今日趋势对比共享缓存尚未预计算完成，请稍后重试或先运行预计算脚本。",
+        error: "今天的对比结果还在预计算，请稍后再看。",
         status: "cache_miss",
         selectedCount,
         minRuleScore,

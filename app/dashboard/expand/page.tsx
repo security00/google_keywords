@@ -34,6 +34,7 @@ export default function ExpandPage() {
     handleExpand,
     expandProgress,
     effectiveKeywords,
+    parsedKeywords,
     expandData,
     error,
     debugLogs,
@@ -44,7 +45,8 @@ export default function ExpandPage() {
     retryByokPartial,
   } = useResearch();
 
-  const expansionCost = formatUsd(effectiveKeywords.length * TASK_COST_USD);
+  const quotedKeywords = executionMode === "byok" ? parsedKeywords : effectiveKeywords;
+  const expansionCost = formatUsd(quotedKeywords.length * TASK_COST_USD);
   const expandPercent =
     expandProgress && expandProgress.total > 0
       ? Math.min(100, Math.round((expandProgress.ready / expandProgress.total) * 100))
@@ -88,7 +90,7 @@ export default function ExpandPage() {
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               {executionMode === "byok"
-                ? "实时模式使用你的 DataForSEO 与 OpenRouter 额度，结果仅你可见；执行前会汇总确认费用。"
+                ? "实时模式一次最多 20 个词根，必须自己填写。留空不会使用全部默认词。费用使用你的 DataForSEO 与 OpenRouter 额度，结果仅你可见。"
                 : "共享模式沿用预计算结果，不会因页面操作触发平台 Provider 费用。"}
             </p>
           </div>
@@ -99,7 +101,9 @@ export default function ExpandPage() {
             预计成本：
             <span className="ml-1 font-medium text-foreground">{expansionCost}</span>
             <span className="ml-1 text-xs">
-              （{effectiveKeywords.length} 个词根 × {formatUsd(TASK_COST_USD)}）
+              {executionMode === "byok" && quotedKeywords.length === 0
+                ? "（请先填写词根，一次最多 20 个）"
+                : `（${quotedKeywords.length} 个词根 × ${formatUsd(TASK_COST_USD)}）`}
             </span>
           </div>
 
@@ -133,7 +137,11 @@ export default function ExpandPage() {
               onChange={(event) => setKeywordsText(event.target.value)}
             />
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>默认词根：{DEFAULT_KEYWORDS.slice(0, 5).join(", ")}...</span>
+              <span>
+                {executionMode === "byok"
+                  ? `已填写 ${parsedKeywords.length} 个词根，实时模式最多 20 个。`
+                  : `默认词根：${DEFAULT_KEYWORDS.slice(0, 5).join(", ")}...`}
+              </span>
             </div>
           </div>
         </CardContent>
