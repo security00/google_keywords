@@ -59,7 +59,7 @@ const CLIENT_MAX_WAIT_MS = Number(process.env.NEXT_PUBLIC_TASK_MAX_WAIT_MS) || 6
 const CLIENT_POLL_INTERVAL_MS = Number(process.env.NEXT_PUBLIC_TASK_POLL_INTERVAL_MS) || 5000;
 import { RECOMMENDED_COMPARE_LIMIT } from "@/config/business-rules";
 const BYOK_MAX_SEEDS = 20;
-const byokUserError = (code?: string, fallback = "实时请求失败") => {
+const byokUserError = (code?: string | null, fallback = "实时请求失败") => {
     if (code === "CONCURRENCY_LIMIT_REACHED") {
         return "上一个实时任务还在占用并发槽，请稍等几秒后重试。";
     }
