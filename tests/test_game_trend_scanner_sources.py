@@ -1,4 +1,5 @@
 import importlib.util
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import tempfile
 import unittest
@@ -105,10 +106,11 @@ class GameTrendScannerSourcesTest(unittest.TestCase):
     def test_fetch_addicting_games_new_uses_next_data_json(self):
         scanner = load_scanner()
         html = '<html><script id="__NEXT_DATA__" type="application/json">{"buildId":"np0g0qQCmUV26zh9pzpv3","props":{"pageProps":{"games":[]}}}</script></html>'
+        published = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
         payload = {
             "pageProps": {
                 "games": [
-                    {"title": "Hauntworks Demo", "published": "2026-08-20T06:10:22+00:00"},
+                    {"title": "Hauntworks Demo", "published": published},
                 ]
             }
         }
