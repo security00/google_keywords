@@ -2,6 +2,8 @@ import "server-only";
 
 import { randomBytes } from "crypto";
 
+import { appBaseUrl } from "@/lib/app-url";
+
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
@@ -48,9 +50,7 @@ export const getGoogleRedirectUri = () => {
   const configured = process.env.GOOGLE_OAUTH_REDIRECT_URI?.trim();
   if (configured) return configured;
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
-  if (!appUrl) throw new Error("GOOGLE_OAUTH_REDIRECT_URI or NEXT_PUBLIC_APP_URL is required");
-  return `${appUrl.replace(/\/$/, "")}/api/auth/google/callback`;
+  return `${appBaseUrl()}/api/auth/google/callback`;
 };
 
 export const createGoogleOAuthState = () => randomBytes(24).toString("base64url");

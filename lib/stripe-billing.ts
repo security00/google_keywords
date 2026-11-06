@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import Stripe from "stripe";
 
+import { appBaseUrl } from "@/lib/app-url";
 import { d1Query } from "@/lib/d1";
 
 type CustomerRow = {
@@ -31,11 +32,7 @@ export const getStripe = () =>
     httpClient: Stripe.createFetchHttpClient(),
   });
 
-export const getAppUrl = () => {
-  const value = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
-  if (!value) throw new Error("NEXT_PUBLIC_APP_URL or APP_URL is not configured");
-  return value.replace(/\/$/, "");
-};
+export const getAppUrl = () => appBaseUrl();
 
 export const getFoundingPriceId = () => {
   const value = requiredEnv("STRIPE_FOUNDING_PRICE_ID");

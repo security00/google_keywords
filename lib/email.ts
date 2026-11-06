@@ -73,8 +73,4 @@ export async function sendTransactionalEmail({
   throw new Error(lastError);
 }
 
-export const appBaseUrl = () =>
-  (process.env.NEXT_PUBLIC_APP_URL || process.env.PUBLIC_BASE_URL || "https://discoverkeywords.co").replace(
-    /\/$/,
-    ""
-  );
+export { appBaseUrl } from "@/lib/app-url";

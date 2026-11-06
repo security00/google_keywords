@@ -68,6 +68,9 @@ jobs:
 
       - name: Build with OpenNext on Linux
         run: npx opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_APP_URL: https://www.discoverkeywords.co
+          APP_URL: https://www.discoverkeywords.co
 
       - name: Validate Worker bundle without deploying
         run: npx wrangler deploy --dry-run --config wrangler.jsonc
@@ -97,6 +100,9 @@ jobs:
 
       - name: Build with OpenNext on Linux
         run: npx opennextjs-cloudflare build
+        env:
+          NEXT_PUBLIC_APP_URL: https://www.discoverkeywords.co
+          APP_URL: https://www.discoverkeywords.co
 
       - name: Retain active production static assets
         run: npm run retain:production-assets
