@@ -13,7 +13,7 @@ type Opportunity = {
   pipeline: "google_new" | "game_new" | "validated_market";
   category: string;
   status: "strong_pass" | "pass" | "close" | "watch" | "skip";
-  opportunityScore: number;
+  opportunityScore: number | null;
   demandSummary: string;
   evidenceSummary: string;
   bestBuildType: string;
@@ -30,6 +30,9 @@ type OpportunitiesResponse = {
   gated: boolean;
   items: Opportunity[];
   total: number;
+  publicationDate?: string | null;
+  emptyPublication?: boolean;
+  unavailableSources?: Opportunity["pipeline"][];
   entitlement?: {
     allowed: boolean;
     reason?: string;
@@ -42,7 +45,7 @@ const pipelineOptions = [
   { value: "", label: "All pipelines" },
   { value: "google_new", label: "New keywords" },
   { value: "game_new", label: "Games" },
-  { value: "validated_market", label: "Validated markets" },
+  { value: "validated_market", label: "Established keywords" },
 ];
 
 const statusOptions = [
@@ -74,7 +77,7 @@ const statusLabel = (status: Opportunity["status"]) => {
 const pipelineLabel = (pipeline: Opportunity["pipeline"]) => {
   if (pipeline === "google_new") return "New keyword";
   if (pipeline === "game_new") return "Game";
-  return "Validated market";
+  return "Established keyword";
 };
 
 const badgeVariant = (status: Opportunity["status"]) =>
@@ -91,6 +94,7 @@ export default function OpportunityRadarPage() {
   const [data, setData] = useState<OpportunitiesResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refresh, setRefresh] = useState(0);
 
   const params = useMemo(() => {
     const p = new URLSearchParams();
@@ -102,29 +106,31 @@ export default function OpportunityRadarPage() {
     return p;
   }, [category, pipeline, query, status]);
 
-  const load = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch(`/api/opportunities?${params.toString()}`, {
-        credentials: "include",
-        cache: "no-store",
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Failed to load opportunities");
-      setData(payload);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load opportunities");
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(`/api/opportunities?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || "Failed to load opportunities");
+        setData(payload);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(err instanceof Error ? err.message : "Failed to load opportunities");
+        setData(null);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params]);
+    return () => controller.abort();
+  }, [params, refresh]);
 
   const subscribe = async () => {
     setError("");
@@ -149,7 +155,7 @@ export default function OpportunityRadarPage() {
             A unified view of buildable keyword opportunities from new keyword, game, and validated market pipelines.
           </p>
         </div>
-        <Button type="button" variant="outline" onClick={load} disabled={loading}>
+        <Button type="button" variant="outline" onClick={() => setRefresh(value => value + 1)} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -209,6 +215,14 @@ export default function OpportunityRadarPage() {
         </div>
       )}
 
+      {!loading && data && !data.gated && (
+        <div className="space-y-1 text-sm text-muted-foreground" role="status">
+          {data.unavailableSources?.filter(s => !pipeline || s === pipeline).map(s => <p key={s}>{pipelineLabel(s)} data is temporarily unavailable.</p>)}
+          {(!pipeline || pipeline === "google_new") && !data.unavailableSources?.includes("google_new") && (
+            <p>{data.publicationDate ? `Shared keyword data through ${data.publicationDate}. ${data.emptyPublication ? "No keywords qualified in this batch." : ""}` : "Awaiting a shared keyword batch with data from the last 14 days."}</p>
+          )}
+        </div>
+      )}
       {loading ? (
         <div className="rounded-xl border bg-card p-10 text-center text-muted-foreground">Loading opportunities...</div>
       ) : data?.items.length ? (
@@ -228,16 +242,12 @@ export default function OpportunityRadarPage() {
                 </div>
                 <div className="shrink-0 rounded-lg border bg-muted/30 px-3 py-2 text-center">
                   <Star className="mx-auto h-4 w-4 text-amber-500" />
-                  <div className="mt-1 text-2xl font-bold">{item.opportunityScore}</div>
-                  <div className="text-xs text-muted-foreground">Score</div>
+                  <div className="mt-1 text-2xl font-bold">{item.opportunityScore ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground">{item.opportunityScore == null ? "Pending SERP check" : "Score"}</div>
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                <div className="rounded-lg border bg-muted/20 px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Heat</div>
-                  <div className="font-medium">{formatMetric(item.currentHeat)}</div>
-                </div>
+              {item.pipeline !== "validated_market" && <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                 <div className="rounded-lg border bg-muted/20 px-3 py-2">
                   <div className="text-xs text-muted-foreground">Recent ratio</div>
                   <div className="font-medium">{formatMetric(item.recentRatio)}</div>
@@ -249,7 +259,7 @@ export default function OpportunityRadarPage() {
                     {formatMetric(item.trendSlope)}
                   </div>
                 </div>
-              </div>
+              </div>}
 
               <div className="mt-4 space-y-2 text-sm">
                 <p><span className="font-medium">Best build type:</span> {item.bestBuildType}</p>
@@ -257,6 +267,7 @@ export default function OpportunityRadarPage() {
                 <p className="text-xs text-muted-foreground">
                   Source: {item.sourceLabel} {item.updatedAt ? `- Updated ${item.updatedAt.slice(0, 10)}` : ""}
                 </p>
+                {!item.isPublicSample && <a className="underline" href={`https://www.google.com/search?q=${encodeURIComponent(item.keyword)}`} target="_blank" rel="noopener noreferrer">Inspect search results</a>}
               </div>
             </article>
           ))}

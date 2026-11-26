@@ -48,3 +48,27 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 declare namespace NodeJS {
 	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "BENCHMARK_KEYWORD" | "NEXT_PUBLIC_BENCHMARK_KEYWORD" | "CACHE_EXPIRY_HOURS" | "OPENROUTER_BASE_URL" | "OPENROUTER_MODEL" | "OPENROUTER_FILTER_TERMS" | "OPENROUTER_SITE_URL" | "OPENROUTER_APP_NAME" | "NEXT_PUBLIC_FILTER_TERMS" | "DEBUG_API_LOGS" | "RESEARCH_STATUS_GET_EXECUTION_COMPAT" | "BYOK_PROVIDER_CONNECTIONS_ENABLED" | "BYOK_LIVE_MODE_ENABLED" | "BYOK_PROVIDER_CONNECTIONS_ALLOWLIST" | "BYOK_ACTIVE_KEK_VERSION" | "BYOK_KEK_READ_VERSIONS" | "BYOK_ACTIVE_FINGERPRINT_KEY_VERSION" | "BYOK_FINGERPRINT_KEY_READ_VERSIONS" | "BYOK_DEFAULT_DAILY_BUDGET_USD" | "BYOK_MAX_DAILY_BUDGET_USD" | "BYOK_DEFAULT_MAX_CONCURRENT_JOBS" | "BYOK_MAX_CONCURRENT_JOBS" | "SERP_LOCATION_NAME" | "SERP_LANGUAGE_CODE" | "SERP_DEVICE" | "SERP_OS" | "SERP_DEPTH" | "NEXT_PUBLIC_APP_URL" | "NEXT_PUBLIC_TURNSTILE_SITE_KEY" | "NEXT_PUBLIC_PUBLIC_SIGNUP_ENABLED" | "APP_URL" | "D1_DATABASE_NAME">> {}
 }
+declare module "*.txt" {
+	const value: string;
+	export default value;
+}
+declare module "*.html" {
+	const value: string;
+	export default value;
+}
+declare module "*.sql" {
+	const value: string;
+	export default value;
+}
+declare module "*.bin" {
+	const value: ArrayBuffer;
+	export default value;
+}
+declare module "*.wasm" {
+	const value: WebAssembly.Module;
+	export default value;
+}
+declare module "*.wasm?module" {
+	const value: WebAssembly.Module;
+	export default value;
+}

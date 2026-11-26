@@ -13,7 +13,11 @@ type OldKeyword = {
   cpc: number;
   kd: number;
   competition: string;
-  score: number;
+  verifiedScore: number | null;
+  scanDate: string;
+  evaluatedAt: string | null;
+  serpOrganic: number | null;
+  monthlySearches?: Array<{ month: string; searches: number }>;
   trend?: {
     keyword: Array<{ date: string; value: number }>;
     benchmark: Array<{ date: string; value: number }>;
@@ -23,8 +27,8 @@ type OldKeyword = {
 function TrendChart({ trend }: { trend: OldKeyword["trend"] }) {
   if (!trend || trend.keyword.length === 0) return null;
 
-  const dateMap = new Map<string, { date: string; kw: number; bm: number }>();
-  for (const p of trend.keyword) dateMap.set(p.date, { date: p.date, kw: p.value, bm: 0 });
+  const dateMap = new Map<string, { date: string; kw: number; bm: number | null }>();
+  for (const p of trend.keyword) dateMap.set(p.date, { date: p.date, kw: p.value, bm: null });
   for (const p of trend.benchmark) {
     const entry = dateMap.get(p.date);
     if (entry) entry.bm = p.value;
@@ -110,7 +114,7 @@ export default function OldKeywordsPage() {
           为你推荐的老词机会
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          基于你的偏好筛选的低竞争关键词，适合切入建站
+          从最近一批有搜索需求的词中选取，优先展示已检查搜索首页的候选。
         </p>
       </div>
 
@@ -123,6 +127,9 @@ export default function OldKeywordsPage() {
                   <TrendingUp className="h-4 w-4 text-indigo-500" />
                   {kw.keyword}
                 </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {kw.scanDate} 扫描 · {kw.verifiedScore == null ? "待核查搜索首页" : `${kw.evaluatedAt?.slice(0, 10) ?? ""} 首页复核 · ${kw.verifiedScore} / 100 分 · ${kw.serpOrganic} 条自然结果`}
+                </p>
               </div>
               {kdBadge(kw.kd)}
             </div>
@@ -138,11 +145,19 @@ export default function OldKeywordsPage() {
               </div>
               <div className="text-center p-2 bg-muted/50 rounded-lg">
                 <div className="text-xl font-bold">{kw.competition || "-"}</div>
-                <div className="text-xs text-muted-foreground">竞争度</div>
+                <div className="text-xs text-muted-foreground">广告竞争度</div>
               </div>
             </div>
 
-            {kw.trend && <TrendChart trend={kw.trend} />}
+            {kw.trend ? <TrendChart trend={kw.trend} /> : <p className="text-sm text-muted-foreground">本批次暂无可用的 Trends 曲线。</p>}
+            {Boolean(kw.monthlySearches?.length) && (
+              <details className="mt-3 text-sm">
+                <summary className="cursor-pointer">逐月搜索量（{kw.monthlySearches!.length} 个月）</summary>
+                <dl className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {kw.monthlySearches!.map(p => <div key={p.month}><dt className="text-xs text-muted-foreground">{p.month}</dt><dd>{p.searches.toLocaleString()}</dd></div>)}
+                </dl>
+              </details>
+            )}
 
             <div className="mt-3 flex justify-start sm:justify-end">
               <a

@@ -33,7 +33,7 @@ export function isWithinDays(
 ): boolean {
   const ms = parseCheckedAtMs(checkedAt);
   if (ms === null) return false;
-  return nowMs - ms <= days * 24 * 60 * 60 * 1000;
+  return ms <= nowMs && nowMs - ms <= days * 24 * 60 * 60 * 1000;
 }
 
 export function isStudentHotGame(
@@ -115,7 +115,17 @@ export function pickStudentGameKeywords<T extends GameKeywordCandidate>(
     options?.maxAgeDays != null
       ? rows.filter((row) => isWithinDays(row.trend_checked_at, options.maxAgeDays as number, nowMs))
       : rows;
-  const hot = fresh.filter((row) => isStudentHotGame(row, minRatio));
+  // Multiple storefronts may list the same title. Prefer its newest check
+  // and keep the other slots for genuinely different games.
+  const titles = new Map<string, T>();
+  for (const row of fresh.filter((item) => isStudentHotGame(item, minRatio))) {
+    const title = row.keyword.trim().toLowerCase();
+    const previous = titles.get(title);
+    if (!previous || (parseCheckedAtMs(row.trend_checked_at) ?? 0) > (parseCheckedAtMs(previous.trend_checked_at) ?? 0)) {
+      titles.set(title, row);
+    }
+  }
+  const hot = [...titles.values()];
   if (hot.length === 0 || count <= 0) return [];
 
   const weekly = hot.filter((row) => isWithinDays(row.trend_checked_at, weeklyWindowDays, nowMs));

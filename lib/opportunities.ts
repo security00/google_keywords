@@ -1,6 +1,7 @@
 import "server-only";
 
 import { d1Query } from "@/lib/d1";
+import { oldEvaluationJoin, studentGameParams, studentGamePredicate, studentOldPredicate } from "./discovery-evidence";
 import type { SaasEntitlement } from "@/lib/entitlements";
 
 export type OpportunityPipeline = "google_new" | "game_new" | "validated_market";
@@ -13,7 +14,7 @@ export type KeywordOpportunity = {
   pipeline: OpportunityPipeline;
   category: OpportunityCategory;
   status: OpportunityStatus;
-  opportunityScore: number;
+  opportunityScore: number | null;
   demandSummary: string;
   evidenceSummary: string;
   bestBuildType: string;
@@ -43,8 +44,11 @@ type GoogleNewRow = {
   ratio_peak: number | null;
   slope_diff: number | null;
   verdict: string | null;
-  explanation: string | null;
-  intent: string | null;
+  summary: string | null;
+  demand: string | null;
+  roots: string | null;
+  benchmark: string;
+  freshness: string | null;
   created_at: string | null;
 };
 
@@ -58,6 +62,7 @@ type GameRow = {
   recommendation: string | null;
   reason: string | null;
   trend_checked_at: string | null;
+  serp_organic: number;
 };
 
 type OldRow = {
@@ -69,7 +74,8 @@ type OldRow = {
   kd: number | null;
   competition: string | null;
   intent: string | null;
-  score: number | null;
+  verified_score: number | null;
+  serp_organic: number | null;
   scan_date: string | null;
 };
 
@@ -170,7 +176,7 @@ const statusFromGameRecommendation = (value?: string | null): OpportunityStatus 
 const categoryForKeyword = (keyword: string, fallback?: OpportunityCategory): OpportunityCategory => {
   const lower = keyword.toLowerCase();
   if (fallback) return fallback;
-  if (/(ai|gpt|llm|agent|prompt|chatbot|automation)/.test(lower)) return "ai_tools";
+  if (/\b(ai|gpts?|llms?|agents?|prompts?|chatbots?|automation)\b/.test(lower)) return "ai_tools";
   if (/(game|roblox|steam|minecraft|fortnite|play)/.test(lower)) return "games";
   if (/(template|notion|spreadsheet|worksheet)/.test(lower)) return "templates";
   if (/(calculator|converter|generator|tool|builder|checker)/.test(lower)) return "tools";
@@ -184,29 +190,9 @@ const riskFor = (status: OpportunityStatus, score: number): "low" | "medium" | "
   return "low";
 };
 
-const parseIntentDemand = (raw: string | null) => {
-  if (!raw) return "";
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.demand === "string") return parsed.demand;
-    if (typeof parsed?.label === "string") return parsed.label;
-  } catch {}
-  return "";
-};
-
-const parseExplanationSummary = (raw: string | null) => {
-  if (!raw) return "";
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.summary === "string") return parsed.summary;
-  } catch {}
-  return "";
-};
-
 const mapGoogleRow = (row: GoogleNewRow): KeywordOpportunity => {
   const status = statusFromVerdict(row.verdict);
   const score = Math.min(100, Math.max(scoreFromStatus(status), Math.round(Number(row.ratio_recent || 0) * 30)));
-  const demand = parseIntentDemand(row.intent);
   return {
     id: `google_new:${row.id || row.keyword}`,
     keyword: row.keyword,
@@ -214,15 +200,15 @@ const mapGoogleRow = (row: GoogleNewRow): KeywordOpportunity => {
     category: categoryForKeyword(row.keyword),
     status,
     opportunityScore: score,
-    demandSummary: demand || "Recent keyword movement with potential buildable search intent.",
-    evidenceSummary: parseExplanationSummary(row.explanation) || "Trend comparison result from the new keyword pipeline.",
+    demandSummary: row.demand || "Review the search intent before choosing a page to build.",
+    evidenceSummary: [row.summary, `Trend benchmark: ${row.benchmark}.`, row.freshness && `History: ${row.freshness.replaceAll("_", " ")}.`].filter(Boolean).join(" "),
     bestBuildType: categoryForKeyword(row.keyword) === "ai_tools" ? "AI tool page or workflow guide" : "Tool/content landing page",
     riskLevel: riskFor(status, score),
     currentHeat: row.ratio_recent,
     recentRatio: row.ratio_recent,
     peakRatio: row.ratio_peak,
     trendSlope: row.slope_diff,
-    sourceLabel: "New keyword pipeline",
+    sourceLabel: row.roots ? `Shared research · seeds: ${row.roots}` : "Shared research",
     updatedAt: row.created_at,
     isPublicSample: false,
   };
@@ -239,12 +225,12 @@ const mapGameRow = (row: GameRow): KeywordOpportunity => {
     status,
     opportunityScore: score,
     demandSummary: row.reason || "Game keyword with trend and SERP relevance checks.",
-    evidenceSummary: `${row.recommendation || "Game opportunity"} from ${row.source_site || "multi-source game radar"}.`,
+    evidenceSummary: `${row.serp_organic} organic search results in the checked SERP.`,
     bestBuildType: "Game guide, codes page, helper tool, or niche fan utility",
     riskLevel: riskFor(status, score),
     currentHeat: row.trend_ratio,
     recentRatio: row.trend_ratio,
-    peakRatio: row.trend_ratio,
+    peakRatio: null,
     trendSlope: row.trend_slope,
     sourceLabel: row.source_site || "Game pipeline",
     updatedAt: row.trend_checked_at,
@@ -253,8 +239,8 @@ const mapGameRow = (row: GameRow): KeywordOpportunity => {
 };
 
 const mapOldRow = (row: OldRow): KeywordOpportunity => {
-  const score = Math.min(100, Math.max(0, Math.round(Number(row.score || 0))));
-  const status: OpportunityStatus = score >= 85 ? "strong_pass" : score >= 70 ? "pass" : score >= 55 ? "close" : "watch";
+  const score = row.verified_score == null ? null : Math.round(row.verified_score);
+  const status: OpportunityStatus = score === null ? "watch" : score >= 85 ? "strong_pass" : score >= 70 ? "pass" : score >= 55 ? "close" : "watch";
   return {
     id: `validated_market:${row.id}`,
     keyword: row.keyword,
@@ -263,10 +249,10 @@ const mapOldRow = (row: OldRow): KeywordOpportunity => {
     status,
     opportunityScore: score,
     demandSummary: row.intent || "Validated market keyword with existing search demand.",
-    evidenceSummary: `Volume ${row.volume || 0}, CPC ${row.cpc || 0}, KD ${row.kd || 0}, competition ${row.competition || "-"}.`,
+    evidenceSummary: `Monthly searches ${row.volume ?? "—"}, CPC $${row.cpc ?? "—"}, KD ${row.kd ?? "—"}. ${score === null ? "Awaiting a SERP check." : `${row.serp_organic} organic results checked.`}`,
     bestBuildType: categoryForKeyword(row.keyword) === "templates" ? "Template or calculator page" : "Niche content/tool site",
-    riskLevel: riskFor(status, score),
-    currentHeat: row.volume,
+    riskLevel: score === null ? "medium" : riskFor(status, score),
+    currentHeat: null,
     recentRatio: null,
     peakRatio: null,
     trendSlope: null,
@@ -295,34 +281,24 @@ const compareOpportunitiesByNewest = (
   b: KeywordOpportunity
 ) => {
   const timeDifference = opportunityTimestamp(b.updatedAt) - opportunityTimestamp(a.updatedAt);
-  if (timeDifference !== 0) return timeDifference;
+  if (timeDifference) return timeDifference;
 
-  const scoreDifference = b.opportunityScore - a.opportunityScore;
+  const scoreDifference = (b.opportunityScore ?? -1) - (a.opportunityScore ?? -1);
   if (scoreDifference !== 0) return scoreDifference;
 
   return a.keyword.localeCompare(b.keyword);
 };
 
-const isOptionalSourceError = (error: unknown) => {
-  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  return (
-    message.includes("no such table") ||
-    message.includes("no such column") ||
-    message.includes("sqlite_error")
-  );
-};
-
 const optionalD1Query = async <T>(
+  pipeline: OpportunityPipeline,
   sql: string,
   params: unknown[] = []
-): Promise<{ rows: T[] }> => {
+): Promise<{ rows: T[]; unavailable?: boolean }> => {
   try {
     return await d1Query<T>(sql, params);
   } catch (error) {
-    if (isOptionalSourceError(error)) {
-      return { rows: [] };
-    }
-    throw error;
+    console.error("[opportunities] source unavailable", pipeline, error instanceof Error ? error.message : "query failed");
+    return { rows: [], unavailable: true };
   }
 };
 
@@ -346,31 +322,46 @@ export async function listKeywordOpportunities(
 
   const [google, games, old] = await Promise.all([
     optionalD1Query<GoogleNewRow>(
-      `SELECT id, keyword, ratio_recent, ratio_peak, slope_diff, verdict, explanation, intent, created_at
-       FROM comparison_results
-       WHERE verdict IN ('strong', 'pass', 'close', 'watch')
-       ORDER BY created_at DESC
+      "google_new",
+      `WITH latest AS (
+         SELECT * FROM shared_keyword_publications
+         WHERE data_date BETWEEN date('now', '-14 days') AND date('now')
+         ORDER BY data_date DESC, batch_date DESC LIMIT 1
+       )
+       SELECT batch_date || ':' || (j.value ->> '$.keyword') AS id, j.value ->> '$.keyword' AS keyword,
+              j.value ->> '$.ratioRecent' AS ratio_recent, j.value ->> '$.ratioPeak' AS ratio_peak,
+              j.value ->> '$.slopeDiff' AS slope_diff, j.value ->> '$.verdict' AS verdict,
+              j.value ->> '$.summary' AS summary, j.value ->> '$.demand' AS demand, j.value ->> '$.freshness' AS freshness,
+              (SELECT group_concat(value, ', ') FROM json_each(j.value, '$.roots')) AS roots,
+              benchmark, data_date AS created_at
+       FROM latest LEFT JOIN json_each(items_json) j ON j.value ->> '$.verdict' IN ('strong','pass','close','watch')
+       ORDER BY CASE verdict WHEN 'strong' THEN 0 WHEN 'pass' THEN 1 WHEN 'close' THEN 2 ELSE 3 END,
+                ratio_recent DESC, keyword
        LIMIT 80`
     ),
     optionalD1Query<GameRow>(
+      "game_new",
       `SELECT id, keyword, source_site, trend_ratio, trend_slope, trend_verdict,
-              recommendation, reason, trend_checked_at
-       FROM game_keyword_pipeline
-       WHERE status = 'recommended'
-       ORDER BY trend_checked_at DESC
-       LIMIT 80`
+              recommendation, reason, trend_checked_at, serp_organic
+       FROM (SELECT *, row_number() OVER (
+               PARTITION BY lower(trim(keyword)) ORDER BY datetime(trend_checked_at) DESC, id DESC
+             ) AS title_rank FROM game_keyword_pipeline WHERE ${studentGamePredicate})
+       WHERE title_rank = 1 ORDER BY datetime(trend_checked_at) DESC, id DESC LIMIT 80`,
+      studentGameParams(),
     ),
     optionalD1Query<OldRow>(
-      `SELECT id, keyword, source_seed, volume, cpc, kd, competition, intent, score, scan_date
-       FROM old_keyword_opportunities
-       WHERE scan_date = (SELECT MAX(scan_date) FROM old_keyword_opportunities)
-       ORDER BY score DESC
+      "validated_market",
+      `SELECT o.id, o.keyword, o.source_seed, o.volume, o.cpc, o.kd, o.competition, o.intent, o.scan_date,
+              e.real_score AS verified_score, e.serp_organic
+       FROM old_keyword_opportunities o ${oldEvaluationJoin}
+       WHERE ${studentOldPredicate}
+       ORDER BY verified_score DESC, o.score DESC, o.keyword
        LIMIT 80`
     ),
   ]);
 
   const items = [
-    ...google.rows.map(mapGoogleRow),
+    ...google.rows.filter(row => row.keyword).map(mapGoogleRow),
     ...games.rows.map(mapGameRow),
     ...old.rows.map(mapOldRow),
   ]
@@ -380,6 +371,13 @@ export async function listKeywordOpportunities(
 
   return {
     gated: false,
+    publicationDate: google.rows[0]?.created_at ?? null,
+    emptyPublication: google.rows.length > 0 && !google.rows[0].keyword,
+    unavailableSources: [
+      ...(google.unavailable ? ["google_new"] : []),
+      ...(games.unavailable ? ["game_new"] : []),
+      ...(old.unavailable ? ["validated_market"] : []),
+    ],
     items: items.slice(offset, offset + limit),
     total: items.length,
     limit,

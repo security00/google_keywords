@@ -8,6 +8,7 @@ import {
   GAME_WEEKLY_HOT_WINDOW_DAYS,
 } from "@/config/business-rules";
 import { pickStudentGameKeywords } from "@/lib/game-student-picks";
+import { studentGameParams, studentGamePredicate } from "@/lib/discovery-evidence";
 
 export async function GET(req: NextRequest) {
   const principal = await requireEffectiveUser(req, {
@@ -41,20 +42,10 @@ export async function GET(req: NextRequest) {
             serp_organic, serp_auth, serp_featured, recommendation, reason,
             trend_series, trend_checked_at
      FROM game_keyword_pipeline
-     WHERE status = 'recommended'
-       AND recommendation != '⏭️ skip'
-       AND recommendation IS NOT NULL
-       AND serp_organic > 0
-       AND (reason IS NULL OR reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%')
-       AND trend_checked_at IS NOT NULL
-       AND datetime(trend_checked_at) >= datetime('now', ?)
-       AND (
-         recommendation IN ('🔥 hot', '📈 rising')
-         OR (recommendation = '🎯 niche' AND trend_ratio >= ? AND trend_slope > 0)
-       )
+     WHERE ${studentGamePredicate}
      ORDER BY trend_ratio DESC
      LIMIT 200`,
-    [`-${GAME_RECOMMENDATION_MAX_AGE_DAYS} days`, GAME_STUDENT_MIN_RATIO],
+    studentGameParams(),
   );
 
   const picked = pickStudentGameKeywords(rows, userId, {
@@ -86,6 +77,7 @@ export async function GET(req: NextRequest) {
       trend_verdict: row.trend_verdict,
       trend_series: raw,
       trend_checked_at: row.trend_checked_at,
+      serpOrganic: row.serp_organic,
     };
 
     if (raw) {

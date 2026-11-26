@@ -102,4 +102,14 @@ describe("pickStudentGameKeywords", () => {
     const picked = pickStudentGameKeywords(rows.slice(1, 2), "user-a", { nowMs: NOW, count: 3 });
     expect(picked).toEqual([expect.objectContaining({ keyword: "Weekly Hot", slot: "weekly_hot" })]);
   });
+
+  it("keeps the newest check for duplicate titles and excludes future checks", () => {
+    const variations = [
+      rows[1],
+      { ...rows[1], keyword: " weekly HOT ", source_site: "new-store", trend_checked_at: hoursAgo(1) },
+      { ...rows[1], keyword: "Future", trend_checked_at: hoursAgo(-1) },
+    ];
+    expect(pickStudentGameKeywords(variations, "user", { nowMs: NOW, maxAgeDays: 14 }))
+      .toEqual([expect.objectContaining({ source_site: "new-store" })]);
+  });
 });

@@ -81,10 +81,10 @@ describe("GET /api/game-keywords", () => {
     expect(body.keywords).toHaveLength(1);
     const sql = String(mockD1Query.mock.calls[0][0]);
     expect(sql).toContain("status = 'recommended'");
-    expect(sql).toContain("recommendation != '⏭️ skip'");
+    expect(sql).toContain("recommendation IN ('🔥 hot', '📈 rising')");
     expect(sql).toContain("serp_organic > 0");
     expect(sql).toContain("reason NOT LIKE '%⚠️ SERP首页缺少游戏相关结果%'");
-    expect(sql).toContain("datetime(trend_checked_at) >= datetime('now', ?)");
+    expect(sql).toContain("datetime(trend_checked_at) BETWEEN datetime('now', ?) AND datetime('now')");
     expect(mockD1Query.mock.calls[0][1]).toEqual(["-14 days", 1]);
     expect(body.keywords[0].slot).toBe("weekly_hot");
   });

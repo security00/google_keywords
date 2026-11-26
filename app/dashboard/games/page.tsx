@@ -25,6 +25,7 @@ type GameKeyword = {
   recommendation: string;
   reason: string;
   trend_checked_at: string;
+  serpOrganic: number;
   trend_series: string | null;
 };
 
@@ -161,6 +162,9 @@ function GameCard({ item, expanded, onToggle }: { item: GameKeyword; expanded: b
             </span>
             <SteamOnlineBadge reason={item.reason} />
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            趋势检查于 {item.trend_checked_at?.slice(0, 10)} · 搜索首页采到 {item.serpOrganic} 条自然结果
+          </p>
           {reasonText ? (
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{reasonText}</p>
           ) : null}

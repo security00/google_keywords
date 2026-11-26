@@ -326,6 +326,7 @@ const loadCandidates = async (input: {
               WHERE e.keyword_normalized = lower(trim(o.keyword))
                 AND e.scan_date = o.scan_date
                 AND e.evaluation_version = ?
+                AND e.serp_organic > 0
             ) AS already_evaluated
      FROM old_keyword_opportunities o
      WHERE o.score >= ? AND ${dateFilterSql} AND ${reliableKdSql}
@@ -525,7 +526,10 @@ export async function POST(request: Request) {
 
       for (const row of batch) {
         const summary = summariesByKeyword.get(normalizeKeyword(row.keyword)) ?? null;
-        if (!summary) missingSerp++;
+        if (!summary?.topResults.length || !summary.itemTypeCounts.organic) {
+          missingSerp++;
+          continue;
+        }
         await saveEvaluation(row, evaluateKeyword(row, summary), {
           batchIndex,
           cost: submission.cost,

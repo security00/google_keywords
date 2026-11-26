@@ -19,11 +19,13 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
     from scripts.pipeline_runtime import (
+        current_run_id,
         fail_pipeline_task,
         pipeline_run,
         record_cost_event,
@@ -33,6 +35,7 @@ try:
     )
 except ModuleNotFoundError:
     from pipeline_runtime import (
+        current_run_id,
         fail_pipeline_task,
         pipeline_run,
         record_cost_event,
@@ -131,7 +134,7 @@ SHARED_TIMEZONE = ZoneInfo(os.environ.get("GK_PRECOMPUTE_TIMEZONE", "Asia/Shangh
 
 
 def current_shared_date():
-    return time.strftime("%Y-%m-%d", time.localtime(time.time() + 8 * 3600)) if SHARED_TIMEZONE.key == "Asia/Shanghai" else __import__("datetime").datetime.now(SHARED_TIMEZONE).strftime("%Y-%m-%d")
+    return datetime.now(SHARED_TIMEZONE).date().isoformat()
 
 
 SHARED_DATE = current_shared_date()
@@ -602,6 +605,39 @@ def write_shared_cache(expand_response):
     )
 
 
+def publish_shared_opportunities(expand_response, comparison, selected):
+    results = comparison.get("results")
+    if (expand_response.get("sessionId") or comparison.get("sessionId") or comparison.get("comparisonId")
+            or not isinstance(results, list)):
+        raise RuntimeError("Expected a completed session-free shared comparison")
+    roots = {}
+    for item in expand_response.get("candidates") or expand_response.get("flatList") or []:
+        source = item.get("source")
+        if source:
+            roots.setdefault(item["keyword"].strip().lower(), set()).add(source)
+    allowed = {word.strip().lower() for word in selected}
+    items = []
+    for row in results:
+        key = row["keyword"].strip().lower()
+        if key not in allowed:
+            raise RuntimeError("Comparison contains a keyword outside the shared selection")
+        items.append({
+            "keyword": row["keyword"], "verdict": row["verdict"],
+            "roots": sorted(roots.get(key, [])), "ratioRecent": row.get("ratioRecent"),
+            "ratioPeak": row.get("ratioPeak"), "slopeDiff": row.get("slopeDiff"),
+            "freshness": (row.get("freshness") or {}).get("status"),
+            "summary": (row.get("explanation") or {}).get("summary"),
+            "demand": (row.get("intent") or {}).get("demand"),
+        })
+    response = curl_json("POST", "/api/cron/shared-opportunities", {
+        "batchDate": SHARED_DATE, "dataDate": (comparison.get("dateTo") or expand_response["dateTo"])[:10],
+        "runId": current_run_id() or f"precompute-{SHARED_DATE}",
+        "benchmark": comparison.get("benchmark") or COMPARE_BENCHMARK, "items": items,
+    }, extra_headers={"x-cron-secret": GK_CRON_SECRET})
+    if response.get("ok") is not True:
+        raise RuntimeError("Shared opportunity publication failed")
+
+
 def precompute_shared_compare(expand_response, resume_job_id=""):
     submission_task_id = None
     if not ENABLE_COMPARE_PRECOMPUTE:
@@ -613,6 +649,8 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
     selected = build_recommended_selection(expand_response)
     if not selected:
         print("⚠️  No recommended keywords for compare precompute", file=sys.stderr)
+        publish_shared_opportunities(expand_response, {"results": []}, [])
+        save_state(stage="complete", compareCompletedAt=utc_now_iso())
         return None
 
     print(
@@ -648,6 +686,7 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
             raise
 
     if submit.get("status") == "complete":
+        publish_shared_opportunities(expand_response, submit, selected)
         succeed_pipeline_task(
             submission_task_id,
             status="skipped",
@@ -697,6 +736,7 @@ def precompute_shared_compare(expand_response, resume_job_id=""):
         )
         state = status.get("status")
         if state == "complete":
+            publish_shared_opportunities(expand_response, status, selected)
             print(f"✅ Shared compare complete: {len(status.get('results') or [])} results", file=sys.stderr)
             save_state(
                 stage="compare_complete",
