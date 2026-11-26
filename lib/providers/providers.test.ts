@@ -177,6 +177,8 @@ describe("pure provider response parsers", () => {
             data: [
               { date_from: "2026-07-01T00:00:00Z", values: [20, 10] },
               { date: "2026-07-08", values: [30, 15] },
+              { date: "2026-07-09", values: [null, null] },
+              { date: "2026-07-10", missing_data: true, values: [60, 20] },
             ],
           }],
         }],
@@ -191,6 +193,19 @@ describe("pure provider response parsers", () => {
       { date: "2026-07-01", value: 10 },
       { date: "2026-07-08", value: 15 },
     ]);
+  });
+
+  test("keeps real zero monthly volumes and distinguishes missing KD", () => {
+    const items = parseKeywordSuggestionsResponse({ tasks: [{ result: [{ items: [{
+      keyword: "widget", keyword_info: { monthly_searches: [
+        { year: 2026, month: 7, search_volume: 0 },
+        { year: 2026, month: 6, search_volume: 120 },
+        { year: 2026, month: 8, search_volume: null },
+      ] },
+    }] }] }] });
+    expect(items[0]).toMatchObject({ kdMissing: true, monthlySearches: [
+      { month: "2026-06", searches: 120 }, { month: "2026-07", searches: 0 },
+    ] });
   });
 
   test("normalizes common chat response shapes and strict JSON blocks", () => {

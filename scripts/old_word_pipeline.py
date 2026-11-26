@@ -127,6 +127,8 @@ def is_noise(keyword: str) -> bool:
 
 def has_low_confidence_kd(item: dict) -> bool:
     """Treat suspicious KD=0 rows as unknown, not as a free opportunity."""
+    if item.get("kdMissing") or item.get("kd") is None:
+        return True
     kd = int(item.get("kd") or 0)
     volume = int(item.get("volume") or 0)
     competition = str(item.get("competition") or "").upper()
@@ -163,7 +165,10 @@ def curl_json(method, path, body=None, timeout=30):
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"curl exit {result.returncode}")
     try:
-        return json.loads(result.stdout)
+        payload = json.loads(result.stdout)
+        if not isinstance(payload, dict) or payload.get("error"):
+            raise RuntimeError(f"{path} returned an error response")
+        return payload
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"JSON parse error: {exc}") from exc
 
@@ -187,7 +192,10 @@ def main():
     trends_quick_calls = 0
 
     for idx, seed in enumerate(seeds, start=1):
-        query = seed if seed.lower().startswith("ai ") else f"ai {seed}"
+        # Rotate a fifth of the existing request budget into unprefixed task
+        # seeds. Retain the same per-run cap and replay the same mix on retry.
+        plain_seed = (idx + datetime.fromisoformat(date).date().toordinal()) % 5 == 0
+        query = seed if plain_seed or seed.lower().startswith("ai ") or seed.lower() == "ai" else f"ai {seed}"
         print(f"[{idx}/{len(seeds)}] {query}", end=" ", file=sys.stderr)
         task_id = start_pipeline_task(
             stage="old-word.seed",
@@ -294,11 +302,12 @@ def main():
                 series = resp.get("series", [])
                 bm_series = resp.get("benchmarkSeries", [])
                 # Merge into single structure for frontend
-                if series:
+                if series and any(isinstance(p, dict) and isinstance(p.get("value"), (int, float)) and p["value"] > 0 for p in series):
                     merged = {"keyword": series, "benchmark": bm_series}
                     item["trend_series"] = json.dumps(merged)
                 else:
                     item["trend_series"] = None
+                    raise ValueError("No measurable keyword trend points")
                 succeed_pipeline_task(
                     task_id,
                     result={"points": len(series), "benchmark_points": len(bm_series)},
@@ -326,8 +335,10 @@ def main():
     if filtered:
         try:
             resp = curl_json("POST", "/api/admin/old-keywords",
-                           {"keywords": filtered}, timeout=60)
+                           {"keywords": filtered, "scanDate": date}, timeout=60)
             saved_count = int(resp.get('saved', 0) or 0)
+            if saved_count != len(filtered):
+                raise RuntimeError(f"Only {saved_count} of {len(filtered)} old keywords saved")
             succeed_pipeline_task(
                 finalize_task_id,
                 result={"saved": saved_count, "submitted": len(filtered)},
@@ -341,6 +352,7 @@ def main():
                 metadata={"date": date, "submitted": len(filtered)},
             )
             print(f"  ⚠️ Save failed: {e}", file=sys.stderr)
+            raise
     else:
         succeed_pipeline_task(
             finalize_task_id,

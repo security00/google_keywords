@@ -94,7 +94,7 @@ describe("listKeywordOpportunities", () => {
             kd: 18,
             competition: "medium",
             intent: "Template demand",
-            score: 88,
+            verified_score: 88, serp_organic: 8,
             scan_date: "2026-07-01",
           },
         ],
@@ -196,7 +196,7 @@ describe("listKeywordOpportunities", () => {
             kd: 18,
             competition: "medium",
             intent: "Template demand",
-            score: 88,
+            score: 223744, verified_score: null,
             scan_date: "2026-07-01",
           },
         ],
@@ -210,6 +210,7 @@ describe("listKeywordOpportunities", () => {
     expect(result.total).toBe(1);
     expect(result.items).toHaveLength(1);
     expect(result.items[0].keyword).toBe("pricing calculator template");
+    expect(result.items[0]).toMatchObject({ opportunityScore: null, status: "watch" });
   });
 
   test("ignores optional source tables that are missing in local D1", async () => {
