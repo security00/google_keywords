@@ -51,11 +51,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^16.4.6",
+    "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "5.1.2",
-    "wrangler": "^4.168.0"
+    "wrangler": "^4.168.0",
+    "eslint-plugin-react-hooks": "7.0.1"
   },
   "overrides": {
     "brace-expansion": "5.1.0",
